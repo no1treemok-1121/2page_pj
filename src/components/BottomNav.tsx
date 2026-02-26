@@ -18,8 +18,8 @@ const BottomNav = ({ onWriteClick }: BottomNavProps) => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card">
-      <div className="mobile-container flex items-end justify-around px-2 pb-[env(safe-area-inset-bottom)] pt-1">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background">
+      <div className="mobile-container border-t border-border bg-card flex items-end justify-around px-2 pb-[env(safe-area-inset-bottom)] pt-1">
         {items.map((item, i) => {
           if (i === 2) {
             // Write button (center, elevated)
