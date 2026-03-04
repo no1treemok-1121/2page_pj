@@ -1,34 +1,35 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import NotRegisteredModal from "@/components/NotRegisteredModal";
+import { ArrowLeft } from "lucide-react";
+import SignupProgress from "@/components/SignupProgress";
 
-const Index = () => {
+const SignupAuth = () => {
   const navigate = useNavigate();
-  const [showNotRegistered, setShowNotRegistered] = useState(false);
-
-  const handleSocialLogin = () => {
-    // Simulate: no account found → show modal
-    setShowNotRegistered(true);
-  };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="mobile-container w-full px-8 animate-fade-in">
-        <div className="flex flex-col items-center">
-          {/* Logo */}
-          <h1 className="font-logo text-[52px] font-light tracking-tight text-foreground">
-            이면
-          </h1>
-          <p className="mt-2 text-[11px] text-[hsl(30,12%,62%)] tracking-widest">
-            裏面 · 이쪽의 공간
+    <div className="min-h-screen bg-background">
+      <div className="mobile-container">
+        <button
+          onClick={() => navigate("/signup/code")}
+          className="p-4 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft size={22} />
+        </button>
+
+        <SignupProgress current={2} total={3} />
+
+        <div className="px-6 pt-4">
+          <h2 className="text-xl font-semibold text-foreground">
+            소셜 계정으로 계속하기
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            이면에서 사용할 계정을 선택해주세요.
           </p>
 
-          {/* Auth Buttons */}
-          <div className="mt-11 w-full max-w-[320px] space-y-3">
+          <div className="mt-8 space-y-3">
             {/* Kakao */}
             <button
               className="flex w-full items-center justify-center gap-2 rounded-button bg-kakao px-4 py-3.5 text-[15px] font-medium text-[hsl(0,30%,16%)] transition-opacity hover:opacity-90"
-              onClick={handleSocialLogin}
+              onClick={() => navigate("/signup/profile")}
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path
@@ -44,7 +45,7 @@ const Index = () => {
             {/* Google */}
             <button
               className="flex w-full items-center justify-center gap-2 rounded-button border border-border bg-card px-4 py-3.5 text-[15px] font-medium text-foreground transition-colors hover:bg-muted"
-              onClick={handleSocialLogin}
+              onClick={() => navigate("/signup/profile")}
             >
               <svg width="18" height="18" viewBox="0 0 18 18">
                 <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
@@ -55,34 +56,10 @@ const Index = () => {
               Google로 계속하기
             </button>
           </div>
-
-          {/* Divider */}
-          <div className="mt-8 flex w-full max-w-[320px] items-center gap-3">
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground">초대코드가 있으신가요?</span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
-
-          {/* Sign up */}
-          <button
-            className="mt-4 w-full max-w-[320px] rounded-button border border-primary px-4 py-3.5 text-[15px] font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
-            onClick={() => navigate("/signup/code")}
-          >
-            회원가입하기
-          </button>
         </div>
       </div>
-
-      <NotRegisteredModal
-        isOpen={showNotRegistered}
-        onClose={() => setShowNotRegistered(false)}
-        onSignup={() => {
-          setShowNotRegistered(false);
-          navigate("/signup/code");
-        }}
-      />
     </div>
   );
 };
 
-export default Index;
+export default SignupAuth;
