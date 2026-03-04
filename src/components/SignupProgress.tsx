@@ -6,13 +6,14 @@ interface SignupProgressProps {
 const SignupProgress = ({ current, total }: SignupProgressProps) => {
   return (
     <div className="flex items-center justify-between px-4 py-4">
-      <div className="flex gap-2">
+      <div className="flex" style={{ gap: '8px' }}>
         {Array.from({ length: total }).map((_, i) => (
           <div
             key={i}
-            className={`h-2 w-2 rounded-full ${
+            className={`rounded-full ${
               i < current ? "bg-primary" : "bg-border"
             }`}
+            style={{ width: '8px', height: '8px' }}
           />
         ))}
       </div>
