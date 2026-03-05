@@ -8,15 +8,17 @@ const CATEGORIES = ["전체", "일상", "연애·관계", "모임·만남"];
 
 const DUMMY_POSTS = [
   {
+    id: "1",
     category: "연애·관계",
     nickname: "달빛고양이",
     date: "3월 4일 14:32",
     content: "오늘 데이트 끝나고 찍은 사진... 행복한데 왜 눈물이 나지",
     likes: 24,
-    comments: 8,
+    comments: 2,
     isLocked: false,
   },
   {
+    id: "2",
     category: "일상",
     nickname: "새벽안개",
     date: "3월 4일 09:17",
@@ -26,6 +28,7 @@ const DUMMY_POSTS = [
     isLocked: false,
   },
   {
+    id: "3",
     category: "모임·만남",
     nickname: "봄비소나기",
     date: "3월 4일 11:02",
