@@ -12,22 +12,23 @@ const Index = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="flex min-h-screen items-center justify-center" style={{ background: '#F5F3EF' }}>
       <div className="mobile-container w-full px-8 animate-fade-in">
         <div className="flex flex-col items-center">
           {/* Logo */}
-          <h1 className="font-logo text-[52px] font-light tracking-tight text-foreground">
+          <h1 className="font-serif" style={{ fontSize: '52px', fontWeight: 300, color: '#1C1917' }}>
             이면
           </h1>
-          <p className="mt-2 text-[11px] text-[hsl(30,12%,62%)] tracking-widest">
+          <p className="mt-2" style={{ fontSize: '11px', color: '#A89F96', letterSpacing: '0.1em' }}>
             裏面 · 이쪽의 공간
           </p>
 
           {/* Auth Buttons */}
-          <div className="mt-11 w-full max-w-[320px] space-y-3">
+          <div className="w-full max-w-[320px]" style={{ marginTop: '44px' }}>
             {/* Kakao */}
             <button
-              className="flex w-full items-center justify-center gap-2 rounded-button bg-kakao px-4 py-3.5 text-[15px] font-medium text-[hsl(0,30%,16%)] transition-opacity hover:opacity-90"
+              className="flex w-full items-center justify-center gap-2 text-[15px] font-medium transition-opacity hover:opacity-90"
+              style={{ background: '#FEE500', color: '#391B1B', borderRadius: '10px', height: '48px' }}
               onClick={handleSocialLogin}
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
@@ -43,7 +44,8 @@ const Index = () => {
 
             {/* Google */}
             <button
-              className="flex w-full items-center justify-center gap-2 rounded-button border border-border bg-card px-4 py-3.5 text-[15px] font-medium text-foreground transition-colors hover:bg-muted"
+              className="flex w-full items-center justify-center gap-2 text-[15px] font-medium transition-colors hover:bg-muted"
+              style={{ background: '#FFFFFF', border: '1px solid #E4E0D9', borderRadius: '10px', height: '48px', marginTop: '8px', color: '#1C1917' }}
               onClick={handleSocialLogin}
             >
               <svg width="18" height="18" viewBox="0 0 18 18">
@@ -58,14 +60,15 @@ const Index = () => {
 
           {/* Divider */}
           <div className="mt-8 flex w-full max-w-[320px] items-center gap-3">
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground">초대코드가 있으신가요?</span>
-            <div className="h-px flex-1 bg-border" />
+            <div className="h-px flex-1" style={{ background: '#E4E0D9' }} />
+            <span style={{ fontSize: '10px', color: '#A89F96' }}>초대코드가 있으신가요?</span>
+            <div className="h-px flex-1" style={{ background: '#E4E0D9' }} />
           </div>
 
           {/* Sign up */}
           <button
-            className="mt-4 w-full max-w-[320px] rounded-button border border-primary px-4 py-3.5 text-[15px] font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+            className="mt-4 w-full max-w-[320px] text-[15px] font-medium transition-colors hover:opacity-80"
+            style={{ background: 'transparent', border: '1px solid #7B5EA7', color: '#7B5EA7', borderRadius: '10px', height: '48px' }}
             onClick={() => navigate("/signup/code")}
           >
             회원가입하기
