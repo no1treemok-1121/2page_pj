@@ -1,5 +1,15 @@
 import { useState } from "react";
 import { X, Camera, ChevronDown } from "lucide-react";
+import { containsBannedWord } from "@/constants/bannedWords";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface WriteModalProps {
   isOpen: boolean;
@@ -13,10 +23,20 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedTime, setSelectedTime] = useState("24h");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showBannedAlert, setShowBannedAlert] = useState(false);
 
   if (!isOpen) return null;
 
   const canSubmit = selectedCategory !== "" && content.trim().length > 0;
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    if (containsBannedWord(content)) {
+      setShowBannedAlert(true);
+      return;
+    }
+    // TODO: 실제 등록 로직
+  };
 
   return (
     <div className="fixed inset-0 z-[100] bg-background animate-slide-up">
@@ -28,6 +48,7 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
           </button>
           <h2 className="text-base font-semibold text-foreground">글 올리기</h2>
           <button
+            onClick={handleSubmit}
             disabled={!canSubmit}
             className={`rounded-button px-4 py-1.5 text-sm font-medium transition-colors ${
               canSubmit
@@ -115,6 +136,23 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
           <span className="text-xs text-muted-foreground">{content.length}/500</span>
         </div>
       </div>
+
+      {/* Banned Word Alert */}
+      <AlertDialog open={showBannedAlert} onOpenChange={setShowBannedAlert}>
+        <AlertDialogContent className="max-w-[320px] rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-center text-base">알림</AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-sm">
+              사용할 수 없는 단어가 포함되어 있습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogAction className="bg-primary text-primary-foreground">
+              확인
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

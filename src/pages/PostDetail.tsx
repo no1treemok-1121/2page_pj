@@ -1,6 +1,16 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, MoreVertical, Heart, MessageCircle, Send, Camera, Lock } from "lucide-react";
+import { containsBannedWord } from "@/constants/bannedWords";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +55,7 @@ const PostDetail = () => {
   const [likeCount, setLikeCount] = useState(DUMMY_POST.likes);
   const [commentText, setCommentText] = useState("");
   const [comments, setComments] = useState(DUMMY_COMMENTS);
+  const [showBannedAlert, setShowBannedAlert] = useState(false);
 
   const handleLike = () => {
     setLiked((prev) => !prev);
@@ -53,6 +64,10 @@ const PostDetail = () => {
 
   const handleSendComment = () => {
     if (!commentText.trim()) return;
+    if (containsBannedWord(commentText)) {
+      setShowBannedAlert(true);
+      return;
+    }
     setComments((prev) => [
       ...prev,
       {
@@ -232,6 +247,23 @@ const PostDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Banned Word Alert */}
+      <AlertDialog open={showBannedAlert} onOpenChange={setShowBannedAlert}>
+        <AlertDialogContent className="max-w-[320px] rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-center text-base">알림</AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-sm">
+              사용할 수 없는 단어가 포함되어 있습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center">
+            <AlertDialogAction className="bg-primary text-primary-foreground">
+              확인
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
