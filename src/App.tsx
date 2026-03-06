@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import SignupCode from "./pages/SignupCode";
 import SignupAuth from "./pages/SignupAuth";
 import SignupProfile from "./pages/SignupProfile";
+import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/home" element={<Home />} />
           <Route path="/post/:id" element={<PostDetail />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/signup/code" element={<SignupCode />} />
           <Route path="/signup/auth" element={<SignupAuth />} />
           <Route path="/signup/profile" element={<SignupProfile />} />
