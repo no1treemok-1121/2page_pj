@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Bell } from "lucide-react";
 import FeedCard from "@/components/FeedCard";
 import BottomNav from "@/components/BottomNav";
 import WriteModal from "@/components/WriteModal";
@@ -39,7 +38,7 @@ const DUMMY_POSTS = [
   },
 ];
 
-const Home = () => {
+const Category = () => {
   const [activeCategory, setActiveCategory] = useState("전체");
   const [isWriteOpen, setIsWriteOpen] = useState(false);
 
@@ -52,11 +51,8 @@ const Home = () => {
     <div className="min-h-screen bg-background pb-20">
       <div className="mobile-container">
         {/* Header */}
-        <header className="flex items-center justify-between px-4 py-3">
-          <h1 className="font-logo text-2xl font-light text-foreground">이면</h1>
-          <button className="p-2 text-muted-foreground hover:text-foreground transition-colors">
-            <Bell size={22} />
-          </button>
+        <header className="flex items-center px-4 py-3">
+          <h1 className="font-serif text-xl font-light text-foreground">카테고리</h1>
         </header>
 
         {/* Category Tabs */}
@@ -67,9 +63,10 @@ const Home = () => {
               onClick={() => setActiveCategory(cat)}
               className={`pill whitespace-nowrap px-4 py-2 text-sm font-medium transition-colors ${
                 activeCategory === cat
-                  ? "bg-primary text-primary-foreground"
+                  ? "text-primary-foreground"
                   : "bg-card border border-border text-muted-foreground"
               }`}
+              style={activeCategory === cat ? { background: "#7B5EA7", color: "#fff" } : undefined}
             >
               {cat}
             </button>
@@ -98,4 +95,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+export default Category;

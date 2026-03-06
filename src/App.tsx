@@ -15,6 +15,7 @@ import Settings from "./pages/Settings";
 import SettingsNickname from "./pages/SettingsNickname";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import Category from "./pages/Category";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/home" element={<Home />} />
           <Route path="/post/:id" element={<PostDetail />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/category" element={<Category />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/settings/nickname" element={<SettingsNickname />} />
