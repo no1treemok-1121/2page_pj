@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Lock, Ban, Clock } from "lucide-react";
+import { Heart, MessageCircle, Lock, Ban, Clock, ChevronRight } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import WriteModal from "@/components/WriteModal";
 import { toast } from "sonner";
@@ -71,6 +71,8 @@ const typeConfig = {
 
 const DELETED_POST_IDS: string[] = [];
 
+const hasNavigation = (type: Notification["type"]) => true;
+
 const Notifications = () => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
@@ -109,7 +111,8 @@ const Notifications = () => {
           <h1 className="font-serif text-xl font-light text-foreground">알림</h1>
           <button
             onClick={handleMarkAllRead}
-            className="text-xs font-medium text-primary"
+            className="text-[14px] font-medium"
+            style={{ color: "#7B5EA7" }}
           >
             모두 읽음
           </button>
@@ -122,32 +125,62 @@ const Notifications = () => {
           </div>
         ) : (
           <div>
-            {notifications.map((n) => {
+            {notifications.map((n, idx) => {
               const cfg = typeConfig[n.type];
               const Icon = cfg.icon;
               return (
                 <button
                   key={n.id}
                   onClick={() => handleNotificationClick(n)}
-                  className="relative flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:opacity-90"
-                  style={{ background: n.isRead ? "#FFFFFF" : "#FAF8F5" }}
+                  className="flex w-full items-center text-left transition-colors hover:opacity-90"
+                  style={{
+                    padding: "16px",
+                    background: n.isRead ? "#FFFFFF" : "#FAF8F5",
+                    borderBottom: idx < notifications.length - 1 ? "1px solid #F0EDE8" : "none",
+                  }}
                 >
-                  {!n.isRead && (
+                  {/* Icon + unread dot */}
+                  <div className="relative flex-shrink-0" style={{ marginRight: "12px" }}>
+                    {!n.isRead && (
+                      <div
+                        className="absolute rounded-full"
+                        style={{
+                          width: 8,
+                          height: 8,
+                          background: "#7B5EA7",
+                          top: -2,
+                          left: -2,
+                          zIndex: 1,
+                        }}
+                      />
+                    )}
                     <div
-                      className="absolute left-1.5 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full"
-                      style={{ background: "#7B5EA7" }}
-                    />
-                  )}
-                  <div
-                    className="flex-shrink-0 flex items-center justify-center rounded-full"
-                    style={{ width: 36, height: 36, background: cfg.bg }}
-                  >
-                    <Icon size={18} style={{ color: cfg.color }} />
+                      className="flex items-center justify-center rounded-full"
+                      style={{ width: 40, height: 40, background: cfg.bg }}
+                    >
+                      <Icon size={20} style={{ color: cfg.color }} />
+                    </div>
                   </div>
+
+                  {/* Text area */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm" style={{ color: "#333333" }}>{n.text}</p>
-                    <p className="text-[11px] mt-0.5 text-muted-foreground">{n.relativeTime}</p>
+                    <p
+                      className="leading-snug"
+                      style={{ fontSize: "14px", color: "#333333", fontWeight: 500 }}
+                    >
+                      {n.text}
+                    </p>
+                    <p style={{ fontSize: "12px", color: "#9E9E9E", marginTop: "4px" }}>
+                      {n.relativeTime}
+                    </p>
                   </div>
+
+                  {/* Chevron */}
+                  {hasNavigation(n.type) && (
+                    <div className="flex-shrink-0 ml-2">
+                      <ChevronRight size={16} style={{ color: "#C4BFB6" }} />
+                    </div>
+                  )}
                 </button>
               );
             })}
