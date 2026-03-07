@@ -2,15 +2,8 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, MoreVertical, Heart, MessageCircle, Send, Camera, Lock } from "lucide-react";
 import { containsBannedWord } from "@/constants/bannedWords";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AppAlert, AppConfirm } from "@/components/AppAlert";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,7 +48,17 @@ const PostDetail = () => {
   const [likeCount, setLikeCount] = useState(DUMMY_POST.likes);
   const [commentText, setCommentText] = useState("");
   const [comments, setComments] = useState(DUMMY_COMMENTS);
-  const [showBannedAlert, setShowBannedAlert] = useState(false);
+
+  // Alert states
+  const [alertMsg, setAlertMsg] = useState("");
+  const [showAlert, setShowAlert] = useState(false);
+
+  // Confirm states
+  const [confirmMsg, setConfirmMsg] = useState("");
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<() => void>(() => {});
+  const [confirmLabel, setConfirmLabel] = useState("삭제");
+  const [confirmColor, setConfirmColor] = useState<"danger" | "primary">("danger");
 
   const handleLike = () => {
     setLiked((prev) => !prev);
@@ -65,7 +68,8 @@ const PostDetail = () => {
   const handleSendComment = () => {
     if (!commentText.trim()) return;
     if (containsBannedWord(commentText)) {
-      setShowBannedAlert(true);
+      setAlertMsg("사용할 수 없는 단어가 포함되어 있습니다.");
+      setShowAlert(true);
       return;
     }
     setComments((prev) => [
@@ -80,6 +84,32 @@ const PostDetail = () => {
       },
     ]);
     setCommentText("");
+    toast("댓글이 등록되었습니다.");
+  };
+
+  const handleDeletePost = () => {
+    setConfirmMsg("이 글을 삭제하시겠습니까?");
+    setConfirmLabel("삭제");
+    setConfirmColor("danger");
+    setConfirmAction(() => () => {
+      // TODO: actual delete
+      navigate("/home");
+    });
+    setShowConfirm(true);
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    setConfirmMsg("댓글을 삭제하시겠습니까?");
+    setConfirmLabel("삭제");
+    setConfirmColor("danger");
+    setConfirmAction(() => () => {
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    });
+    setShowConfirm(true);
+  };
+
+  const handleReport = () => {
+    toast("신고가 접수되었습니다.");
   };
 
   return (
@@ -101,11 +131,17 @@ const PostDetail = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[120px]">
               {DUMMY_POST.isMine ? (
-                <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer">
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                  onClick={handleDeletePost}
+                >
                   삭제하기
                 </DropdownMenuItem>
               ) : (
-                <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer">
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                  onClick={handleReport}
+                >
                   신고하기
                 </DropdownMenuItem>
               )}
@@ -115,7 +151,6 @@ const PostDetail = () => {
 
         {/* Post Body */}
         <div className="px-4 pb-4">
-          {/* Category badge */}
           <span
             className="inline-block rounded-full px-3 py-1 text-xs font-medium"
             style={{ color: "#7B5EA7", background: "#EDE8F5" }}
@@ -123,18 +158,15 @@ const PostDetail = () => {
             {DUMMY_POST.category}
           </span>
 
-          {/* Author & date */}
           <div className="flex items-center justify-between mt-3">
             <span className="text-sm font-medium text-foreground">{DUMMY_POST.nickname}</span>
             <span className="text-xs text-muted-foreground">{DUMMY_POST.date}</span>
           </div>
 
-          {/* Content */}
           <p className="mt-4 text-[15px] leading-relaxed text-foreground whitespace-pre-wrap">
             {DUMMY_POST.content}
           </p>
 
-          {/* Like & Comment counts */}
           <div className="mt-5 flex items-center gap-4">
             <button
               onClick={handleLike}
@@ -155,7 +187,6 @@ const PostDetail = () => {
           </div>
         </div>
 
-        {/* Divider */}
         <div className="h-px bg-border mx-4" />
 
         {/* Comments */}
@@ -186,11 +217,17 @@ const PostDetail = () => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="min-w-[100px]">
                       {comment.isMine ? (
-                        <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer">
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive cursor-pointer"
+                          onClick={() => handleDeleteComment(comment.id)}
+                        >
                           삭제하기
                         </DropdownMenuItem>
                       ) : (
-                        <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer">
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive cursor-pointer"
+                          onClick={handleReport}
+                        >
                           신고하기
                         </DropdownMenuItem>
                       )}
@@ -207,22 +244,14 @@ const PostDetail = () => {
       {/* Fixed Comment Input */}
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-20">
         <div className="mobile-container">
-          {/* Remaining comments notice */}
           <div className="px-4 pt-2">
             <p className="text-[11px] text-muted-foreground">오늘 남은 댓글 3개</p>
           </div>
           <div className="flex items-center gap-2 px-4 py-2 pb-[env(safe-area-inset-bottom,8px)]">
-            {/* Camera / premium */}
             <button className="relative p-2 text-muted-foreground hover:text-foreground transition-colors">
               <Camera size={20} />
-              <Lock
-                size={8}
-                className="absolute -top-0.5 -right-0.5"
-                style={{ color: "#7B5EA7" }}
-              />
+              <Lock size={8} className="absolute -top-0.5 -right-0.5" style={{ color: "#7B5EA7" }} />
             </button>
-
-            {/* Input */}
             <div className="flex-1 relative">
               <input
                 type="text"
@@ -234,8 +263,6 @@ const PostDetail = () => {
                 style={{ borderRadius: "20px" }}
               />
             </div>
-
-            {/* Send */}
             <button
               onClick={handleSendComment}
               disabled={!commentText.trim()}
@@ -248,22 +275,15 @@ const PostDetail = () => {
         </div>
       </div>
 
-      {/* Banned Word Alert */}
-      <AlertDialog open={showBannedAlert} onOpenChange={setShowBannedAlert}>
-        <AlertDialogContent className="max-w-[320px] rounded-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-center text-base">알림</AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-sm">
-              사용할 수 없는 단어가 포함되어 있습니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="sm:justify-center">
-            <AlertDialogAction className="bg-primary text-primary-foreground">
-              확인
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AppAlert open={showAlert} onOpenChange={setShowAlert} message={alertMsg} />
+      <AppConfirm
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        message={confirmMsg}
+        confirmLabel={confirmLabel}
+        confirmColor={confirmColor}
+        onConfirm={confirmAction}
+      />
     </div>
   );
 };

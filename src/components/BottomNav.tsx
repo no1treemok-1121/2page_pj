@@ -22,12 +22,12 @@ const BottomNav = ({ onWriteClick }: BottomNavProps) => {
       <div className="mobile-container border-t border-border bg-card flex items-end justify-around px-2 pb-[env(safe-area-inset-bottom)] pt-1">
         {items.map((item, i) => {
           if (i === 2) {
-            // Write button (center, elevated)
             return (
               <button
                 key="write"
                 onClick={onWriteClick}
-                className="gnb-write-btn -mt-5 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 active:scale-95"
+                className="gnb-write-btn -mt-5 flex items-center justify-center rounded-full text-white transition-transform hover:scale-105 active:scale-95"
+                style={{ width: 56, height: 56, background: "#7B5EA7" }}
               >
                 <Plus size={28} strokeWidth={2.5} />
               </button>
