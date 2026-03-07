@@ -3,6 +3,7 @@ import { Bell } from "lucide-react";
 import FeedCard from "@/components/FeedCard";
 import BottomNav from "@/components/BottomNav";
 import WriteModal from "@/components/WriteModal";
+import WritePromptCard from "@/components/WritePromptCard";
 
 const CATEGORIES = ["전체", "일상", "연애·관계", "모임·만남"];
 
@@ -16,6 +17,8 @@ const DUMMY_POSTS = [
     likes: 24,
     comments: 2,
     isLocked: false,
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2h ago
+    durationHours: 24,
   },
   {
     id: "2",
@@ -26,6 +29,8 @@ const DUMMY_POSTS = [
     likes: 4,
     comments: 2,
     isLocked: false,
+    createdAt: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(), // 20h ago
+    durationHours: 24,
   },
   {
     id: "3",
@@ -36,6 +41,8 @@ const DUMMY_POSTS = [
     likes: 6,
     comments: 3,
     isLocked: true,
+    createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(),
+    durationHours: 24,
   },
 ];
 
@@ -74,6 +81,11 @@ const Home = () => {
               {cat}
             </button>
           ))}
+        </div>
+
+        {/* Write Prompt Card */}
+        <div className="px-4 pt-3">
+          <WritePromptCard onOpen={() => setIsWriteOpen(true)} />
         </div>
 
         {/* Feed */}
