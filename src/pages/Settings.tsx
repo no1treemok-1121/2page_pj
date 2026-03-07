@@ -1,16 +1,8 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
+import { AppConfirm } from "@/components/AppAlert";
+import { toast } from "sonner";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -67,48 +59,28 @@ const Settings = () => {
         </div>
       </div>
 
-      {/* Logout Modal */}
-      <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
-        <AlertDialogContent className="max-w-[320px] rounded-[16px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-center text-lg">로그아웃 하시겠어요?</AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-sm text-muted-foreground">
-              다시 로그인할 수 있어요.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row gap-2 sm:flex-row">
-            <AlertDialogCancel className="mt-0 flex-1 rounded-xl">취소</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => navigate("/")}
-              className="flex-1 rounded-xl"
-              style={{ background: "#7B5EA7" }}
-            >
-              로그아웃
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AppConfirm
+        open={logoutOpen}
+        onOpenChange={setLogoutOpen}
+        message="로그아웃하시겠습니까?"
+        confirmLabel="확인"
+        confirmColor="primary"
+        onConfirm={() => {
+          toast("로그아웃되었습니다.");
+          navigate("/");
+        }}
+      />
 
-      {/* Withdraw Modal */}
-      <AlertDialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
-        <AlertDialogContent className="max-w-[320px] rounded-[16px]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-center text-lg">정말 탈퇴하시겠어요?</AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-sm text-muted-foreground">
-              모든 데이터가 삭제됩니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row gap-2 sm:flex-row">
-            <AlertDialogCancel className="mt-0 flex-1 rounded-xl">취소</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => navigate("/")}
-              className="flex-1 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              탈퇴하기
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AppConfirm
+        open={withdrawOpen}
+        onOpenChange={setWithdrawOpen}
+        message="탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다. 정말 탈퇴하시겠습니까?"
+        confirmLabel="탈퇴"
+        confirmColor="danger"
+        onConfirm={() => {
+          navigate("/");
+        }}
+      />
     </div>
   );
 };

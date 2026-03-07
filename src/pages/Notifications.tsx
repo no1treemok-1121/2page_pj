@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, Lock, Ban, Clock } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import WriteModal from "@/components/WriteModal";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface Notification {
   id: string;
@@ -69,7 +69,6 @@ const typeConfig = {
   blind: { icon: Ban, bg: "hsl(350 100% 95%)", color: "hsl(350 80% 50%)" },
 };
 
-// 삭제된 게시글 ID 시뮬레이션 (추후 실제 데이터 연동)
 const DELETED_POST_IDS: string[] = [];
 
 const Notifications = () => {
@@ -79,19 +78,17 @@ const Notifications = () => {
 
   const handleMarkAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    toast({ title: "모든 알림을 읽었습니다." });
+    toast("모든 알림을 읽었습니다.");
   };
 
   const handleNotificationClick = (notification: Notification) => {
-    // 읽음 처리
     setNotifications((prev) =>
       prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
     );
 
-    // 이동 로직
     if (notification.type === "comment" || notification.type === "like") {
       if (notification.postId && DELETED_POST_IDS.includes(notification.postId)) {
-        toast({ title: "삭제된 글입니다." });
+        toast("삭제된 글입니다.");
         return;
       }
       if (notification.postId) {
@@ -101,7 +98,6 @@ const Notifications = () => {
         navigate(path);
       }
     } else {
-      // lock_warning, locked, blind → /profile
       navigate("/profile");
     }
   };
@@ -109,7 +105,6 @@ const Notifications = () => {
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="mobile-container">
-        {/* Header */}
         <header className="flex items-center justify-between px-4 py-3">
           <h1 className="font-serif text-xl font-light text-foreground">알림</h1>
           <button
@@ -120,7 +115,6 @@ const Notifications = () => {
           </button>
         </header>
 
-        {/* List */}
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <span className="text-3xl mb-2">🔔</span>
@@ -138,23 +132,18 @@ const Notifications = () => {
                   className="relative flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:opacity-90"
                   style={{ background: n.isRead ? "#FFFFFF" : "#FAF8F5" }}
                 >
-                  {/* Unread indicator dot */}
                   {!n.isRead && (
                     <div
                       className="absolute left-1.5 top-1/2 -translate-y-1/2 h-2 w-2 rounded-full"
-                      style={{ background: "hsl(var(--primary))" }}
+                      style={{ background: "#7B5EA7" }}
                     />
                   )}
-
-                  {/* Icon */}
                   <div
                     className="flex-shrink-0 flex items-center justify-center rounded-full"
                     style={{ width: 36, height: 36, background: cfg.bg }}
                   >
                     <Icon size={18} style={{ color: cfg.color }} />
                   </div>
-
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm" style={{ color: "#333333" }}>{n.text}</p>
                     <p className="text-[11px] mt-0.5 text-muted-foreground">{n.relativeTime}</p>

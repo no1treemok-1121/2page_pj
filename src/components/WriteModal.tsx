@@ -1,15 +1,8 @@
 import { useState } from "react";
 import { X, Camera, ChevronDown } from "lucide-react";
 import { containsBannedWord } from "@/constants/bannedWords";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AppAlert } from "@/components/AppAlert";
+import { toast } from "sonner";
 
 interface WriteModalProps {
   isOpen: boolean;
@@ -23,19 +16,35 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedTime, setSelectedTime] = useState("24h");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [showBannedAlert, setShowBannedAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [showAlert, setShowAlert] = useState(false);
 
   if (!isOpen) return null;
 
   const canSubmit = selectedCategory !== "" && content.trim().length > 0;
 
   const handleSubmit = () => {
-    if (!canSubmit) return;
-    if (containsBannedWord(content)) {
-      setShowBannedAlert(true);
+    if (!content.trim()) {
+      setAlertMessage("내용을 입력해 주세요.");
+      setShowAlert(true);
       return;
     }
+    if (content.length > 500) {
+      setAlertMessage("최대 500자까지 입력 가능합니다.");
+      setShowAlert(true);
+      return;
+    }
+    if (containsBannedWord(content)) {
+      setAlertMessage("사용할 수 없는 단어가 포함되어 있습니다.");
+      setShowAlert(true);
+      return;
+    }
+    if (!canSubmit) return;
     // TODO: 실제 등록 로직
+    toast("등록되었습니다.");
+    setContent("");
+    setSelectedCategory("");
+    onClose();
   };
 
   return (
@@ -137,22 +146,11 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
         </div>
       </div>
 
-      {/* Banned Word Alert */}
-      <AlertDialog open={showBannedAlert} onOpenChange={setShowBannedAlert}>
-        <AlertDialogContent className="max-w-[320px] rounded-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-center text-base">알림</AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-sm">
-              사용할 수 없는 단어가 포함되어 있습니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="sm:justify-center">
-            <AlertDialogAction className="bg-primary text-primary-foreground">
-              확인
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AppAlert
+        open={showAlert}
+        onOpenChange={setShowAlert}
+        message={alertMessage}
+      />
     </div>
   );
 };
