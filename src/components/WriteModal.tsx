@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { X, Camera, ChevronDown } from "lucide-react";
+import { X, Camera, ChevronDown, Lock } from "lucide-react";
 import { containsBannedWord } from "@/constants/bannedWords";
-import { AppAlert } from "@/components/AppAlert";
+import { AppAlert, AppConfirm } from "@/components/AppAlert";
 import { toast } from "sonner";
 
 interface WriteModalProps {
@@ -18,14 +18,19 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [alertMessage, setAlertMessage] = useState("");
   const [showAlert, setShowAlert] = useState(false);
+  const [showPaidConfirm, setShowPaidConfirm] = useState(false);
+  const [pendingTime, setPendingTime] = useState("");
 
   if (!isOpen) return null;
 
-  const canSubmit = selectedCategory !== "" && content.trim().length > 0;
+  const hasContent = content.trim().length > 0;
+  const canSubmit = hasContent;
 
   const handleSubmit = () => {
-    if (!content.trim()) {
-      setAlertMessage("내용을 입력해 주세요.");
+    if (!hasContent) return;
+
+    if (!selectedCategory) {
+      setAlertMessage("카테고리를 선택해 주세요.");
       setShowAlert(true);
       return;
     }
@@ -39,12 +44,25 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
       setShowAlert(true);
       return;
     }
-    if (!canSubmit) return;
     // TODO: 실제 등록 로직
     toast("등록되었습니다.");
     setContent("");
     setSelectedCategory("");
     onClose();
+  };
+
+  const handleTimeClick = (label: string, locked: boolean) => {
+    if (!locked) {
+      setSelectedTime(label);
+      return;
+    }
+    setPendingTime(label);
+    setShowPaidConfirm(true);
+  };
+
+  const handlePaidConfirm = () => {
+    // TODO: 결제 페이지로 이동
+    setShowPaidConfirm(false);
   };
 
   return (
@@ -59,11 +77,11 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className={`rounded-button px-4 py-1.5 text-sm font-medium transition-colors ${
-              canSubmit
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground"
-            }`}
+            className="rounded-button px-4 py-1.5 text-sm font-medium transition-colors text-white"
+            style={{
+              background: canSubmit ? "#7B5EA7" : "#D1CCC5",
+              cursor: canSubmit ? "pointer" : "not-allowed",
+            }}
           >
             올리기
           </button>
@@ -110,8 +128,7 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
             ].map((opt) => (
               <button
                 key={opt.label}
-                onClick={() => !opt.locked && setSelectedTime(opt.label)}
-                disabled={opt.locked}
+                onClick={() => handleTimeClick(opt.label, opt.locked)}
                 className={`pill flex items-center gap-1 px-4 py-2 text-sm font-medium transition-colors ${
                   selectedTime === opt.label
                     ? "bg-primary text-primary-foreground"
@@ -119,7 +136,7 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
                 } ${opt.locked ? "opacity-60" : ""}`}
               >
                 {opt.label}
-                {opt.locked && <span>🔒</span>}
+                {opt.locked && <Lock size={14} color="#7B5EA7" />}
               </button>
             ))}
           </div>
@@ -150,6 +167,17 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
         open={showAlert}
         onOpenChange={setShowAlert}
         message={alertMessage}
+      />
+
+      <AppConfirm
+        open={showPaidConfirm}
+        onOpenChange={setShowPaidConfirm}
+        title="유료 서비스 안내"
+        message="유료 결제가 필요한 서비스입니다. 확인 시 결제 페이지로 이동합니다."
+        confirmLabel="확인"
+        cancelLabel="취소"
+        confirmColor="primary"
+        onConfirm={handlePaidConfirm}
       />
     </div>
   );
