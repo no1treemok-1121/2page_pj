@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, MoreVertical } from "lucide-react";
 
@@ -10,10 +11,9 @@ interface FeedCardProps {
   likes: number;
   comments: number;
   isLocked?: boolean;
-  /** ISO timestamp when post was created */
   createdAt?: string;
-  /** Duration in hours (default 24) */
   durationHours?: number;
+  currentUserNickname?: string;
 }
 
 const FeedCard = ({
@@ -22,15 +22,17 @@ const FeedCard = ({
   nickname,
   date,
   content,
-  likes,
+  likes: initialLikes,
   comments,
   isLocked,
   createdAt,
   durationHours = 24,
+  currentUserNickname,
 }: FeedCardProps) => {
   const navigate = useNavigate();
+  const [liked, setLiked] = useState(false);
+  const [likes, setLikes] = useState(initialLikes);
 
-  // Calculate remaining time
   const now = Date.now();
   const created = createdAt ? new Date(createdAt).getTime() : now;
   const expiresAt = created + durationHours * 60 * 60 * 1000;
@@ -40,10 +42,26 @@ const FeedCard = ({
   const progress = createdAt ? Math.max(0, Math.min(100, (remainingMs / totalMs) * 100)) : 100;
   const isExpired = isLocked || remainingMs === 0;
   const barColor = remainingHours <= 6 ? "#E57373" : "#7B5EA7";
+  const isOwn = currentUserNickname && nickname === currentUserNickname;
 
   const remainingLabel = isExpired
     ? "잠김"
     : `${remainingHours}시간 후 잠김`;
+
+  const handleLikeToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (liked) {
+      setLikes((l) => l - 1);
+    } else {
+      setLikes((l) => l + 1);
+    }
+    setLiked(!liked);
+  };
+
+  const handleCommentClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/post/${id}#comments`);
+  };
 
   return (
     <div
@@ -54,12 +72,28 @@ const FeedCard = ({
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="pill bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground">
+            <span
+              className="pill px-2.5 py-0.5 text-xs font-medium"
+              style={{ background: "#F0EDE8", color: "#6B5C4A" }}
+            >
               {category}
             </span>
             <span className="text-sm font-medium text-foreground">{nickname}</span>
           </div>
           <div className="flex items-center gap-1">
+            {isOwn && (
+              <span
+                className="text-xs font-medium"
+                style={{
+                  background: "#F5F0E8",
+                  color: "#7A6545",
+                  borderRadius: 4,
+                  padding: "2px 6px",
+                }}
+              >
+                내 글
+              </span>
+            )}
             <span className="text-xs text-muted-foreground">{date}</span>
             <button
               className="p-1 text-muted-foreground hover:text-foreground transition-colors"
@@ -87,15 +121,16 @@ const FeedCard = ({
         {/* Footer */}
         <div className="mt-3 flex items-center gap-4">
           <button
-            className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
-            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1 transition-colors"
+            style={{ color: liked ? "#7B5EA7" : undefined }}
+            onClick={handleLikeToggle}
           >
-            <Heart size={16} />
+            <Heart size={16} fill={liked ? "#7B5EA7" : "none"} />
             <span className="text-xs">{likes}</span>
           </button>
           <button
             className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
-            onClick={(e) => e.stopPropagation()}
+            onClick={handleCommentClick}
           >
             <MessageCircle size={16} />
             <span className="text-xs">{comments}</span>
