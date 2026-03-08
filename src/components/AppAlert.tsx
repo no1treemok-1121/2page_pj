@@ -38,6 +38,7 @@ export const AppAlert = ({ open, onOpenChange, title, message }: AppAlertProps) 
 interface AppConfirmProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  title?: string;
   message: string;
   confirmLabel: string;
   cancelLabel?: string;
@@ -49,6 +50,7 @@ interface AppConfirmProps {
 export const AppConfirm = ({
   open,
   onOpenChange,
+  title,
   message,
   confirmLabel,
   cancelLabel = "취소",
@@ -61,7 +63,7 @@ export const AppConfirm = ({
       style={{ background: "#FFFFFF" }}
     >
       <AlertDialogHeader>
-        <AlertDialogTitle className="sr-only">확인</AlertDialogTitle>
+        <AlertDialogTitle className={title ? "text-center text-base" : "sr-only"}>{title || "확인"}</AlertDialogTitle>
         <AlertDialogDescription className="text-center text-sm" style={{ color: "#333333" }}>
           {message}
         </AlertDialogDescription>
