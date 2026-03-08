@@ -6,6 +6,7 @@ import WriteModal from "@/components/WriteModal";
 import WritePromptCard from "@/components/WritePromptCard";
 
 const CATEGORIES = ["전체", "일상", "연애·관계", "모임·만남"];
+const SORT_OPTIONS = ["최신순", "인기순"] as const;
 
 const DUMMY_POSTS = [
   {
@@ -17,7 +18,7 @@ const DUMMY_POSTS = [
     likes: 24,
     comments: 2,
     isLocked: false,
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2h ago
+    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     durationHours: 24,
   },
   {
@@ -29,7 +30,7 @@ const DUMMY_POSTS = [
     likes: 4,
     comments: 2,
     isLocked: false,
-    createdAt: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(), // 20h ago
+    createdAt: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(),
     durationHours: 24,
   },
   {
@@ -46,14 +47,31 @@ const DUMMY_POSTS = [
   },
 ];
 
+const CATEGORY_PROMPTS: Record<string, string> = {
+  "전체": "오늘 하루 어땠어요? 여기선 다 말해도 돼요.",
+  "일상": "오늘 있었던 일, 털어놔 봐요.",
+  "연애·관계": "말 못한 감정, 여기서 꺼내봐요.",
+  "모임·만남": "새로운 인연 이야기, 들려줘요.",
+};
+
+// TODO: replace with actual auth user nickname
+const CURRENT_USER_NICKNAME = "";
+
 const Home = () => {
   const [activeCategory, setActiveCategory] = useState("전체");
+  const [sortBy, setSortBy] = useState<"최신순" | "인기순">("최신순");
   const [isWriteOpen, setIsWriteOpen] = useState(false);
 
-  const filteredPosts =
-    activeCategory === "전체"
-      ? DUMMY_POSTS
-      : DUMMY_POSTS.filter((p) => p.category === activeCategory);
+  const filteredPosts = DUMMY_POSTS
+    // Hide locked posts
+    .filter((p) => !p.isLocked)
+    // Filter by category
+    .filter((p) => activeCategory === "전체" || p.category === activeCategory)
+    // Sort
+    .sort((a, b) => {
+      if (sortBy === "인기순") return b.likes - a.likes;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -83,9 +101,30 @@ const Home = () => {
           ))}
         </div>
 
+        {/* Sort Tabs */}
+        <div className="flex gap-1 px-4 pt-1 pb-1">
+          {SORT_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              onClick={() => setSortBy(opt)}
+              className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                sortBy === opt
+                  ? "text-foreground"
+                  : "text-muted-foreground"
+              }`}
+              style={sortBy === opt ? { background: "#F0EDE8", color: "#6B5C4A" } : undefined}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+
         {/* Write Prompt Card */}
         <div className="px-4 pt-3">
-          <WritePromptCard onOpen={() => setIsWriteOpen(true)} />
+          <WritePromptCard
+            onOpen={() => setIsWriteOpen(true)}
+            prompt={CATEGORY_PROMPTS[activeCategory]}
+          />
         </div>
 
         {/* Feed */}
@@ -97,8 +136,12 @@ const Home = () => {
           </div>
         ) : (
           <div className="space-y-3 px-4 py-3">
-            {filteredPosts.map((post, i) => (
-              <FeedCard key={i} {...post} />
+            {filteredPosts.map((post) => (
+              <FeedCard
+                key={post.id}
+                {...post}
+                currentUserNickname={CURRENT_USER_NICKNAME}
+              />
             ))}
           </div>
         )}

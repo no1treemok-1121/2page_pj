@@ -1,8 +1,11 @@
+import { Heart } from "lucide-react";
+
 interface WritePromptCardProps {
   onOpen: () => void;
+  prompt?: string;
 }
 
-const WritePromptCard = ({ onOpen }: WritePromptCardProps) => {
+const WritePromptCard = ({ onOpen, prompt = "오늘 하루 어땠어요? 여기선 다 말해도 돼요." }: WritePromptCardProps) => {
   return (
     <div
       onClick={onOpen}
@@ -17,9 +20,10 @@ const WritePromptCard = ({ onOpen }: WritePromptCardProps) => {
         나
       </div>
       {/* Fake input */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 flex items-center gap-1.5">
+        <Heart size={14} style={{ color: "#9E9E9E", flexShrink: 0 }} />
         <p className="text-sm" style={{ color: "#9E9E9E" }}>
-          오늘 하루 어땠어요? 여기선 다 말해도 돼요.
+          {prompt}
         </p>
       </div>
     </div>
