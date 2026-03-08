@@ -50,6 +50,7 @@ interface AppConfirmProps {
 export const AppConfirm = ({
   open,
   onOpenChange,
+  title,
   message,
   confirmLabel,
   cancelLabel = "취소",
