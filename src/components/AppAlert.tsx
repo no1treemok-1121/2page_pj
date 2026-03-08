@@ -38,6 +38,7 @@ export const AppAlert = ({ open, onOpenChange, title, message }: AppAlertProps) 
 interface AppConfirmProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  title?: string;
   message: string;
   confirmLabel: string;
   cancelLabel?: string;
