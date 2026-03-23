@@ -64,7 +64,7 @@ export const AppConfirm = ({
     >
       <AlertDialogHeader>
         <AlertDialogTitle className={title ? "text-center text-base" : "sr-only"}>{title || "확인"}</AlertDialogTitle>
-        <AlertDialogDescription className="text-center text-sm" style={{ color: "#333333" }}>
+        <AlertDialogDescription className="text-center text-sm whitespace-pre-line" style={{ color: "#333333" }}>
           {message}
         </AlertDialogDescription>
       </AlertDialogHeader>
