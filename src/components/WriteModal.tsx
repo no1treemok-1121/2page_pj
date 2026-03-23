@@ -175,7 +175,7 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
         open={showPaidConfirm}
         onOpenChange={setShowPaidConfirm}
         title="유료 서비스 안내"
-        message="유료 결제가 필요한 서비스입니다. 확인 시 결제 페이지로 이동합니다."
+        message={"1일 단위 결제 가능!\n천원으로 마음껏 서비스를 이용하세요."}
         confirmLabel="확인"
         cancelLabel="취소"
         confirmColor="primary"
