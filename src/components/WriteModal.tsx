@@ -19,7 +19,6 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
   const [alertMessage, setAlertMessage] = useState("");
   const [showAlert, setShowAlert] = useState(false);
   const [showPaidConfirm, setShowPaidConfirm] = useState(false);
-  const [pendingTime, setPendingTime] = useState("");
 
   if (!isOpen) return null;
 
@@ -44,7 +43,6 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
       setShowAlert(true);
       return;
     }
-    // TODO: 실제 등록 로직
     toast("등록되었습니다.");
     setContent("");
     setSelectedCategory("");
@@ -56,13 +54,16 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
       setSelectedTime(label);
       return;
     }
-    setPendingTime(label);
     setShowPaidConfirm(true);
   };
 
   const handlePaidConfirm = () => {
     // TODO: 결제 페이지로 이동
     setShowPaidConfirm(false);
+  };
+
+  const handlePhotoClick = () => {
+    setShowPaidConfirm(true);
   };
 
   return (
@@ -152,13 +153,14 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
 
         {/* Bottom Toolbar */}
         <div className="flex items-center justify-between border-t border-border px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-          <div className="flex items-center gap-2 text-muted-foreground">
+          <button
+            onClick={handlePhotoClick}
+            className="flex items-center gap-2 text-muted-foreground"
+          >
             <Camera size={20} />
             <span className="text-xs">사진</span>
-            <span className="pill bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-              유료
-            </span>
-          </div>
+            <Lock size={14} color="#7B5EA7" />
+          </button>
           <span className="text-xs text-muted-foreground">{content.length}/500</span>
         </div>
       </div>
