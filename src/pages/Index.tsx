@@ -15,21 +15,11 @@ const Index = () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: {
-          redirectTo: `${window.location.origin}/`,
-        },
+        options: { redirectTo: `${window.location.origin}/` },
       });
       if (error) throw error;
     } catch (err: any) {
-      if (
-        err?.message?.includes("User not found") ||
-        err?.message?.includes("not registered") ||
-        err?.status === 400
-      ) {
-        setShowNotRegistered(true);
-      } else {
-        toast.error("로그인 중 오류가 발생했어요. 다시 시도해 주세요.");
-      }
+      setShowNotRegistered(true);
       setLoadingProvider(null);
     }
   };
