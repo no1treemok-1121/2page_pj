@@ -108,7 +108,7 @@ const Index = () => {
           2page
         </span>
         <button
-          onClick={() => navigate("/login")}
+          onClick={handleLoginOrScroll}
           aria-label="로그인"
           style={{ background: "none", border: "none", cursor: "pointer", padding: "2px", display: "flex", alignItems: "center" }}
         >
@@ -242,7 +242,7 @@ const Index = () => {
                       </span>
                     </div>
                     <button
-                      onClick={() => navigate("/login")}
+                      onClick={handleLoginOrScroll}
                       style={{
                         width: "22px",
                         height: "22px",
@@ -291,7 +291,7 @@ const Index = () => {
       </section>
 
       {/* 초대 영역 */}
-      <section style={{ padding: "20px", borderBottom: "1px solid #E0E0E8" }}>
+      <section id="invite-section" style={{ padding: "20px", borderBottom: "1px solid #E0E0E8" }}>
         <div style={{ fontSize: "13px", fontWeight: 700, color: "#111118", marginBottom: "12px" }}>
           2page에 들어오려면
         </div>
