@@ -55,6 +55,15 @@ const Index = () => {
     navigate(`/signup/code?code=${inviteCode.trim()}`);
   };
 
+  const handleLoginOrScroll = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      navigate("/home");
+    } else {
+      document.getElementById('invite-section')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const handleSocialLogin = async (provider: "kakao" | "google") => {
     setLoadingProvider(provider);
     try {
