@@ -181,7 +181,7 @@ const Home = () => {
       </div>
 
       <BottomNav onWriteClick={() => setIsWriteOpen(true)} />
-      <WriteModal isOpen={isWriteOpen} onClose={() => setIsWriteOpen(false)} />
+      <WriteModal isOpen={isWriteOpen} onClose={() => setIsWriteOpen(false)} onPosted={fetchPosts} />
     </div>
   );
 };
