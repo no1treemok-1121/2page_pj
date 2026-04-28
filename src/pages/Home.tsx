@@ -39,7 +39,7 @@ const Home = () => {
         .from("profiles")
         .select("nickname")
         .eq("id", session.user.id)
-        .single();
+        .maybeSingle();
       if (data) setCurrentNickname(data.nickname);
     };
     fetchProfile();
