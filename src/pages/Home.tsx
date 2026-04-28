@@ -46,58 +46,59 @@ const Home = () => {
   }, []);
 
   // 게시글 가져오기 (profiles, categories는 별도 쿼리 후 매핑)
-  useEffect(() => {
-    const fetchPosts = async () => {
-      setLoading(true);
-      const now = new Date().toISOString();
-      const { data: postRows, error } = await supabase
-        .from("posts")
-        .select("id, content, created_at, duration_hours, expires_at, like_count, comment_count, is_locked, user_id, category_id")
-        .eq("is_blind", false)
-        .gt("expires_at", now)
-        .order("created_at", { ascending: false });
+  const fetchPosts = async () => {
+    setLoading(true);
+    const now = new Date().toISOString();
+    const { data: postRows, error } = await supabase
+      .from("posts")
+      .select("id, content, created_at, duration_hours, expires_at, like_count, comment_count, is_locked, user_id, category_id")
+      .eq("is_blind", false)
+      .gt("expires_at", now)
+      .order("created_at", { ascending: false });
 
-      if (error || !postRows) {
-        setPosts([]);
-        setLoading(false);
-        return;
-      }
-
-      const userIds = Array.from(new Set(postRows.map((p) => p.user_id).filter(Boolean)));
-      const categoryIds = Array.from(new Set(postRows.map((p) => p.category_id).filter(Boolean) as number[]));
-
-      const [{ data: profilesData }, { data: categoriesData }] = await Promise.all([
-        userIds.length
-          ? supabase.from("profiles").select("id, nickname").in("id", userIds)
-          : Promise.resolve({ data: [] as { id: string; nickname: string }[] }),
-        categoryIds.length
-          ? supabase.from("categories").select("id, name").in("id", categoryIds)
-          : Promise.resolve({ data: [] as { id: number; name: string }[] }),
-      ]);
-
-      const profileMap = new Map((profilesData ?? []).map((p) => [p.id, p.nickname]));
-      const categoryMap = new Map((categoriesData ?? []).map((c) => [c.id, c.name]));
-
-      const merged: PostRow[] = postRows.map((p) => ({
-        id: p.id,
-        content: p.content,
-        created_at: p.created_at as string,
-        duration_hours: p.duration_hours ?? 24,
-        expires_at: p.expires_at,
-        like_count: p.like_count ?? 0,
-        comment_count: p.comment_count ?? 0,
-        is_locked: p.is_locked ?? false,
-        profiles: p.user_id && profileMap.has(p.user_id)
-          ? { nickname: profileMap.get(p.user_id)! }
-          : null,
-        categories: p.category_id && categoryMap.has(p.category_id)
-          ? { name: categoryMap.get(p.category_id)! }
-          : null,
-      }));
-
-      setPosts(merged);
+    if (error || !postRows) {
+      setPosts([]);
       setLoading(false);
-    };
+      return;
+    }
+
+    const userIds = Array.from(new Set(postRows.map((p) => p.user_id).filter(Boolean)));
+    const categoryIds = Array.from(new Set(postRows.map((p) => p.category_id).filter(Boolean) as number[]));
+
+    const [{ data: profilesData }, { data: categoriesData }] = await Promise.all([
+      userIds.length
+        ? supabase.from("profiles").select("id, nickname").in("id", userIds)
+        : Promise.resolve({ data: [] as { id: string; nickname: string }[] }),
+      categoryIds.length
+        ? supabase.from("categories").select("id, name").in("id", categoryIds)
+        : Promise.resolve({ data: [] as { id: number; name: string }[] }),
+    ]);
+
+    const profileMap = new Map((profilesData ?? []).map((p) => [p.id, p.nickname]));
+    const categoryMap = new Map((categoriesData ?? []).map((c) => [c.id, c.name]));
+
+    const merged: PostRow[] = postRows.map((p) => ({
+      id: p.id,
+      content: p.content,
+      created_at: p.created_at as string,
+      duration_hours: p.duration_hours ?? 24,
+      expires_at: p.expires_at,
+      like_count: p.like_count ?? 0,
+      comment_count: p.comment_count ?? 0,
+      is_locked: p.is_locked ?? false,
+      profiles: p.user_id && profileMap.has(p.user_id)
+        ? { nickname: profileMap.get(p.user_id)! }
+        : null,
+      categories: p.category_id && categoryMap.has(p.category_id)
+        ? { name: categoryMap.get(p.category_id)! }
+        : null,
+    }));
+
+    setPosts(merged);
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchPosts();
   }, []);
 
