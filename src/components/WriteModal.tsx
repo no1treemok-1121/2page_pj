@@ -3,15 +3,17 @@ import { X, Camera, ChevronDown, Lock } from "lucide-react";
 import { containsBannedWord } from "@/constants/bannedWords";
 import { AppAlert, AppConfirm } from "@/components/AppAlert";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WriteModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onPosted?: () => void;
 }
 
 const categories = ["일상", "연애·관계", "모임·만남"];
 
-const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
+const WriteModal = ({ isOpen, onClose, onPosted }: WriteModalProps) => {
   const [content, setContent] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedTime, setSelectedTime] = useState("24h");
@@ -19,14 +21,15 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
   const [alertMessage, setAlertMessage] = useState("");
   const [showAlert, setShowAlert] = useState(false);
   const [showPaidConfirm, setShowPaidConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
   const hasContent = content.trim().length > 0;
-  const canSubmit = hasContent;
+  const canSubmit = hasContent && !submitting;
 
-  const handleSubmit = () => {
-    if (!hasContent) return;
+  const handleSubmit = async () => {
+    if (!hasContent || submitting) return;
 
     if (!selectedCategory) {
       setAlertMessage("카테고리를 선택해 주세요.");
@@ -43,10 +46,48 @@ const WriteModal = ({ isOpen, onClose }: WriteModalProps) => {
       setShowAlert(true);
       return;
     }
-    toast("등록되었습니다.");
-    setContent("");
-    setSelectedCategory("");
-    onClose();
+
+    setSubmitting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setAlertMessage("로그인이 필요해요.");
+        setShowAlert(true);
+        return;
+      }
+
+      // 카테고리 id 조회
+      const { data: catRow } = await supabase
+        .from("categories")
+        .select("id")
+        .eq("name", selectedCategory)
+        .maybeSingle();
+
+      const hours = selectedTime === "48h" ? 48 : selectedTime === "72h" ? 72 : 24;
+      const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+
+      const { error } = await supabase.from("posts").insert({
+        user_id: session.user.id,
+        content: content.trim(),
+        category_id: catRow?.id ?? null,
+        duration_hours: hours,
+        expires_at: expiresAt,
+      });
+
+      if (error) {
+        setAlertMessage("등록에 실패했어요. 다시 시도해 주세요.");
+        setShowAlert(true);
+        return;
+      }
+
+      toast("등록되었습니다.");
+      setContent("");
+      setSelectedCategory("");
+      onPosted?.();
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleTimeClick = (label: string, locked: boolean) => {
