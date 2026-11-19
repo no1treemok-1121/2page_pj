@@ -1,10 +1,64 @@
-import { useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ThreeEvent, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { Wish } from "./wishes";
 
-function Tree() {
+// 드래그(화면 회전)와 클릭을 구분: 포인터가 거의 안 움직였을 때만 클릭으로 처리
+const isClick = (e: ThreeEvent<MouseEvent>) => e.delta < 6;
+
+function useHoverCursor() {
+  const [hovered, setHovered] = useState(false);
+  useEffect(() => {
+    document.body.style.cursor = hovered ? "pointer" : "auto";
+    return () => {
+      document.body.style.cursor = "auto";
+    };
+  }, [hovered]);
+  return {
+    onPointerOver: (e: ThreeEvent<PointerEvent>) => {
+      e.stopPropagation();
+      setHovered(true);
+    },
+    onPointerOut: () => setHovered(false),
+  };
+}
+
+function Ornament({ wish, onClick }: { wish: Wish; onClick: (w: Wish) => void }) {
+  const ref = useRef<THREE.Mesh>(null);
+  const hover = useHoverCursor();
+  const phase = useMemo(() => Math.random() * Math.PI * 2, []);
+  useFrame(({ clock }) => {
+    const m = ref.current;
+    if (!m) return;
+    const s = 1 + Math.sin(clock.elapsedTime * 2 + phase) * 0.08;
+    m.scale.setScalar(s);
+  });
   return (
-    <group>
+    <mesh
+      ref={ref}
+      position={wish.position}
+      {...hover}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (isClick(e)) onClick(wish);
+      }}
+    >
+      <sphereGeometry args={[0.14, 16, 16]} />
+      <meshStandardMaterial color={wish.color} emissive={wish.color} emissiveIntensity={0.6} roughness={0.3} />
+    </mesh>
+  );
+}
+
+function Tree({ onClick }: { onClick: () => void }) {
+  const hover = useHoverCursor();
+  return (
+    <group
+      {...hover}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (isClick(e)) onClick();
+      }}
+    >
       <mesh position={[0, 0.5, 0]}>
         <cylinderGeometry args={[0.25, 0.3, 1, 12]} />
         <meshStandardMaterial color="#6b4423" />
@@ -58,7 +112,13 @@ function Snow({ count = 1500 }) {
   );
 }
 
-export default function Scene() {
+type SceneProps = {
+  wishes: Wish[];
+  onTreeClick: () => void;
+  onWishClick: (w: Wish) => void;
+};
+
+export default function Scene({ wishes, onTreeClick, onWishClick }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.35} color="#9fb4ff" />
@@ -67,7 +127,10 @@ export default function Scene() {
         <circleGeometry args={[20, 48]} />
         <meshStandardMaterial color="#e8eef8" />
       </mesh>
-      <Tree />
+      <Tree onClick={onTreeClick} />
+      {wishes.map((w) => (
+        <Ornament key={w.id} wish={w} onClick={onWishClick} />
+      ))}
       <Snow />
     </>
   );
