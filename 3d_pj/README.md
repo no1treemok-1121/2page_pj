@@ -28,3 +28,13 @@ npm run dev
   - Netlify: Site configuration → Environment variables 에 `ENTRY_CODE` 추가 후 재배포
 - 코드를 바꾸면 기존에 입장했던 사람도 새 코드를 다시 입력해야 합니다.
 - 코드 원문은 사이트 파일에 들어가지 않고 해시값만 들어가지만, 서버 검증이 아니므로 가벼운 접근 제한 용도입니다.
+
+## 소원 함께 보기 (Supabase)
+
+`.env` 의 `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` 가 있으면 소원이 Supabase에 저장되어 모든 방문자에게 보입니다. (상위 프로젝트와 같은 Supabase 프로젝트를 사용)
+
+처음 한 번, Supabase 대시보드 → **SQL Editor** 에서 `supabase/wishes.sql` 내용을 실행해 `wishes` 테이블을 만들어야 합니다.
+
+- 열려 있는 화면은 15초마다, 그리고 탭으로 돌아올 때 새 소원을 불러옵니다.
+- 소원은 누구나 볼 수 있고 새로 걸 수만 있습니다(수정·삭제 불가).
+- 두 환경 변수를 지우면 예전처럼 각자 브라우저에만 저장됩니다.

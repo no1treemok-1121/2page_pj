@@ -111,3 +111,19 @@ html, body, #root {
   20%, 60% { transform: translateX(-6px); }
   40%, 80% { transform: translateX(6px); }
 }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  box-sizing: border-box;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(253, 249, 240, 0.95);
+  color: #2a2a35;
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  animation: fade 0.2s ease;
+}
