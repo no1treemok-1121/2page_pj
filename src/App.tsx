@@ -21,7 +21,8 @@ const CAMERA = isPortrait
   ? { position: [0, 3.5, 14] as [number, number, number], fov: 62 }
   : { position: [0, 3, 10] as [number, number, number], fov: 50 };
 
-function VillageView({ onMyRoom, myRoom, notice, setNotice, action, myAvatar }: {
+function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action, myAvatar }: {
+  onVisitRoom: (roomId: string) => void;
   myAvatar: Avatar | null;
   action: VillageAction;
   onMyRoom: () => void;
@@ -78,7 +79,7 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice, action, myAvatar }: 
 
   const hangWish = async (text: string, name: string) => {
     setWriting(false);
-    const draft = newWishDraft(text, name, myAvatar ? toStr(myAvatar) : null);
+    const draft = newWishDraft(text, name, myAvatar ? toStr(myAvatar) : null, myRoom?.roomId);
     const tempId = `pending-${Date.now()}`;
     // 바로 트리에 보이게 먼저 걸고, 저장되면 실제 값으로 교체
     setWishes((prev) => [...prev, { ...draft, id: tempId, createdAt: Date.now() }]);
@@ -148,6 +149,9 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice, action, myAvatar }: 
                   <div>
                     <p>{w.text}</p>
                     <small>{w.name || "익명"} · {new Date(w.createdAt).toLocaleDateString("ko-KR")}</small>
+                    {w.roomId && w.roomId !== myRoom?.roomId && (
+                      <button className="visit-btn" onClick={() => onVisitRoom(w.roomId!)}>🏠 방 놀러 가기</button>
+                    )}
                   </div>
                 </li>
               ))}
@@ -166,7 +170,12 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice, action, myAvatar }: 
             <p className="wish-text">{viewing.text}</p>
             <p className="wish-name">— {viewing.name || "익명"}</p>
             <p className="date">{new Date(viewing.createdAt).toLocaleDateString("ko-KR")}</p>
-            <button className="btn" onClick={() => setViewing(null)}>닫기</button>
+            <div className="actions center">
+              {viewing.roomId && viewing.roomId !== myRoom?.roomId && (
+                <button className="btn" onClick={() => onVisitRoom(viewing.roomId!)}>🏠 방 놀러 가기</button>
+              )}
+              <button className="btn ghost" onClick={() => setViewing(null)}>닫기</button>
+            </div>
           </div>
         </div>
       )}
@@ -329,7 +338,7 @@ export default function App() {
             }
           }} />
       ) : (
-        <VillageView onMyRoom={goMyRoom} myRoom={myRoom} notice={notice} setNotice={setNotice} action={villageAction} myAvatar={myAvatar} />
+        <VillageView onMyRoom={goMyRoom} onVisitRoom={(id) => go(id)} myRoom={myRoom} notice={notice} setNotice={setNotice} action={villageAction} myAvatar={myAvatar} />
       )}
 
       {setupDone && (

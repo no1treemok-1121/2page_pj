@@ -22,3 +22,6 @@ create policy "anyone can hang a wish" on public.wishes
 
 -- 소원에 이름·별명 (선택, 최대 12자)
 alter table public.wishes add column if not exists name text check (name is null or char_length(btrim(name)) between 1 and 12);
+
+-- 소원을 건 사람의 방 (있으면 소원함에서 '방 놀러 가기' 가능). 방이 지워지면 연결만 끊김
+alter table public.wishes add column if not exists room_id uuid references public.rooms(id) on delete set null;
