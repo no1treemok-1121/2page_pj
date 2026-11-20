@@ -97,7 +97,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   check('👊 목록에 NPC 포함', plist.filter(t => t.includes('NPC')).length === 4);
   await A.click('.people-list button:has-text("햄찌")'); await A.click('.act-btn:has-text("들이받기")'); await A.waitForTimeout(3000);
   check('NPC 들이받기: 아야', await seen(A, '아야'));
-  for (let i = 0; i < 8 && !(await A.$('.act-btn')); i++) { // NPC가 걷는 중이면 빗나갈 수 있어 몇 번 시도
+  for (let i = 0; i < 12 && !(await A.$('.act-btn')); i++) { // NPC가 걷는 중이면 빗나갈 수 있어 몇 번 시도
     const nt = await A.$$eval('.npc-tag', x => { const e = x.find(el => el.textContent.includes('루루')); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height + 40]; });
     if (nt) { await A.mouse.click(nt[0], nt[1]); await A.waitForTimeout(500); }
     if (!(await A.$('.act-btn'))) { await A.keyboard.press('Escape'); await A.waitForTimeout(1500); }
@@ -284,7 +284,8 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     check('꾸미기: 다른 기기에서도 저장된 소품', !!(await D.$('.decor-panel .chip.on:has-text("선물 상자")')));
     await D.click('.decor-panel >> text=취소');
     // 열쇠 창의 로그아웃 버튼 (D: 열쇠로 들어온 기기)
-    await D.click('.bottom-bar >> text=🔑 열쇠'); await D.waitForTimeout(1200);
+    await D.click('.bottom-bar >> text=🔑 열쇠');
+    await D.waitForSelector('.leave-btn:not([disabled])', { timeout: 6000 }).catch(() => null);
     check('열쇠 창: 이 기기에서 로그아웃 버튼', !!(await D.$('.leave-btn:not([disabled])')));
     await C.context().close(); await D.context().close();
     // 테스트로 만든 방 지우기 (Supabase 관리 API, 토큰은 환경 프록시가 넣어 줌)
