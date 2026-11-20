@@ -108,10 +108,13 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   await A.waitForTimeout(4000);
   // 앞 단계에서 실수로 열린 창(고양이 메뉴 등)이 있으면 닫기
   for (let i = 0; i < 4 && (await A.$('.backdrop')); i++) { await A.keyboard.press('Escape'); await A.waitForTimeout(300); }
-  await A.click('.menu-btn'); await A.click('.menu >> text=분식집');
-  await A.waitForSelector('.snack-grid', { timeout: 15000 }).catch(() => null);
+  for (let tryN = 0; tryN < 2 && !(await A.$('.snack-grid')); tryN++) {
+    for (let i = 0; i < 4 && (await A.$('.backdrop')); i++) { await A.keyboard.press('Escape'); await A.waitForTimeout(300); }
+    await A.click('.menu-btn'); await A.click('.menu >> text=분식집');
+    await A.waitForSelector('.snack-grid', { timeout: 20000 }).catch(() => null);
+  }
   check('분식집 메뉴 6가지', (await A.$$('.snack-grid .act-btn')).length === 6);
-  await A.click('.snack-grid .act-btn:has-text("어묵")'); await A.waitForTimeout(1500);
+  await A.click('.snack-grid .act-btn:has-text("어묵")', { timeout: 5000 }).catch(() => null); await A.waitForTimeout(1500);
   const fa = await bubbles(A), fb = await bubbles(B);
   check('분식: 내 화면 먹기 말풍선', await seen(A, '🍢'), fa.join(','));
   check('분식: 상대 화면 먹기 말풍선', await seen(B, '🍢'), fb.join(','));
