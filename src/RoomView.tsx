@@ -2,6 +2,7 @@ import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import RoomScene from "./RoomScene";
+import { Avatar, DEFAULT_AVATAR, parseAvatar } from "./avatar";
 import {
   Letter, MyRoom, RoomInfo, copyText, deleteLetter, getLetters, getRoom, ownerLink, roomLink, sendLetter,
 } from "./rooms";
@@ -96,9 +97,10 @@ type Props = {
   onGoMyRoom: () => void;
   notify: (msg: string) => void;
   onNickname: (nickname: string) => void;
+  myAvatar: Avatar | null;
 };
 
-export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, notify, onNickname }: Props) {
+export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, notify, onNickname, myAvatar }: Props) {
   const isOwner = myRoom?.roomId === roomId;
   const [info, setInfo] = useState<RoomInfo | null | undefined>(undefined);
   const [dialog, setDialog] = useState<"write" | "box" | "share" | null>(null);
@@ -139,7 +141,8 @@ export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, noti
     <>
       <Canvas camera={{ position: [3.2, 3, 4.6], fov: 50 }} dpr={[1, 2]}>
         <color attach="background" args={["#2a1e1a"]} />
-        <RoomScene letterCount={info?.letterCount ?? 0} onMailbox={onMailbox} />
+        <RoomScene letterCount={info?.letterCount ?? 0} onMailbox={onMailbox}
+          avatar={(isOwner && myAvatar) || parseAvatar(info?.avatar) || DEFAULT_AVATAR} />
         <OrbitControls enablePan={false} target={[0, 1, -0.5]} minDistance={3} maxDistance={8}
           minAzimuthAngle={-0.2} maxAzimuthAngle={1.3} maxPolarAngle={Math.PI / 2.2} />
       </Canvas>

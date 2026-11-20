@@ -2,7 +2,9 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
-export type ChatMessage = { id: string; nickname: string; body: string; created_at: string };
+import { AvatarBadge } from "./Avatar";
+
+export type ChatMessage = { id: string; nickname: string; body: string; created_at: string; avatar?: string | null };
 
 // 최근 몇 분 대화만 보여 줄지 (DB 규칙 supabase/chat.sql 과 같은 값)
 export const KEEP_MINUTES = 10;
@@ -56,10 +58,10 @@ export function useVillageChat() {
 
   const setOpen = (open: boolean) => { openRef.current = open; if (open) setUnread(0); };
 
-  const send = async (nickname: string, body: string) => {
+  const send = async (nickname: string, body: string, avatar?: string | null) => {
     if (!supabase) throw new Error("서버 연결 정보가 없어요");
     const { data, error: e } = await supabase.from("chat_messages")
-      .insert({ nickname, body }).select().single();
+      .insert({ nickname, body, avatar: avatar ?? null }).select().single();
     if (e) throw new Error("메시지를 보내지 못했어요. 잠시 뒤 다시 보내 주세요.");
     mine.add((data as ChatMessage).id);
     setMessages((prev) => merge(prev, [data as ChatMessage]));
@@ -77,8 +79,9 @@ function merge(a: ChatMessage[], b: ChatMessage[]) {
 const time = (iso: string) =>
   new Date(iso).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" });
 
-export default function ChatPanel({ chat, defaultNick, onClose }: {
+export default function ChatPanel({ chat, defaultNick, avatar, onClose }: {
   chat: ReturnType<typeof useVillageChat>;
+  avatar: string | null;
   defaultNick: string;
   onClose: () => void;
 }) {
@@ -110,7 +113,7 @@ export default function ChatPanel({ chat, defaultNick, onClose }: {
     if (!body || sending) return;
     setSending(true);
     setErr(null);
-    try { await chat.send(nick, body); setText(""); }
+    try { await chat.send(nick, body, avatar); setText(""); }
     catch (e2) { setErr((e2 as Error).message); }
     finally { setSending(false); }
   };
@@ -130,7 +133,7 @@ export default function ChatPanel({ chat, defaultNick, onClose }: {
           const me = mine.has(m.id);
           return (
             <div key={m.id} className={`msg${me ? " me" : ""}`}>
-              {!me && <span className="who">{m.nickname}</span>}
+              {!me && <span className="who"><AvatarBadge value={m.avatar} size={22} /> {m.nickname}</span>}
               <div className="bubble-row">
                 <p className="bubble">{m.body}</p>
                 <time>{time(m.created_at)}</time>

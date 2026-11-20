@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ThreeEvent, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import Character3D from "./Character3D";
+import { Avatar } from "./avatar";
 
 // 아늑한 방: 바닥·벽·창문(밖에 눈)·난로·작은 트리·편지함
 function Mailbox({ onClick, count }: { onClick: () => void; count: number }) {
@@ -64,7 +66,7 @@ function Fireplace() {
   );
 }
 
-export default function RoomScene({ letterCount, onMailbox }: { letterCount: number; onMailbox: () => void }) {
+export default function RoomScene({ letterCount, onMailbox, avatar }: { letterCount: number; onMailbox: () => void; avatar: Avatar }) {
   return (
     <>
       <ambientLight intensity={0.45} color="#ffe6c7" />
@@ -121,6 +123,7 @@ export default function RoomScene({ letterCount, onMailbox }: { letterCount: num
         </mesh>
       </group>
       <Mailbox onClick={onMailbox} count={letterCount} />
+      <Character3D avatar={avatar} position={[-0.2, 0, 0.5]} />
     </>
   );
 }

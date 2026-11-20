@@ -2,7 +2,7 @@
 const URL_ = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
 
-export type RoomInfo = { nickname: string; letterCount: number };
+export type RoomInfo = { nickname: string; letterCount: number; avatar: string | null };
 export type Letter = { id: string; fromName: string; body: string; createdAt: number };
 export type MyRoom = { roomId: string; ownerKey: string; nickname: string };
 
@@ -34,8 +34,12 @@ export async function createRoom(nickname: string): Promise<MyRoom> {
 }
 
 export async function getRoom(roomId: string): Promise<RoomInfo | null> {
-  const rows = await rpc<{ nickname: string; letter_count: number }[]>("get_room", { p_room: roomId });
-  return rows[0] ? { nickname: rows[0].nickname, letterCount: rows[0].letter_count } : null;
+  const rows = await rpc<{ nickname: string; letter_count: number; avatar: string | null }[]>("get_room", { p_room: roomId });
+  return rows[0] ? { nickname: rows[0].nickname, letterCount: rows[0].letter_count, avatar: rows[0].avatar } : null;
+}
+
+export function setRoomAvatar(room: MyRoom, avatar: string) {
+  return rpc<void>("set_room_avatar", { p_room: room.roomId, p_key: room.ownerKey, p_avatar: avatar });
 }
 
 export function sendLetter(roomId: string, fromName: string, body: string) {
