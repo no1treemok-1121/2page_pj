@@ -21,6 +21,7 @@
 - `wishes` 테이블: SQL은 `supabase/wishes.sql`. 읽기·추가만 허용(RLS). DB 구조를 바꾸면 SQL 파일을 저장소에 남길 것.
 - DB에는 `wishes` 테이블만 있음 (2Page용 테이블·함수·트리거는 2026-11-20 삭제). `rls_auto_enable` 함수는 Supabase가 만든 것(새 테이블 RLS 자동 켜기)이니 지우지 말 것.
 - 방·편지: `supabase/rooms.sql`. 로그인 없는 '방 링크' 방식 — 방 만들 때 주인 열쇠(owner_key)를 발급하고 DB엔 SHA-256 해시만 저장. `rooms`·`letters` 테이블은 RLS 정책 없음(직접 접근 불가), `create_room`·`get_room`·`send_letter`(방당 1분 10통 제한)·`get_letters`·`delete_letter` 함수(security definer)로만 접근. 주인 링크 = `?room=<id>#key=<열쇠>` (# 뒤는 서버로 안 감, 열면 이 기기에 저장 후 주소에서 지움).
+- 마을 광장 채팅: `supabase/chat.sql` (`chat_messages`, Realtime publication 등록). 최근 24시간만 읽기 가능(RLS), 새 메시지 insert 때 트리거가 24시간 지난 것 삭제. 도배 방지·금칙어는 사용자 결정으로 넣지 않음(300자 제한만). 프론트 `src/Chat.tsx`(supabase-js Realtime: postgres_changes + presence로 접속자 수), `src/supabase.ts`.
 - 관리 방법: 환경에 저장된 Supabase 개인 접근 토큰(api.supabase.com, 프록시가 자동 주입)으로 Management API 사용. SQL 실행은 `POST https://api.supabase.com/v1/projects/{ref}/database/query` 에 `{"query": "..."}`. 토큰 권한은 좁음(프로젝트 목록 조회 불가, ref 직접 지정), 2026-11-20 발급·7일 만료 — 만료되면 새 토큰 발급을 안내.
 
 ## 배포
@@ -32,4 +33,6 @@
 - [x] 마을 꾸미기, 휴대폰 화면, 링크 미리보기 (og:image는 배포 주소가 정해지면 전체 주소로 바꿀 것)
 - [x] 방·편지 (방 링크 방식, 로그인 없음)
 - [ ] (선택) 카카오/구글 로그인으로 전환
-- [ ] 관리자 기능, 도배 방지
+- [x] 마을 광장 실시간 채팅
+- [ ] 참고 사이트 대비 누락: 소개 화면, 소원 이름·공개여부·삭제, 익명 편지, 랜덤 편지+답장+신고, 친구 맺기(로그인 필요), 편지지 꾸미기, 개인정보 처리방침
+- [ ] 관리자 기능
