@@ -53,43 +53,63 @@ function plan(cat: number, slot: number): Plan {
 }
 
 // ---------------- 고양이 모양 ----------------
-type Look = { eye: string; cheek?: string; noseSpot?: string; base: string; patches: { p: [number, number, number]; s: [number, number, number]; c: string }[]; head: { p: [number, number, number]; s: [number, number, number]; c: string }[]; stripes?: string; tail: string[]; ear: [string, string]; muzzle: string };
+// 무늬는 공 표면의 점마다 색을 정해서 칠함 → 몸 밖으로 튀어나오지 않고 매끈함
+// (x,y,z)는 -1~1 사이 공 위의 위치: x 오른쪽, y 위, z 앞(얼굴 쪽)
+type Painter = (x: number, y: number, z: number) => string;
+type Look = { eye: string; bodyPaint: Painter; headPaint: Painter; tail: string[]; ear: [string, string]; muzzle: string };
+const near = (x: number, y: number, z: number, cx: number, cy: number, cz: number, r: number) => (x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2 < r * r;
+const WHITE = "#fbf8f2", ORANGE = "#d27a32", BLACK = "#231d1d";
+const TABBY = "#8b7357", TABBY_DARK = "#2e2620", TABBY_ORANGE = "#b8742f", TABBY_WHITE = "#f6f2ec";
+
+function paintedSphere(paint: Painter) {
+  const g = new THREE.SphereGeometry(1, 64, 48);
+  const pos = g.attributes.position, col = new Float32Array(pos.count * 3), c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    c.set(paint(pos.getX(i), pos.getY(i), pos.getZ(i)));
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  return g;
+}
+
 export const LOOKS: Look[] = [
-  { // 밤: 삼색 (흰 얼굴, 왼쪽 눈·귀 쪽 주황, 오른쪽 귀 쪽 검정, 코 옆 주황 점)
-    eye: "#9cc77a", noseSpot: "#d98a4a",
-    base: "#fbf8f2",
-    patches: [
-      { p: [0.05, 0.37, -0.1], s: [0.19, 0.13, 0.23], c: "#c8732e" },
-      { p: [0.11, 0.32, -0.24], s: [0.17, 0.15, 0.15], c: "#1e1a1a" },
-      { p: [-0.08, 0.33, 0.06], s: [0.1, 0.1, 0.1], c: "#c8732e" },
-      { p: [0.15, 0.24, -0.02], s: [0.06, 0.12, 0.16], c: "#1e1a1a" },
-    ],
-    head: [
-      { p: [-0.075, 0.08, 0.0], s: [0.13, 0.11, 0.15], c: "#c8732e" },
-      { p: [-0.1, 0.03, 0.06], s: [0.07, 0.07, 0.1], c: "#c8732e" },
-      { p: [0.085, 0.085, -0.01], s: [0.12, 0.1, 0.14], c: "#1e1a1a" },
-      { p: [0.03, 0.12, -0.02], s: [0.07, 0.06, 0.1], c: "#c8732e" },
-    ],
-    tail: ["#c8732e", "#1e1a1a", "#c8732e", "#1e1a1a"], ear: ["#c8732e", "#1e1a1a"], muzzle: "#fbf8f2",
+  { // 밤: 삼색 — 흰 바탕, 등에 주황·검정 큰 얼룩, 머리는 왼쪽 주황·오른쪽 검정
+    eye: "#9cc77a", muzzle: WHITE,
+    bodyPaint: (x, y, z) =>
+      near(x, y, z, 0.55, 0.45, -0.75, 0.55) ? BLACK
+        : near(x, y, z, 0.15, 0.85, -0.25, 0.62) ? ORANGE
+          : near(x, y, z, -0.35, 0.7, 0.45, 0.32) ? ORANGE
+            : near(x, y, z, 0.9, 0.1, 0.05, 0.38) ? BLACK : WHITE,
+    headPaint: (x, y, z) =>
+      (z > 0.45 && y < 0.2) || (Math.abs(x) < 0.2 && z > 0.5) ? WHITE // 얼굴 아래·가운데 흰 줄
+        : x < -0.05 && y > 0.15 ? ORANGE // 왼쪽 눈·귀 쪽 주황
+          : x > 0.15 && y > 0.3 ? BLACK // 오른쪽 귀 쪽 검정
+            : y > 0.55 && z < 0.2 ? ORANGE : WHITE,
+    tail: [ORANGE, BLACK, ORANGE, BLACK], ear: [ORANGE, BLACK],
   },
-  { // 캔디: 고등어 태비 + 살짝 삼색 (흰 코·입·가슴, 볼은 살짝 주황빛)
-    eye: "#a6c46a", cheek: "#9a7a55",
-    base: "#8b7357",
-    patches: [
-      { p: [-0.05, 0.3, -0.18], s: [0.14, 0.1, 0.14], c: "#b8742f" },
-      { p: [0.0, 0.2, 0.12], s: [0.12, 0.08, 0.1], c: "#f4f0ea" },
-    ],
-    head: [
-      { p: [0, 0.0, 0.12], s: [0.05, 0.1, 0.06], c: "#f4f0ea" },
-      { p: [0, -0.09, 0.08], s: [0.09, 0.06, 0.09], c: "#f4f0ea" },
-      { p: [-0.09, 0.07, 0.03], s: [0.06, 0.05, 0.08], c: "#b8742f" },
-    ],
-    stripes: "#2b241e",
-    tail: ["#8b7357", "#2b241e", "#8b7357", "#2b241e"], ear: ["#6f5a44", "#6f5a44"], muzzle: "#f4f0ea",
+  { // 캔디: 고등어 태비 + 주황 살짝, 배·가슴·발·코·입은 하얗게
+    eye: "#a6c46a", muzzle: TABBY_WHITE,
+    bodyPaint: (x, y, z) => {
+      if (y < -0.25 || (z > 0.55 && y < 0.25)) return TABBY_WHITE; // 배·가슴
+      const stripe = Math.sin(z * 13 + x * x * 2.5) > 0.45 && y > -0.1;
+      if (stripe) return TABBY_DARK;
+      if (near(x, y, z, -0.35, 0.55, -0.55, 0.42)) return TABBY_ORANGE;
+      return TABBY;
+    },
+    headPaint: (x, y, z) => {
+      if (z > 0.5 && y < -0.25) return TABBY_WHITE; // 턱·입 주변
+      if (z > 0.65 && Math.abs(x) < 0.2 && y < 0.45) return TABBY_WHITE; // 코줄기 흰 줄
+      if (y > 0.5 && z > 0.15 && Math.sin(x * 20) > 0.55) return TABBY_DARK; // 이마 M자 줄
+      if (Math.abs(x) > 0.75 && Math.sin(y * 10) > 0.6) return TABBY_DARK; // 볼 줄
+      if (near(x, y, z, -0.55, 0.35, 0.45, 0.3)) return TABBY_ORANGE;
+      return TABBY;
+    },
+    tail: [TABBY, TABBY_DARK, TABBY, TABBY_DARK], ear: ["#6f5a44", "#6f5a44"],
   },
 ];
 
 export function CatBody({ look, pose, t }: { look: Look; pose: string; t: number }) {
+  const paint = useMemo(() => ({ body: paintedSphere(look.bodyPaint), head: paintedSphere(look.headPaint) }), [look]);
   const walk = pose === "walk";
   const legSwing = walk ? Math.sin(t * 12) * 0.5 : 0;
   const sitting = pose === "sit";
@@ -98,15 +118,7 @@ export function CatBody({ look, pose, t }: { look: Look; pose: string; t: number
     <group>
       {/* 몸 */}
       <group position={[0, lying ? 0.13 : 0.24, 0]} rotation={[sitting ? -0.45 : 0, 0, 0]}>
-        <mesh scale={[0.21, 0.19, 0.31]}><sphereGeometry args={[1, 24, 18]} /><meshStandardMaterial color={look.base} roughness={0.9} /></mesh>
-        {look.patches.map((q, i) => <mesh key={i} position={[q.p[0], q.p[1] - 0.24, q.p[2]]} scale={q.s}><sphereGeometry args={[1, 12, 10]} /><meshStandardMaterial color={q.c} /></mesh>)}
-        {/* 고등어 줄무늬: 등을 가로지르는 얇은 띠 */}
-        {look.stripes && [-0.22, -0.13, -0.04, 0.05, 0.14].map((z) => (
-          <group key={z}>
-            <mesh position={[0, 0.155 - Math.abs(z) * 0.12, z]} scale={[0.15, 0.03, 0.028]}><sphereGeometry args={[1, 12, 8]} /><meshStandardMaterial color={look.stripes} /></mesh>
-            {[-1, 1].map((sd) => <mesh key={sd} position={[sd * 0.16, 0.05, z + 0.01]} rotation={[0, 0, sd * 0.6]} scale={[0.03, 0.08, 0.025]}><sphereGeometry args={[1, 8, 6]} /><meshStandardMaterial color={look.stripes} /></mesh>)}
-          </group>
-        ))}
+        <mesh scale={[0.21, 0.19, 0.31]} geometry={paint.body}><meshStandardMaterial vertexColors roughness={0.9} /></mesh>
         {/* 꼬리 (띠 무늬) */}
         <group position={[0, 0.05, -0.3]} rotation={[sitting ? 1.3 : walk ? -0.5 + Math.sin(t * 4) * 0.2 : 0.9, Math.sin(t * 2) * 0.3, 0]}>
           {look.tail.map((c, i) => <mesh key={i} position={[0, 0, -0.07 - i * 0.08]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.035 - i * 0.003, 0.038 - i * 0.003, 0.085, 10]} /><meshStandardMaterial color={c} roughness={0.9} /></mesh>)}
@@ -116,16 +128,13 @@ export function CatBody({ look, pose, t }: { look: Look; pose: string; t: number
       {/* 다리 */}
       {!lying && [[-0.1, 0.17], [0.1, 0.17], [-0.1, -0.17], [0.1, -0.17]].map(([x, z], i) => (
         <group key={i} position={[x, 0.16, sitting && z < 0 ? -0.05 : z]} rotation={[sitting && z < 0 ? 0 : (i % 2 ? legSwing : -legSwing), 0, 0]}>
-          <mesh position={[0, -0.08, 0]}><cylinderGeometry args={[0.035, 0.035, sitting && z < 0 ? 0.08 : 0.17, 8]} /><meshStandardMaterial color={look.base} /></mesh>
+          <mesh position={[0, -0.08, 0]}><cylinderGeometry args={[0.035, 0.035, sitting && z < 0 ? 0.08 : 0.17, 8]} /><meshStandardMaterial color={look.ear[1] === BLACK ? WHITE : TABBY} /></mesh>
           <mesh position={[0, -0.16, 0.01]}><sphereGeometry args={[0.04, 8, 6]} /><meshStandardMaterial color="#ffffff" /></mesh>
         </group>
       ))}
-      {/* 머리: 귀여운 캐릭터풍 (동그란 얼굴, 초롱초롱한 눈, 볼터치, 뾰족 귀) */}
+      {/* 머리: 귀여운 캐릭터풍 (동그란 얼굴, 초록 눈, 볼터치, 뾰족 귀) */}
       <group position={[0, lying ? 0.2 : sitting ? 0.56 : 0.46, lying ? 0.32 : sitting ? 0.2 : 0.34]} rotation={[0, 0, pose === "sit" ? Math.sin(t * 0.8) * 0.12 : 0]}>
-        <mesh scale={[0.2, 0.175, 0.18]}><sphereGeometry args={[1, 24, 18]} /><meshStandardMaterial color={look.base} roughness={0.9} /></mesh>
-        {look.head.map((q, i) => <mesh key={i} position={q.p} scale={q.s}><sphereGeometry args={[1, 14, 10]} /><meshStandardMaterial color={q.c} roughness={0.9} /></mesh>)}
-        {/* 이마 줄무늬 (태비의 M자) */}
-        {look.stripes && [-0.055, -0.018, 0.018, 0.055].map((x, i) => <mesh key={x} position={[x, 0.12, 0.1]} rotation={[0.5, 0, (i - 1.5) * 0.25]} scale={[0.011, 0.045, 0.012]}><sphereGeometry args={[1, 6, 6]} /><meshStandardMaterial color={look.stripes} /></mesh>)}
+        <mesh scale={[0.2, 0.175, 0.18]} geometry={paint.head}><meshStandardMaterial vertexColors roughness={0.9} /></mesh>
         {/* 귀: 뾰족한 삼각형 */}
         {[-1, 1].map((sd, i) => (
           <group key={sd} position={[sd * 0.115, 0.165, 0]} rotation={[0, 0, -sd * 0.34]}>
@@ -144,9 +153,11 @@ export function CatBody({ look, pose, t }: { look: Look; pose: string; t: number
             {pose === "sleep"
               ? <mesh position={[0, 0, 0.012]} rotation={[0, 0, Math.PI]}><torusGeometry args={[0.022, 0.006, 4, 10, Math.PI]} /><meshStandardMaterial color="#2a1f1a" /></mesh>
               : <>
-                <mesh scale={[1, 1.12, 0.32]}><sphereGeometry args={[0.036, 16, 12]} /><meshStandardMaterial color="#1c1416" roughness={0.2} /></mesh>
-                <mesh position={[0.011, 0.014, 0.012]}><circleGeometry args={[0.011, 12]} /><meshBasicMaterial color="#ffffff" /></mesh>
-                <mesh position={[-0.01, -0.012, 0.012]}><circleGeometry args={[0.005, 10]} /><meshBasicMaterial color="#ffffff" /></mesh>
+                {/* 초록 눈 + 세로 동공 + 반짝이 (사용자가 고른 눈) — 납작하게 얼굴에 박힘 */}
+                <mesh scale={[1, 1.1, 0.3]}><sphereGeometry args={[0.04, 18, 14]} /><meshStandardMaterial color={look.eye} roughness={0.25} /></mesh>
+                <mesh position={[0, 0, 0.004]} scale={[0.36, 1.0, 0.3]}><sphereGeometry args={[0.032, 12, 10]} /><meshStandardMaterial color="#141010" /></mesh>
+                <mesh position={[0.014, 0.017, 0.0135]}><circleGeometry args={[0.01, 12]} /><meshBasicMaterial color="#ffffff" /></mesh>
+                <mesh position={[-0.008, -0.016, 0.0135]}><circleGeometry args={[0.0045, 10]} /><meshBasicMaterial color="#ffffff" /></mesh>
               </>}
           </group>
         ))}
