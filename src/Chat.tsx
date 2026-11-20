@@ -4,6 +4,10 @@ import { supabase } from "./supabase";
 
 export type ChatMessage = { id: string; nickname: string; body: string; created_at: string };
 
+// 최근 몇 분 대화만 보여 줄지 (DB 규칙 supabase/chat.sql 과 같은 값)
+export const KEEP_MINUTES = 10;
+const KEEP_MS = KEEP_MINUTES * 60 * 1000;
+
 const NICK_KEY = "3d_pj.chatNick";
 const loadNick = () => { try { return localStorage.getItem(NICK_KEY) || ""; } catch { return ""; } };
 const saveNick = (n: string) => { try { localStorage.setItem(NICK_KEY, n); } catch { /* 무시 */ } };
@@ -22,7 +26,7 @@ export function useVillageChat() {
   useEffect(() => {
     if (!supabase) return;
     let alive = true;
-    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const since = new Date(Date.now() - KEEP_MS).toISOString();
     supabase.from("chat_messages").select("*").gt("created_at", since)
       .order("created_at", { ascending: false }).limit(100)
       .then(({ data, error: e }) => {
@@ -42,7 +46,12 @@ export function useVillageChat() {
         if (status === "SUBSCRIBED") ch.track({ at: Date.now() });
       });
     channelRef.current = ch;
-    return () => { alive = false; supabase?.removeChannel(ch); };
+    // 화면에 떠 있는 메시지도 10분이 지나면 사라지게
+    const prune = setInterval(() => {
+      const cut = new Date(Date.now() - KEEP_MS).toISOString();
+      setMessages((prev) => (prev.some((m) => m.created_at <= cut) ? prev.filter((m) => m.created_at > cut) : prev));
+    }, 15000);
+    return () => { alive = false; clearInterval(prune); supabase?.removeChannel(ch); };
   }, []);
 
   const setOpen = (open: boolean) => { openRef.current = open; if (open) setUnread(0); };
@@ -130,7 +139,7 @@ export default function ChatPanel({ chat, defaultNick, onClose }: {
           );
         })}
       </div>
-      <p className="chat-note">최근 24시간 대화만 보여요</p>
+      <p className="chat-note">최근 {KEEP_MINUTES}분 대화만 보여요</p>
       {(err || chat.error) && <p className="gate-error">{err || chat.error}</p>}
       <form onSubmit={submit} className="chat-form">
         {editingNick ? (
