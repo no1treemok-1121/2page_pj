@@ -201,6 +201,23 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     walk.emote(c.icon);
     walk.say(c.say(CAT_NAMES[id]));
   };
+  // 🔥 불멍: 방석에 앉아(빈자리로) 불을 바라봄, 가끔 혼잣말
+  const toggleGaze = () => {
+    if (igloo.mine.gaze) { igloo.setGaze(false); return; }
+    if (igloo.mine.seat === null) {
+      let free = 0; while (free < 10 && igloo.seatTaken(free)) free++;
+      if (free >= 10 || !igloo.sit(free)) { setNotice("빈 방석이 없어요"); return; }
+    }
+    setTimeout(() => igloo.setGaze(true), 50);
+    igloo.emote("🔥 불멍…");
+  };
+  useEffect(() => {
+    if (!inIgloo || !igloo.mine.gaze) return;
+    const lines = ["타닥타닥… 🔥", "따뜻하다…", "멍…", "불꽃 예쁘다 ✨", "마음이 편안해져요 ☺️"];
+    let k = 0;
+    const id = window.setInterval(() => igloo.emote(lines[k++ % lines.length]), 4500);
+    return () => clearInterval(id);
+  }, [inIgloo, igloo.mine.gaze]); // eslint-disable-line react-hooks/exhaustive-deps
   const enterIgloo = () => goThen(IGLOO_DOOR.x, IGLOO_DOOR.z, 0.6, () => {
     setInIgloo(true);
     walk.say("❄️ 이글루에 들어갔어요");
@@ -418,8 +435,10 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     <>
       {inIgloo ? (
         <Canvas camera={{ position: [0, isPortrait ? 5.2 : 4.2, isPortrait ? 7.2 : 6.2], fov: isPortrait ? 62 : 52 }} dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
-          <IglooScene people={igloo.people} myKey={walk.myKey} emotes={igloo.emotes} wishCount={wishes.length} onBoard={() => setTreeMenu(true)} />
-          <IglooCamera portrait={isPortrait} />
+          <IglooScene people={igloo.people} myKey={walk.myKey} emotes={igloo.emotes} wishCount={wishes.length} onBoard={() => setTreeMenu(true)}
+            onSeat={(i) => { if (!igloo.sit(i)) setNotice("다른 사람이 앉아 있는 자리예요 🙂"); }}
+            onFloor={(x, z) => igloo.walkTo(x, z)} />
+          <IglooCamera portrait={isPortrait} gaze={igloo.mine.gaze} seat={igloo.mine.seat} />
           <OrbitControls makeDefault enablePan={false} target={[0, 1, -0.6]} minDistance={3} maxDistance={isPortrait ? 9.5 : 8} maxPolarAngle={Math.PI / 2.1} />
         </Canvas>
       ) : (
@@ -503,13 +522,14 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
       {inIgloo && <>
         <div className="title igloo-title">
           <h1>❄️ 이글루</h1>
-          <p>지금 {igloo.people.length}명이 둘러앉아 있어요 · 📖 소원 방명록을 눌러 소원을 남겨요</p>
+          <p>지금 {igloo.people.length}명 · 방석을 누르면 앉고, 바닥을 누르면 걸어가요 · 📖 방명록에 소원을 남겨요</p>
         </div>
         <div className="igloo-bar">
           <div className="igloo-emotes">
             {EMOTES.map((x) => <button key={x.e} title={x.label} onClick={() => igloo.emote(x.e)}>{x.e}</button>)}
           </div>
           <div className="igloo-actions">
+            <button className={igloo.mine.gaze ? "btn gaze-on" : "btn"} onClick={toggleGaze}>{igloo.mine.gaze ? "🔥 불멍 그만하기" : "🔥 불멍하기"}</button>
             <button className="btn ghost light" onClick={() => setInIgloo(false)}>← 마을로 나가기</button>
             <button className="btn" onClick={() => setWriting(true)}>✏️ 소원 쓰기</button>
             <button className="btn" onClick={() => setBoxOpen(true)}>📜 방명록</button>

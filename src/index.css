@@ -468,3 +468,4 @@ a.btn { display: inline-block; text-decoration: none; text-align: center; box-si
 .cat-heart { font-size: 22px; animation: cat-heart 1.2s ease-in-out infinite; filter: drop-shadow(0 0 6px #ff7eb6); }
 @keyframes cat-heart { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.25); opacity: 1; filter: drop-shadow(0 0 12px #ffb3d6); } }
 .spot-tag.cat { background: #e07a9a; }
+.btn.gaze-on { background: #ff8a3d; color: #2a1408; }

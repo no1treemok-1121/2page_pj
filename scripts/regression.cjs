@@ -275,6 +275,11 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     check('이글루: 안에 있는 사람 서로 보임', both);
     await B.click('.igloo-emotes button >> nth=1');
     check('이글루: 감정 표현 보임', await seen(A, '❤️'));
+    // 🔥 불멍하기 / 방석 옮기기
+    await A.click('.igloo-actions >> text=불멍하기'); await A.waitForTimeout(600);
+    check('이글루: 불멍하기', !!(await A.$('.igloo-actions >> text=불멍 그만하기')));
+    check('이글루: 불멍 상대에게 보임', await seen(B, '불멍'));
+    await A.click('.igloo-actions >> text=불멍 그만하기'); await A.waitForTimeout(300);
     await A.click('.igloo-actions >> text=소원 쓰기'); await A.waitForTimeout(300);
     check('이글루: 소원 쓰기 창(트리와 같은 소원)', !!(await A.$('.backdrop .name-field')));
     await A.keyboard.press('Escape'); await A.waitForTimeout(200);

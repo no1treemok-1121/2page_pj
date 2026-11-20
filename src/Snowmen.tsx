@@ -26,7 +26,7 @@ export function useSnowmen() {
     if (!supabase) throw new Error("서버 연결 정보가 없어요");
     const scarf = SCARVES[Math.floor(Math.random() * SCARVES.length)];
     const { data, error } = await supabase.from("snowmen")
-      .insert({ x: Math.round(x * 100) / 100, z: Math.round(z * 100) / 100, ry, name: name.slice(0, 12) || "익명", scarf })
+      .insert({ x: Math.round(Math.max(-14.9, Math.min(14.9, x)) * 100) / 100, z: Math.round(Math.max(-14.9, Math.min(14.9, z)) * 100) / 100, ry, name: name.slice(0, 12) || "익명", scarf })
       .select().single();
     if (error) throw new Error("눈사람을 만들지 못했어요. 잠시 뒤 다시 해 주세요.");
     setList((prev) => [data as Snowman, ...prev].slice(0, 40));

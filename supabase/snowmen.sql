@@ -33,3 +33,9 @@ returns void language sql security definer set search_path = public as $$
 $$;
 revoke all on function public.smash_snowman(uuid) from public;
 grant execute on function public.smash_snowman(uuid) to anon, authenticated;
+
+-- 2026-11-20: 마을이 넓어져서(걷는 반경 13) 위치 범위를 -8~8 → -15~15로 (먼 곳에서 눈사람이 안 만들어지던 문제)
+alter table public.snowmen drop constraint if exists snowmen_x_check;
+alter table public.snowmen drop constraint if exists snowmen_z_check;
+alter table public.snowmen add constraint snowmen_x_check check (x between -15 and 15);
+alter table public.snowmen add constraint snowmen_z_check check (z between -15 and 15);

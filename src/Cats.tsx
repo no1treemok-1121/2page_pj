@@ -139,9 +139,10 @@ export function CatBody({ look, pose, t }: { look: Look; pose: string; t: number
       <group position={[0, lying ? 0.13 : 0.24, 0]} rotation={[sitting ? -0.45 : 0, 0, 0]}>
         <mesh scale={[0.21, 0.19, 0.31]} geometry={paint.body}><meshStandardMaterial vertexColors roughness={0.9} /></mesh>
         {/* 꼬리 (띠 무늬) */}
-        <group position={[0, 0.05, -0.3]} rotation={[sitting ? 1.3 : walk ? -0.5 + Math.sin(t * 4) * 0.2 : 0.9, Math.sin(t * 2) * 0.3, 0]}>
-          {look.tail.map((c, i) => <mesh key={i} position={[0, 0, -0.07 - i * 0.08]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.035 - i * 0.003, 0.038 - i * 0.003, 0.085, 10]} /><meshStandardMaterial color={c} roughness={0.9} /></mesh>)}
-          <mesh position={[0, 0, -0.07 - look.tail.length * 0.08 + 0.02]}><sphereGeometry args={[0.024, 10, 8]} /><meshStandardMaterial color={look.tail[look.tail.length - 1]} /></mesh>
+        <group position={[0, 0.05, -0.25]} rotation={[sitting ? 1.3 : walk ? -0.5 + Math.sin(t * 4) * 0.2 : 0.9, Math.sin(t * 2) * 0.3, 0]}>
+          <mesh><sphereGeometry args={[0.045, 12, 10]} /><meshStandardMaterial color={look.tail[0]} roughness={0.9} /></mesh>
+          {look.tail.map((c, i) => <mesh key={i} position={[0, 0, -0.035 - i * 0.075]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.036 - i * 0.003, 0.04 - i * 0.003, 0.085, 12]} /><meshStandardMaterial color={c} roughness={0.9} /></mesh>)}
+          <mesh position={[0, 0, -0.035 - look.tail.length * 0.075 + 0.035]}><sphereGeometry args={[0.024, 10, 8]} /><meshStandardMaterial color={look.tail[look.tail.length - 1]} /></mesh>
         </group>
       </group>
       {/* 다리 */}

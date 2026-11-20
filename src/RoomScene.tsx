@@ -1,7 +1,7 @@
 import { DEFAULT_DECOR, Decor, foodById } from "./decor";
 import { IconText } from "./FoodIcon";
 import { Html } from "@react-three/drei";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ThreeEvent, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import Character3D from "./Character3D";
@@ -181,6 +181,54 @@ function SnowmanDoll() {
   );
 }
 
+// 카메라가 벽 바깥쪽에 있으면 그 벽(과 벽에 붙은 것)을 숨김
+function Wall({ nx, nz, at, children }: { nx: number; nz: number; at: [number, number]; children: React.ReactNode }) {
+  const g = useRef<THREE.Group>(null);
+  useFrame(({ camera }) => {
+    if (g.current) g.current.visible = (camera.position.x - at[0]) * nx + (camera.position.z - at[1]) * nz < 0;
+  });
+  return <group ref={g}>{children}</group>;
+}
+
+// 창문 (밖은 눈 내리는 밤)
+function Window({ x, z, ry }: { x: number; z: number; ry: number }) {
+  return (
+    <group position={[x, 2, z]} rotation={[0, ry, 0]}>
+      <mesh><planeGeometry args={[1.5, 1.1]} /><meshBasicMaterial color="#1a2b55" /></mesh>
+      {[[-0.4, 0.2], [0.3, -0.25], [0.5, 0.3], [-0.2, -0.3], [0.05, 0.05]].map(([a, b], i) => (
+        <mesh key={i} position={[a, b, 0.01]}><circleGeometry args={[0.03, 8]} /><meshBasicMaterial color="#ffffff" /></mesh>
+      ))}
+      <mesh position={[0, 0, 0.02]}><boxGeometry args={[0.05, 1.1, 0.02]} /><meshStandardMaterial color="#6b4a35" /></mesh>
+      <mesh position={[0, 0, 0.02]}><boxGeometry args={[1.5, 0.05, 0.02]} /><meshStandardMaterial color="#6b4a35" /></mesh>
+      {/* 커튼 */}
+      {[-1, 1].map((sd) => <mesh key={sd} position={[sd * 0.85, -0.05, 0.04]}><boxGeometry args={[0.25, 1.3, 0.04]} /><meshStandardMaterial color="#f6d6dc" /></mesh>)}
+      <mesh position={[0, 0.7, 0.04]}><boxGeometry args={[2.0, 0.05, 0.05]} /><meshStandardMaterial color="#c9a27a" /></mesh>
+    </group>
+  );
+}
+
+// 작은 액자 (하트·별·고양이·눈송이 그림)
+function Frame({ x, y, z, ry, color, kind }: { x: number; y: number; z: number; ry: number; color: string; kind: "heart" | "star" | "cat" | "snow" }) {
+  return (
+    <group position={[x, y, z]} rotation={[0, ry, 0]}>
+      <mesh><boxGeometry args={[0.5, 0.42, 0.04]} /><meshStandardMaterial color="#8a5a3c" /></mesh>
+      <mesh position={[0, 0, 0.022]}><planeGeometry args={[0.4, 0.32]} /><meshStandardMaterial color="#fff8ec" /></mesh>
+      <group position={[0, 0, 0.03]}>
+        {kind === "heart" && [-1, 1].map((sd) => <mesh key={sd} position={[sd * 0.04, 0.02, 0]}><circleGeometry args={[0.055, 16]} /><meshBasicMaterial color={color} /></mesh>)}
+        {kind === "heart" && <mesh position={[0, -0.035, 0]} rotation={[0, 0, Math.PI / 4]}><planeGeometry args={[0.1, 0.1]} /><meshBasicMaterial color={color} /></mesh>}
+        {kind === "star" && <mesh rotation={[0, 0, Math.PI / 2]}><circleGeometry args={[0.09, 5]} /><meshBasicMaterial color={color} /></mesh>}
+        {kind === "snow" && [0, 1, 2].map((k) => <mesh key={k} rotation={[0, 0, (k * Math.PI) / 3]}><planeGeometry args={[0.22, 0.025]} /><meshBasicMaterial color={color} /></mesh>)}
+        {kind === "cat" && <>
+          <mesh><circleGeometry args={[0.085, 18]} /><meshBasicMaterial color="#fbf8f2" /></mesh>
+          <mesh position={[-0.045, 0.04, 0.001]}><circleGeometry args={[0.04, 12]} /><meshBasicMaterial color="#d27a32" /></mesh>
+          {[-1, 1].map((sd) => <mesh key={sd} position={[sd * 0.055, 0.085, 0]} rotation={[0, 0, sd * -0.3]}><circleGeometry args={[0.035, 3]} /><meshBasicMaterial color={sd < 0 ? "#d27a32" : "#231d1d"} /></mesh>)}
+          {[-1, 1].map((sd) => <mesh key={`e${sd}`} position={[sd * 0.03, 0, 0.002]}><circleGeometry args={[0.012, 10]} /><meshBasicMaterial color="#5a8a3a" /></mesh>)}
+        </>}
+      </group>
+    </group>
+  );
+}
+
 export default function RoomScene({ letterCount, onMailbox, avatar, alert, decor = DEFAULT_DECOR }: { letterCount: number; onMailbox: () => void; avatar: Avatar; alert?: boolean; decor?: Decor }) {
   const side = new THREE.Color(decor.wall).multiplyScalar(0.93).getStyle();
   return (
@@ -196,36 +244,35 @@ export default function RoomScene({ letterCount, onMailbox, avatar, alert, decor
         <circleGeometry args={[1.4, 32]} />
         <meshStandardMaterial color={decor.rug} />
       </mesh>
-      {/* 벽 */}
-      <mesh position={[0, 1.75, -2.6]}>
-        <boxGeometry args={[6, 3.5, 0.2]} />
-        <meshStandardMaterial color={decor.wall} />
-      </mesh>
-      <mesh position={[-3, 1.75, 0]}>
-        <boxGeometry args={[0.2, 3.5, 6]} />
-        <meshStandardMaterial color={side} />
-      </mesh>
-      {/* 창문 (밖은 눈 내리는 밤) */}
-      <group position={[1.2, 2, -2.48]}>
-        <mesh>
-          <planeGeometry args={[1.5, 1.1]} />
-          <meshBasicMaterial color="#1a2b55" />
-        </mesh>
-        {[[-0.4, 0.2], [0.3, -0.25], [0.5, 0.3], [-0.2, -0.3], [0.05, 0.05]].map(([x, y], i) => (
-          <mesh key={i} position={[x, y, 0.01]}>
-            <circleGeometry args={[0.03, 8]} />
-            <meshBasicMaterial color="#ffffff" />
-          </mesh>
-        ))}
-        <mesh position={[0, 0, 0.02]}>
-          <boxGeometry args={[0.05, 1.1, 0.02]} />
-          <meshStandardMaterial color="#6b4a35" />
-        </mesh>
-        <mesh position={[0, 0, 0.02]}>
-          <boxGeometry args={[1.5, 0.05, 0.02]} />
-          <meshStandardMaterial color="#6b4a35" />
-        </mesh>
-      </group>
+      {/* 벽 4개: 카메라와 사이에 있는 벽은 숨겨서 360도 어디서든 방 안이 보임 (인형집처럼) */}
+      <Wall nx={0} nz={-1} at={[0, -2.6]}>
+        <mesh position={[0, 1.75, -2.6]}><boxGeometry args={[6, 3.5, 0.2]} /><meshStandardMaterial color={decor.wall} /></mesh>
+        <Window x={1.2} z={-2.48} ry={0} />
+        <Frame x={-0.3} y={2.4} z={-2.48} ry={0} color="#f2c14e" kind="heart" />
+          </Wall>
+      <Wall nx={-1} nz={0} at={[-3, 0]}>
+        <mesh position={[-3, 1.75, 0]}><boxGeometry args={[0.2, 3.5, 6]} /><meshStandardMaterial color={side} /></mesh>
+        <Frame x={-2.88} y={2.2} z={1.4} ry={Math.PI / 2} color="#8a5cc2" kind="star" />
+      </Wall>
+      <Wall nx={1} nz={0} at={[3, 0]}>
+        <mesh position={[3, 1.75, 0]}><boxGeometry args={[0.2, 3.5, 6]} /><meshStandardMaterial color={side} /></mesh>
+        <Window x={2.88} z={0.4} ry={-Math.PI / 2} />
+        <Frame x={2.88} y={2.3} z={-1.6} ry={-Math.PI / 2} color="#e07a9a" kind="cat" />
+        {/* 작은 선반 + 화분 */}
+        <mesh position={[2.75, 1.3, -1.6]}><boxGeometry args={[0.3, 0.05, 0.8]} /><meshStandardMaterial color="#8a5a3c" /></mesh>
+        <mesh position={[2.75, 1.42, -1.8]}><cylinderGeometry args={[0.08, 0.06, 0.18, 12]} /><meshStandardMaterial color="#d9774a" /></mesh>
+        <mesh position={[2.75, 1.58, -1.8]}><sphereGeometry args={[0.12, 12, 10]} /><meshStandardMaterial color="#4f9a5e" /></mesh>
+        <mesh position={[2.75, 1.4, -1.4]}><boxGeometry args={[0.18, 0.16, 0.12]} /><meshStandardMaterial color="#f6d6dc" /></mesh>
+      </Wall>
+      <Wall nx={0} nz={1} at={[0, 3]}>
+        <mesh position={[0, 1.75, 3]}><boxGeometry args={[6, 3.5, 0.2]} /><meshStandardMaterial color={side} /></mesh>
+        {/* 문 + 리스 */}
+        <mesh position={[-1.4, 1.05, 2.89]}><boxGeometry args={[1.0, 2.1, 0.05]} /><meshStandardMaterial color="#8a5a3c" /></mesh>
+        <mesh position={[-1.05, 1.0, 2.86]}><sphereGeometry args={[0.05, 10, 8]} /><meshStandardMaterial color="#f2c14e" metalness={0.6} /></mesh>
+        <mesh position={[-1.4, 1.7, 2.85]}><torusGeometry args={[0.22, 0.06, 8, 20]} /><meshStandardMaterial color="#2e7d4f" /></mesh>
+        <mesh position={[-1.4, 1.5, 2.84]}><sphereGeometry args={[0.06, 8, 6]} /><meshStandardMaterial color="#d62f2f" /></mesh>
+        <Frame x={1.2} y={2.1} z={2.89} ry={Math.PI} color="#3d6fb6" kind="snow" />
+      </Wall>
       <Fireplace />
       {decor.lights !== "none" && <Garland kind={decor.lights} />}
       {decor.table && <Table food={decor.food} candle={decor.candle} />}

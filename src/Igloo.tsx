@@ -16,52 +16,81 @@ export const IGLOO = { x: 3.8, z: -10.2, r: 2.3 };
 const toCenter = (() => { const d = Math.hypot(IGLOO.x, IGLOO.z); return { x: -IGLOO.x / d, z: -IGLOO.z / d }; })();
 export const IGLOO_DOOR = { x: IGLOO.x + toCenter.x * (IGLOO.r + 0.9), z: IGLOO.z + toCenter.z * (IGLOO.r + 0.9) };
 
-export type IglooPerson = { key: string; nick: string; avatar: string | null };
+export type IglooPerson = { key: string; nick: string; avatar: string | null; seat: number | null; x: number; z: number; gaze: boolean };
+type MyState = { seat: number | null; x: number; z: number; gaze: boolean };
+
+export const SEAT_R = 2.5;
+export const SEATS = 10;
+export const seatPos = (i: number) => { const a = Math.PI / 2 + (i / SEATS) * Math.PI * 2 + 0.3; return { x: Math.cos(a) * SEAT_R, z: Math.sin(a) * SEAT_R }; };
 
 // 이글루 안 사람들 (밖에 있을 때도 몇 명 있는지 알 수 있게 채널은 늘 듣고, 안에 있을 때만 나를 알림)
 export function useIgloo(inside: boolean, myKey: string, nick: string, avatar: string | null) {
   const [people, setPeople] = useState<IglooPerson[]>([]);
   const [emotes, setEmotes] = useState<Record<string, { e: string; t: number }>>({});
+  const [mine, setMine] = useState<MyState>({ seat: null, x: 0, z: 3.6, gaze: false });
   const ch = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
   const ready = useRef(false);
   const insideRef = useRef(inside);
-  const meRef = useRef({ nick, avatar });
-  meRef.current = { nick, avatar };
+  const payload = () => ({ nick, avatar, ...mineRef.current });
+  const mineRef = useRef(mine);
+  mineRef.current = mine;
+  const payRef = useRef(payload);
+  payRef.current = payload;
   insideRef.current = inside;
 
   useEffect(() => {
     if (!supabase) return;
     const c = supabase.channel("igloo-room", { config: { presence: { key: myKey }, broadcast: { self: false } } });
     c.on("presence", { event: "sync" }, () => {
-      const st = c.presenceState() as Record<string, { nick?: string; avatar?: string | null }[]>;
-      setPeople(Object.entries(st).map(([key, arr]) => ({ key, nick: arr[0]?.nick ?? "누군가", avatar: arr[0]?.avatar ?? null })));
+      const st = c.presenceState() as Record<string, Partial<IglooPerson>[]>;
+      setPeople(Object.entries(st).map(([key, arr]) => {
+        const v = arr[0] ?? {};
+        return { key, nick: v.nick ?? "누군가", avatar: v.avatar ?? null, seat: typeof v.seat === "number" ? v.seat : null, x: v.x ?? 0, z: v.z ?? 3.6, gaze: !!v.gaze };
+      }));
     })
-      .on("broadcast", { event: "emote" }, ({ payload }) => {
-        const p = payload as { key: string; e: string };
+      .on("broadcast", { event: "emote" }, ({ payload: pl }) => {
+        const p = pl as { key: string; e: string };
         setEmotes((prev) => ({ ...prev, [p.key]: { e: p.e, t: Date.now() } }));
       })
-      .subscribe((s) => {
-        if (s !== "SUBSCRIBED") return;
+      .subscribe((st) => {
+        if (st !== "SUBSCRIBED") return;
         ready.current = true;
-        if (insideRef.current) c.track(meRef.current);
+        if (insideRef.current) c.track(payRef.current());
       });
     ch.current = c;
     return () => { ready.current = false; supabase?.removeChannel(c); };
   }, [myKey]);
 
+  // 들어오면 빈 방석에 자동으로 앉음
+  useEffect(() => {
+    if (!inside) { setMine({ seat: null, x: 0, z: 3.6, gaze: false }); return; }
+    const taken = new Set(people.filter((p) => p.key !== myKey && p.seat !== null).map((p) => p.seat));
+    let free = 0; while (taken.has(free) && free < SEATS) free++;
+    const sp = seatPos(free < SEATS ? free : 0);
+    setMine({ seat: free < SEATS ? free : null, x: sp.x, z: sp.z, gaze: false });
+  }, [inside]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const c = ch.current;
     if (!c || !ready.current) return;
-    if (inside) c.track(meRef.current); else c.untrack();
-  }, [inside, nick, avatar]);
+    if (inside) c.track(payRef.current()); else c.untrack();
+  }, [inside, nick, avatar, mine]);
 
   const emote = (e: string) => {
     setEmotes((prev) => ({ ...prev, [myKey]: { e, t: Date.now() } }));
     ch.current?.send({ type: "broadcast", event: "emote", payload: { key: myKey, e } });
   };
-  // 안에 있는데 아직 목록에 내가 안 보이면(연결 중) 나를 먼저 보여 줌
-  const list = inside && !people.some((p) => p.key === myKey) ? [{ key: myKey, nick, avatar }, ...people] : people;
-  return { people: list, count: people.length, emotes, emote };
+  const seatTaken = (i: number) => people.some((p) => p.key !== myKey && p.seat === i);
+  const sit = (i: number) => { if (seatTaken(i)) return false; const sp = seatPos(i); setMine({ seat: i, x: sp.x, z: sp.z, gaze: false }); return true; };
+  const walkTo = (x: number, z: number) => {
+    const d = Math.hypot(x, z), r = Math.min(3.9, Math.max(1.0, d)) / (d || 1);
+    setMine({ seat: null, x: x * r, z: z * r, gaze: false });
+  };
+  const setGaze = (g: boolean) => setMine((m) => ({ ...m, gaze: g }));
+  // 안에 있는데 아직 목록에 내가 안 보이면(연결 중) 나를 먼저 보여 줌, 내 자리는 내 화면 기준
+  const me: IglooPerson = { key: myKey, nick, avatar, ...mine };
+  const list = inside ? [me, ...people.filter((p) => p.key !== myKey)] : people;
+  return { people: list, count: people.length, emotes, emote, mine, sit, walkTo, setGaze, seatTaken };
 }
 
 // ---------------- 마을에 있는 큰 이글루 ----------------
@@ -95,8 +124,6 @@ export function VillageIgloo({ count, onEnter }: { count: number; onEnter?: () =
 
 // ---------------- 이글루 안 ----------------
 const DOME = 5;
-const SEAT_R = 2.5;
-const SEATS = 10;
 
 function Brazier() {
   const light = useRef<THREE.PointLight>(null);
@@ -184,23 +211,82 @@ function WishBoard({ count, onClick }: { count: number; onClick: () => void }) {
 }
 
 // 들어올 때 카메라를 정면(문 쪽)에서 방명록·모닥불이 다 보이게 맞춤
-export function IglooCamera({ portrait }: { portrait: boolean }) {
+export function IglooCamera({ portrait, gaze, seat }: { portrait: boolean; gaze?: boolean; seat?: number | null }) {
   const camera = useThree((st) => st.camera);
-  const controls = useThree((st) => st.controls) as unknown as { target: THREE.Vector3; update: () => void } | null;
+  const controls = useThree((st) => st.controls) as unknown as { target: THREE.Vector3; update: () => void; enabled: boolean } | null;
   useEffect(() => {
     camera.position.set(0, portrait ? 5.2 : 4.2, portrait ? 7.2 : 6.2);
     if (controls) { controls.target.set(0, 1, -0.6); controls.update(); } else camera.lookAt(0, 1, -0.6);
   }, [camera, controls, portrait]);
+  const want = useMemo(() => new THREE.Vector3(), []);
+  const look = useMemo(() => new THREE.Vector3(0, 0.9, 0), []);
+  useFrame((_, dt) => {
+    if (!gaze || seat === null || seat === undefined || !controls) return;
+    // 내 자리 옆·위에서 불을 내려다봄 (내 머리가 불을 가리지 않게)
+    const ang = Math.PI / 2 + (seat / SEATS) * Math.PI * 2 + 0.3 + 0.55;
+    want.set(Math.cos(ang) * 4.2, 2.5, Math.sin(ang) * 4.2);
+    camera.position.lerp(want, Math.min(1, dt * 1.5));
+    controls.target.lerp(look, Math.min(1, dt * 2));
+    controls.update();
+  });
   return null;
 }
 
-export function IglooScene({ people, myKey, emotes, wishCount, onBoard }: {
+// 불꽃에서 올라가는 불티
+function Embers() {
+  const pts = useRef<THREE.Points>(null);
+  const n = 40;
+  const geo = useMemo(() => { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(n * 3), 3)); return g; }, []);
+  const seeds = useMemo(() => Array.from({ length: n }, () => [Math.random(), Math.random() * Math.PI * 2, 0.4 + Math.random() * 0.6]), []);
+  useFrame(({ clock }) => {
+    const a = geo.attributes.position as THREE.BufferAttribute, t = clock.elapsedTime;
+    seeds.forEach(([o, ang, sp], i) => {
+      const k = (t * sp * 0.35 + o) % 1;
+      a.setXYZ(i, Math.cos(ang + t) * 0.25 * (1 - k) + Math.sin(t * 3 + i) * 0.05, 0.7 + k * 2.6, Math.sin(ang + t) * 0.25 * (1 - k));
+    });
+    a.needsUpdate = true;
+    if (pts.current) (pts.current.material as THREE.PointsMaterial).opacity = 0.75 + Math.sin(t * 6) * 0.2;
+  });
+  return <points ref={pts} geometry={geo}><pointsMaterial color="#ffb347" size={0.06} transparent opacity={0.8} depthWrite={false} /></points>;
+}
+
+// 이글루 안 사람: 목표 자리로 부드럽게 걸어가서 앉거나 섬
+function IglooPersonView({ p, mine, emote }: { p: IglooPerson; mine: boolean; emote: string | null }) {
+  const g = useRef<THREE.Group>(null);
+  const [walking, setWalking] = useState(false);
+  const target = p.seat !== null ? seatPos(p.seat) : { x: p.x, z: p.z };
+  useFrame((_, dt) => {
+    const o = g.current; if (!o) return;
+    const dx = target.x - o.position.x, dz = target.z - o.position.z, d = Math.hypot(dx, dz);
+    const mv = d > 0.03;
+    if (mv !== walking) setWalking(mv);
+    if (mv) {
+      const step = Math.min(d, 2.2 * dt);
+      o.position.x += (dx / d) * step; o.position.z += (dz / d) * step;
+      o.rotation.y = Math.atan2(dx, dz);
+      o.position.y = 0;
+    } else {
+      o.rotation.y = Math.atan2(-o.position.x, -o.position.z); // 불 쪽을 바라봄
+      o.position.y = p.seat !== null ? 0.16 : 0;
+    }
+  });
+  return (
+    <group ref={g} position={[target.x, 0, target.z]}>
+      <Character3D avatar={parseAvatar(p.avatar) ?? DEFAULT_AVATAR} walking={walking} />
+      <Html pointerEvents="none" position={[0, 1.8, 0]} center distanceFactor={7} zIndexRange={[5, 0]}>
+        <div className={mine ? "name-tag mine" : "name-tag"}>{p.nick}{mine ? " (나)" : ""}{p.gaze ? " 🔥" : ""}</div>
+      </Html>
+      {emote && <Html pointerEvents="none" position={[0, 2.35, 0]} center distanceFactor={7} zIndexRange={[6, 0]}><div className="emote-bubble"><IconText text={emote} /></div></Html>}
+    </group>
+  );
+}
+
+export function IglooScene({ people, myKey, emotes, wishCount, onBoard, onSeat, onFloor }: {
   people: IglooPerson[]; myKey: string; emotes: Record<string, { e: string; t: number }>; wishCount: number; onBoard: () => void;
+  onSeat?: (i: number) => void; onFloor?: (x: number, z: number) => void;
 }) {
   const [, tick] = useState(0);
   useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 1000); return () => clearInterval(id); }, []);
-  // 나는 맨 앞(카메라 쪽) 방석, 나머지는 순서대로
-  const ordered = [...people].sort((a, b) => (a.key === myKey ? -1 : b.key === myKey ? 1 : a.key.localeCompare(b.key))).slice(0, SEATS);
   return (
     <>
       <color attach="background" args={["#0d1630"]} />
@@ -210,11 +296,12 @@ export function IglooScene({ people, myKey, emotes, wishCount, onBoard }: {
       <mesh><sphereGeometry args={[DOME, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color="#dcecff" emissive="#7fb2e6" emissiveIntensity={0.18} side={THREE.BackSide} roughness={0.6} /></mesh>
       {[0.9, 1.8, 2.7, 3.5, 4.2].map((y) => <mesh key={y} position={[0, y, 0]} rotation={[-Math.PI / 2, 0, 0]}><torusGeometry args={[Math.sqrt(DOME * DOME - y * y) - 0.03, 0.03, 4, 60, Math.PI]} /><meshStandardMaterial color="#a9c8ea" /></mesh>)}
       {/* 바닥: 눈 + 둥근 털 러그 */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[DOME, 48]} /><meshStandardMaterial color="#f2f7ff" /></mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}><circleGeometry args={[3.2, 48]} /><meshStandardMaterial color="#e8cfa6" roughness={1} /></mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} onClick={(e) => { if (onFloor && e.delta < 6) { e.stopPropagation(); onFloor(e.point.x, e.point.z); } }}><circleGeometry args={[DOME, 48]} /><meshStandardMaterial color="#f2f7ff" /></mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} onClick={(e) => { if (onFloor && e.delta < 6) { e.stopPropagation(); onFloor(e.point.x, e.point.z); } }}><circleGeometry args={[3.2, 48]} /><meshStandardMaterial color="#e8cfa6" roughness={1} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}><ringGeometry args={[2.85, 3.0, 48]} /><meshStandardMaterial color="#c0392b" /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}><ringGeometry args={[1.2, 1.3, 40]} /><meshStandardMaterial color="#c0392b" /></mesh>
       <Brazier />
+      <Embers />
       <DomeLights />
       <Glitter />
       {/* 벽 아래 얼음 등불 */}
@@ -228,25 +315,24 @@ export function IglooScene({ people, myKey, emotes, wishCount, onBoard }: {
         );
       })}
       <WishBoard count={wishCount} onClick={onBoard} />
-      {/* 방석 + 둘러앉은 사람들 */}
+      {/* 방석 (누르면 거기 가서 앉음) */}
       {Array.from({ length: SEATS }, (_, i) => {
-        const a = Math.PI / 2 + (i / SEATS) * Math.PI * 2 + 0.3;
-        const x = Math.cos(a) * SEAT_R, z = Math.sin(a) * SEAT_R;
-        const p = ordered[i];
-        const em = p && emotes[p.key] && Date.now() - emotes[p.key].t < 3000 ? emotes[p.key].e : null;
+        const sp = seatPos(i);
         return (
-          <group key={i} position={[x, 0, z]} rotation={[0, Math.atan2(-x, -z), 0]}>
+          <group key={i} position={[sp.x, 0, sp.z]}
+            onClick={(e) => { if (onSeat && e.delta < 6) { e.stopPropagation(); onSeat(i); } }}
+            onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
+            onPointerOut={() => { document.body.style.cursor = "auto"; }}>
             <mesh position={[0, 0.08, 0]}><cylinderGeometry args={[0.42, 0.45, 0.16, 18]} /><meshStandardMaterial color={["#d64545", "#3d6fb6", "#f2c14e", "#2f7a4b", "#8a5cc2"][i % 5]} /></mesh>
-            {p && <>
-              <group position={[0, 0.16, 0]}><Character3D avatar={parseAvatar(p.avatar) ?? DEFAULT_AVATAR} /></group>
-              <Html pointerEvents="none" position={[0, 1.95, 0]} center distanceFactor={7} zIndexRange={[5, 0]}>
-                <div className={p.key === myKey ? "name-tag mine" : "name-tag"}>{p.nick}{p.key === myKey ? " (나)" : ""}</div>
-              </Html>
-              {em && <Html pointerEvents="none" position={[0, 2.5, 0]} center distanceFactor={7} zIndexRange={[6, 0]}><div className="emote-bubble"><IconText text={em} /></div></Html>}
-            </>}
+            <mesh position={[0, 0.17, 0]}><torusGeometry args={[0.3, 0.025, 6, 20]} /><meshStandardMaterial color="#ffffff" transparent opacity={0.5} /></mesh>
           </group>
         );
       })}
+      {/* 안에 있는 사람들 */}
+      {people.slice(0, 24).map((p) => (
+        <IglooPersonView key={p.key} p={p} mine={p.key === myKey}
+          emote={emotes[p.key] && Date.now() - emotes[p.key].t < 3500 ? emotes[p.key].e : null} />
+      ))}
     </>
   );
 }
