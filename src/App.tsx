@@ -15,7 +15,7 @@ import Fortune from "./Fortune";
 import { STALLS, SnackMenu } from "./Snack";
 import { CATCHES, loadDex, randomCatch } from "./Pond";
 import { BELL_SPOT, playChime } from "./Bell";
-import { RINK, SLED_PARK, TOUR_STATION, isTour } from "./sled";
+import { RINK, SLED_PARK, TOUR_STATION } from "./sled";
 import { TourStation } from "./Tour";
 import { BENCHES, POND } from "./benches";
 import { VillageEvent, currentEvent } from "./events";
@@ -91,6 +91,22 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const [snackOpen, setSnackOpen] = useState<string | null>(null);
   const [camFollow, setCamFollow] = useState(() => { try { return localStorage.getItem(CAM_KEY) !== "off"; } catch { return true; } });
   const [snapAt, setSnapAt] = useState(0);
+  // 🐾 자율 활동: 켜 두면 가만히 있을 때(10초) 내 캐릭터가 알아서 산책·감정 표현·벤치에 앉기·혼잣말·낚시
+  const [autoOn, setAutoOn] = useState(() => { try { return localStorage.getItem("3d_pj.autoPlay") === "on"; } catch { return false; } });
+  const toggleAuto = () => {
+    const v = !autoOn; setAutoOn(v);
+    try { localStorage.setItem("3d_pj.autoPlay", v ? "on" : "off"); } catch { /* 무시 */ }
+    setNotice(v ? "🐾 자율 활동 ON: 가만히 두면 내 캐릭터가 알아서 놀아요" : "🐾 자율 활동을 껐어요");
+  };
+  const lastInput = useRef(Date.now());
+  const lastAuto = useRef(0);
+  const autoTick = useRef<() => void>(() => {});
+  useEffect(() => {
+    const touch = () => { lastInput.current = Date.now(); };
+    window.addEventListener("pointerdown", touch); window.addEventListener("keydown", touch);
+    const id = window.setInterval(() => autoTick.current(), 1000);
+    return () => { window.removeEventListener("pointerdown", touch); window.removeEventListener("keydown", touch); clearInterval(id); };
+  }, []);
   const toggleFollow = () => {
     const v = !camFollow; setCamFollow(v);
     try { localStorage.setItem(CAM_KEY, v ? "on" : "off"); } catch { /* 무시 */ }
@@ -120,6 +136,41 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
       }
     }, 200);
   };
+  // 하는 중인 활동(낚시·먹기·마시멜로): 타이머를 모아 두고, 땅을 누르거나 '그만하기'로 중단
+  const timers = useRef<number[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const later = (ms: number, fn: () => void) => {
+    const id = window.setTimeout(() => {
+      timers.current = timers.current.filter((x) => x !== id);
+      fn();
+      if (!timers.current.length) setBusy(null);
+    }, ms);
+    timers.current.push(id);
+  };
+  const cancelBusy = () => {
+    const had = timers.current.length > 0;
+    timers.current.forEach((t) => clearTimeout(t));
+    timers.current = [];
+    setBusy(null);
+    if (had) walk.say("✋ 그만할래요");
+    return had;
+  };
+  autoTick.current = () => {
+    const now = Date.now();
+    if (!autoOn || now - lastInput.current < 10000 || now - lastAuto.current < 7000) return;
+    if (walk.sledding || walk.goal.current || timers.current.length || pending.current || document.querySelector(".backdrop, .menu")) return;
+    lastAuto.current = now;
+    const r = Math.random();
+    if (r < 0.4) { // 산책
+      const a = Math.random() * Math.PI * 2, d = 3.5 + Math.random() * 7;
+      walk.standUp(); walk.goal.current = clampSpot(Math.cos(a) * d, Math.sin(a) * d);
+    } else if (r < 0.6) walk.emote(EMOTES[Math.floor(Math.random() * EMOTES.length)].e);
+    else if (r < 0.75) { if (!walk.sitting) walk.sitAt(Math.floor(Math.random() * BENCHES.length)); else walk.emote("🎵"); }
+    else if (r < 0.9) {
+      const lines = ["눈이 참 예쁘다 ❄️", "흥얼흥얼~ 🎵", "오늘은 무슨 소원 빌까?", "으~ 춥다 🥶", "트리 반짝반짝 ✨", "붕어빵 먹고 싶다…", "심심한데 놀 사람~?"];
+      walk.say(lines[Math.floor(Math.random() * lines.length)]);
+    } else goFish();
+  };
   const isNear = (x: number, z: number, near: number) => Math.hypot(walk.me.current.x - x, walk.me.current.z - z) <= near + 1;
   const stallOf = (id: string) => STALLS.find((s) => s.id === id) ?? STALLS[0];
   const openStall = (id: string) => { const st = stallOf(id).spot; goThen(st.x, st.z, 1.8, () => setSnackOpen(id)); };
@@ -137,14 +188,14 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     const me = walk.me.current;
     const dx = me.x - POND.x, dz = me.z - POND.z, d = Math.hypot(dx, dz) || 1;
     const spot = clampSpot(POND.x + (dx / d) * (POND.r + 0.5), POND.z + (dz / d) * (POND.r * 0.8 + 0.5));
-    walk.standUp();
-    walk.goal.current = spot;
-    const walkMs = Math.min(5000, (Math.hypot(spot[0] - me.x, spot[1] - me.z) / 2.6) * 1000 + 150);
-    setTimeout(() => {
+    goThen(spot[0], spot[1], 0.2, () => {
+      cancelBusy();
+      setBusy("🎣 낚시하는 중");
       walk.emote("🎣");
       walk.say("🎣 낚싯대를 휙~ 던졌다");
-      setTimeout(() => walk.say(randomCatch()), 3200);
-    }, walkMs);
+      later(2600, () => walk.say("🎣 찌가 움찔움찔… 조금만 더!"));
+      later(5200, () => walk.say(randomCatch()));
+    });
   };
   // 🔔 종 울리기: 종이 흔들리고 딩동댕 (모두에게)
   const [bellAt, setBellAt] = useState(0);
@@ -164,10 +215,12 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   };
   // 마시멜로 굽기 (통나무에 앉아 있을 때)
   const roastMallow = () => {
+    cancelBusy();
+    setBusy("🍡 마시멜로 굽는 중");
     walk.emote("🍡");
     walk.say("🍡 마시멜로를 불에 살살~");
     const results = ["노릇노릇 완벽해! 😋", "앗, 새까맣게 탔다! 🔥😂", "말랑말랑 반쯤 익었어 ☁️", "겉바속촉 대성공! ✨"];
-    setTimeout(() => walk.say(`🍡 ${results[Math.floor(Math.random() * results.length)]}`), 2600);
+    later(2600, () => walk.say(`🍡 ${results[Math.floor(Math.random() * results.length)]}`));
   };
   // 모닥불: 그 불 옆 통나무 중 하나에 앉기 (앉으면 '따뜻해~')
   const warmUp = (fire: number) => {
@@ -179,8 +232,10 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     const st = stallOf(snackOpen ?? "bunsik").spot;
     setSnackOpen(null);
     if (!isNear(st.x, st.z, 1.8)) { setNotice("가게 가까이 가야 주문할 수 있어요 🏪"); return; }
+    cancelBusy();
+    setBusy(`${s.emoji} 먹는 중`);
     walk.emote(s.emoji);
-    s.sounds.forEach((t, i) => setTimeout(() => walk.say(`${s.emoji} ${t}`), 600 + i * 2200));
+    s.sounds.forEach((t, i) => later(600 + i * 2200, () => walk.say(`${s.emoji} ${t}`)));
   };
   const [actTarget, setActTarget] = useState<string | null>(null);
   const snowmen = useSnowmen();
@@ -323,7 +378,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         <color attach="background" args={["#0b1733"]} />
         <fog attach="fog" args={["#0b1733", 20, 58]} />
         <Scene wishes={wishes} mineIds={myWishIds} onTreeClick={() => setTreeMenu(true)} onWishClick={setViewing}
-          onGround={(x, z) => { if (walk.stopRide()) { setNotice("🛷 썰매에서 내렸어요"); return; } setWalkTarget([x, z]); }}
+          onGround={(x, z) => { if (walk.stopRide()) { setNotice("🛷 썰매에서 내렸어요"); return; } cancelBusy(); setWalkTarget([x, z]); }}
           onSled={rideHill}
           onIce={rideIce}
           onSnack={openStall}
@@ -366,12 +421,15 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         )}
       </div>
 
-      {walk.sledding && isTour(walk.mySledKind.current) && (
+      {walk.sledding ? (
         <button className="btn ride-off" onClick={() => { if (walk.stopRide()) setNotice("🛷 썰매에서 내렸어요"); }}>🛷 여기서 내리기</button>
+      ) : busy && (
+        <button className="btn ride-off busy-off" onClick={cancelBusy}>{busy} · ✋ 그만하기</button>
       )}
       <div className="cam-wrap">
         <button className={camFollow ? "cam-btn on" : "cam-btn"} onClick={toggleFollow} aria-label="카메라 따라가기" aria-pressed={camFollow}>🎥<small>{camFollow ? "ON" : "OFF"}</small></button>
         <button className="cam-btn" onClick={() => setSnapAt(Date.now())} aria-label="내 위치">📍<small>나</small></button>
+        <button className={autoOn ? "cam-btn on" : "cam-btn"} onClick={toggleAuto} aria-label="자율 활동" aria-pressed={autoOn}>🐾<small>{autoOn ? "ON" : "OFF"}</small></button>
       </div>
       <div className="emote-wrap">
         {emoteOpen && (

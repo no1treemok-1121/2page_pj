@@ -286,9 +286,9 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
     setMySay({ e: rideSay(kind), t: Date.now() });
     chRef.current?.send({ type: "broadcast", event: "sled", payload: { key: keyRef.current, kind, seed: mySledSeed.current } });
   };
-  // 개썰매·사슴썰매는 중간에 아무 곳이나 누르면 그 자리에서 내림
+  // 탈것(언덕 썰매·빙판·개썰매·사슴썰매)은 중간에 아무 곳이나 누르면 그 자리에서 내림
   const stopRide = () => {
-    if (mySled.current === null || !isTour(mySledKind.current)) return false;
+    if (mySled.current === null) return false;
     const k = mySledKind.current;
     const p = rideAt(k, Math.min(1, (Date.now() - mySled.current) / rideMs(k)), mySledSeed.current);
     mySled.current = null;

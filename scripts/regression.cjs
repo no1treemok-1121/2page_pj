@@ -190,6 +190,25 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   const off = (await A.textContent('.toast').catch(() => '')).includes('내렸어요');
   check('개썰매: 내리면 안내', off);
   check('개썰매 내림: 상대 화면 말풍선', await seen(B, '내릴게요'));
+  // 🐾 자율 활동 버튼 (기본 OFF, 켜고 끄기)
+  check('자율 활동 버튼(기본 OFF)', (await A.textContent('.cam-btn[aria-label="자율 활동"]').catch(() => '')).includes('OFF'));
+  await A.click('.cam-btn[aria-label="자율 활동"]'); await A.waitForTimeout(200);
+  check('자율 활동 켜기', (await A.textContent('.cam-btn[aria-label="자율 활동"]').catch(() => '')).includes('ON'));
+  await A.click('.cam-btn[aria-label="자율 활동"]'); await A.waitForTimeout(200);
+  // 🛷 언덕 썰매도 중간에 내리기
+  await A.click('.menu-btn'); await A.click('.menu >> text=썰매 타기');
+  for (let i = 0; i < 40 && !(await A.$('.ride-off')); i++) await A.waitForTimeout(300);
+  check('언덕 썰매: 내리기 버튼', !!(await A.$('.ride-off')));
+  await A.$eval('.ride-off', b => b.click()).catch(() => null); await A.waitForTimeout(200);
+  check('언덕 썰매: 중간에 내림', (await A.textContent('.toast').catch(() => '')).includes('내렸어요'));
+  // 🎣 낚시 그만하기
+  await A.click('.menu-btn'); await A.click('.menu >> text=연못 낚시');
+  for (let i = 0; i < 50 && !(await A.$('.busy-off')); i++) await A.waitForTimeout(300);
+  check('낚시: 그만하기 버튼', !!(await A.$('.busy-off')));
+  await A.$eval('.busy-off', b => b.click()).catch(() => null); await A.waitForTimeout(100);
+  const gA = await seen(A, '그만할래요', 1500);
+  check('낚시 그만하기: 그만할래요', await seen(B, '그만할래요'), 'A:' + gA + ' ' + (await bubbles(B)).join(','));
+  // 노점 간판·지붕 모형은 3D라 화면 오류 없음으로 확인
   // 첫 입장 화면에 닉네임 입력 칸
   {
     const c = await b.newContext({ viewport: { width: 900, height: 600 } });

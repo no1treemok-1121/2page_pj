@@ -34,7 +34,7 @@
 - 트리 누르면 '소원 쓰기 / 소원함 보기' 선택. 내가 건 소원은 이 기기에서만 크게 반짝이고 '✨ 내 소원' 표시(localStorage `3d_pj.myWishes`).
 - 닉네임: 왼쪽 위 캐릭터 편집기에서도 변경(채팅과 같은 localStorage `3d_pj.chatNick`, 걸어 다니는 캐릭터 이름표에도 사용).
 - 실제 방문자가 쓰고 있음 — 테스트 데이터는 '[테스트]'로 시작하게 넣고 반드시 지울 것.
-- 카메라 따라가기(`CameraFollow`, OrbitControls makeDefault, 🎥 ON/OFF·📍 내 위치), 개썰매·사슴썰매 한 바퀴(`src/Tour.tsx`, RideKind dog/deer, 중간에 내리기 `stopRide`/broadcast `sledStop`). NPC는 16초마다 천천히 이동(사용자 요청).
+- 카메라 따라가기(`CameraFollow`, OrbitControls makeDefault, 🎥 ON/OFF·📍 내 위치), 개썰매·사슴썰매 한 바퀴(`src/Tour.tsx`, RideKind dog/deer, 중간에 내리기 `stopRide`/broadcast `sledStop`). NPC는 16초마다 천천히 이동(사용자 요청). 모든 탈것 중간에 내리기, 낚시·먹기·마시멜로는 `later`/`cancelBusy`로 중단 가능. 🐾 자율 활동(`autoTick`, 기본 OFF).
 - 마을 이벤트(`src/events.ts`): 2분 주기, 기기 시계 기준. 0~30초 트리 반짝임, 40~48·100~108초 별똥별, 60~90초 불꽃놀이 — 겹치지 않음. 화면 위 안내 배너.
 - 운세 공유: 뽑은 카드를 `village-walk` presence에 `fortune`으로 실어 보냄 → 이름표 옆 아이콘, 운세 창에 '광장 친구들의 오늘 카드'(지금 마을에 있는 사람만).
 - 채팅 말풍선: 광장 채팅을 보내면 broadcast `say` → 캐릭터 머리 위 4초.
