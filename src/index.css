@@ -115,7 +115,7 @@ html, body, #root {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(140px + env(safe-area-inset-bottom));
+  bottom: calc(84px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 20;
   max-width: calc(100% - 32px);
@@ -144,8 +144,7 @@ html, body, #root {
   position: fixed;
   left: 0;
   right: 0;
-  /* Netlify가 오른쪽 아래에 붙이는 배지에 가리지 않도록 위로 띄움 */
-  bottom: calc(76px + env(safe-area-inset-bottom));
+  bottom: calc(20px + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
   gap: 8px;
@@ -199,7 +198,7 @@ html, body, #root {
   box-sizing: border-box; border-radius: 10px; background: #e84a5f; color: #fff; font-size: 12px; line-height: 20px;
 }
 .chat {
-  position: fixed; z-index: 30; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom));
+  position: fixed; z-index: 30; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
   width: min(380px, calc(100vw - 32px)); height: min(520px, calc(100dvh - 200px));
   display: flex; flex-direction: column; border-radius: 18px; overflow: hidden;
   background: #fdf9f0; color: #2a2a35; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4); animation: pop 0.2s ease;
@@ -224,8 +223,7 @@ html, body, #root {
 .chat-form .btn { padding: 9px 14px; flex-shrink: 0; }
 .nick { flex-shrink: 0; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: none; border-radius: 10px; background: #f1ebde; color: #2a2a35; font: inherit; font-size: 13px; padding: 0 10px; cursor: pointer; }
 @media (max-width: 520px) {
-  /* 휴대폰에서도 오른쪽 아래 Netlify 배지(높이 약 44px) 위로 띄움 */
-  .chat { right: 8px; left: 8px; width: auto; bottom: calc(72px + env(safe-area-inset-bottom)); height: min(calc(100dvh - 72px - 150px), 560px); }
+  .chat { right: 8px; left: 8px; width: auto; bottom: calc(8px + env(safe-area-inset-bottom)); height: min(calc(100dvh - 8px - 150px), 560px); }
 }
 
 /* 소원 이름·소원함 */
@@ -303,7 +301,7 @@ html, body, #root {
 .btn.ghost.wide { border: 1px solid #d9d2c3; }
 
 /* 감정 표현 */
-.emote-wrap { position: fixed; z-index: 14; left: 16px; bottom: calc(140px + env(safe-area-inset-bottom)); display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 8px; }
+.emote-wrap { position: fixed; z-index: 14; left: 16px; bottom: calc(132px + env(safe-area-inset-bottom)); display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 8px; }
 .emote-btn { width: 52px; height: 52px; border: none; border-radius: 50%; background: #fdf9f0; font-size: 26px; box-shadow: 0 6px 20px rgba(0,0,0,0.35); cursor: pointer; }
 .emote-picker { display: grid; grid-template-columns: repeat(4, 44px); gap: 6px; padding: 8px; border-radius: 16px; background: #fdf9f0; box-shadow: 0 10px 30px rgba(0,0,0,0.35); animation: pop 0.18s ease; }
 .emote-picker button { width: 44px; height: 44px; border: none; border-radius: 12px; background: #f1ebde; font-size: 24px; cursor: pointer; }
@@ -339,7 +337,7 @@ html, body, #root {
 .chat-note { font-size: 12px; }
 @media (max-width: 520px) {
   /* 휴대폰: 화면 위부터 아래(Netlify 배지 위)까지 꽉 차게. 키보드가 올라오면 남은 공간을 모두 대화에 사용 */
-  .chat { top: max(8px, env(safe-area-inset-top)); bottom: calc(68px + env(safe-area-inset-bottom)); left: 6px; right: 6px; height: auto; border-radius: 16px; }
+  .chat { top: max(8px, env(safe-area-inset-top)); bottom: calc(8px + env(safe-area-inset-bottom)); left: 6px; right: 6px; height: auto; border-radius: 16px; }
   .chat header { padding: 10px 12px; }
 }
 
@@ -385,5 +383,5 @@ html, body, #root {
 @media (max-width: 520px) { .emote-btn { width: 46px; height: 46px; font-size: 22px; } .emote-wrap { gap: 6px; } }
 
 /* 팝업: 화면 안에서만 보이고 길면 안에서 스크롤 (아래 Netlify 배지에 버튼이 가리지 않게) */
-.backdrop { padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: calc(72px + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.backdrop { padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: calc(16px + env(safe-area-inset-bottom)); box-sizing: border-box; }
 .backdrop > .card { max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }

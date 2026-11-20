@@ -43,11 +43,14 @@
 - 관리 방법: 환경에 저장된 Supabase 개인 접근 토큰(api.supabase.com, 프록시가 자동 주입)으로 Management API 사용. SQL 실행은 `POST https://api.supabase.com/v1/projects/{ref}/database/query` 에 `{"query": "..."}`. 토큰 권한은 좁음(프로젝트 목록 조회 불가, ref 직접 지정), 2026-11-20 발급·7일 만료 — 만료되면 새 토큰 발급을 안내.
 
 ## 배포
-- Netlify: **https://2page-pj.netlify.app** — `main` 브랜치에 반영되면 자동 배포. 입장 코드는 Netlify 환경 변수 `ENTRY_CODE` — 값을 바꾼 뒤에는 재배포해야 반영됨(Netlify의 Manage → Deploys → Trigger deploy, 또는 main에 새 커밋이 합쳐질 때 자동). 사용자는 Netlify 새 화면(Apps 목록, ⋯ 메뉴: Open app / Versions / Share / Manage)을 씀.
-- 오른쪽 아래에 Netlify가 "Powered by Netlify" 배지를 붙이므로 화면 하단 버튼은 76px 위로 띄워 둠(`.bottom-bar`).
+- **Cloudflare Workers(정적 자산): https://2page-pj.no1treemok.workers.dev** — GitHub `main`에 반영되면 자동 빌드·배포(Workers Builds). 설정 `wrangler.jsonc`. 빌드 명령 `npm run build`, 배포 명령 `npx wrangler deploy`.
+- 입장 코드: 빌드 변수 `ENTRY_CODE`를 넣지 않아 기본값 1225 (사용자 동의). 바꾸려면 Cloudflare 프로젝트 Settings → Build의 변수에 `ENTRY_CODE` 추가 후 재빌드.
+- 빌드 서버에서 `@swc/core` 네이티브 부품이 안 불러와져 실패한 적 있음 → `@vitejs/plugin-react`(SWC 아님) 사용. 다시 SWC로 바꾸지 말 것.
+- **이전: Netlify(2page-pj.netlify.app)** — 무료 크레딧 소진(하루 20번 넘게 배포)으로 배포가 멈춰 이전함. 사이트는 남아 있지만 갱신 안 됨. `netlify.toml`은 남아 있으나 쓰지 않음.
+- **배포 횟수 아끼기:** 고친 내용은 여러 개 모아서 한 번에 `main`에 반영할 것.
 
 ## 남은 일
-- [x] Netlify 배포 (2page-pj.netlify.app)
+- [x] 배포: Cloudflare (https://2page-pj.no1treemok.workers.dev), Netlify에서 이전
 - [x] 마을 꾸미기, 휴대폰 화면, 링크 미리보기 (og:image는 배포 주소가 정해지면 전체 주소로 바꿀 것)
 - [x] 방·편지 (방 링크 방식, 로그인 없음)
 - [ ] (선택) 카카오/구글 로그인으로 전환
