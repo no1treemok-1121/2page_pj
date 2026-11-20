@@ -403,6 +403,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     if (action.type === "bungeo") setTimeout(() => openStall("bungeo"), 300);
     if (action.type === "cocoa") setTimeout(() => openStall("cocoa"), 300);
     if (action.type === "balloon") setTimeout(() => openStall("balloon"), 300);
+    if (action.type === "cats") setTimeout(() => { const m = walk.me.current; tapCat(Math.hypot(catPos[0].x - m.x, catPos[0].z - m.z) <= Math.hypot(catPos[1].x - m.x, catPos[1].z - m.z) ? 0 : 1); }, 300);
     if (action.type === "dex") setDexOpen(true);
     if (action.type === "photo") setTimeout(takePhoto, 400);
     if (action.type === "bell") setTimeout(ringBell, 300);
@@ -817,13 +818,13 @@ function FindRoom({ onFound, onClose }: { onFound: (room: MyRoom) => void; onClo
   );
 }
 
-type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo" | "balloon"; n: number } | null;
+type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo" | "balloon" | "cats"; n: number } | null;
 const SETUP_KEY = "3d_pj.setupDone";
 
 // 오른쪽 위 ☰ 메뉴: 마을 소개와 바로가기
 function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose, onFindRoom }: {
   onFindRoom: () => void;
-  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo" | "balloon") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
+  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo" | "balloon" | "cats") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -876,6 +877,9 @@ function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose, onFindRoom }: 
           </button>
           <button className="intro-card" onClick={() => onAction("dex")}>
             <span>📖</span><strong>낚시 도감</strong><small>연못에서 낚은 것들을 모아 봐요</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("cats")}>
+            <span>🐱</span><strong>고양이 찾아가기</strong><small>가까운 고양이(밤·캔디)한테 가서 간식 주기·쓰다듬기·놀아주기</small>
           </button>
           <button className="intro-card" onClick={() => onAction("balloon")}>
             <span>🎈</span><strong>풍선 가게</strong><small>별·하트·달 풍선을 머리 위에 동동! 가끔 무지개 레어 풍선</small>
@@ -981,7 +985,7 @@ export default function App() {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [villageAction, setVillageAction] = useState<VillageAction>(null);
-  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo" | "balloon") => {
+  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo" | "balloon" | "cats") => {
     setMenuOpen(false);
     setVillageAction({ type, n: Date.now() });
     if (roomId) go(null);
