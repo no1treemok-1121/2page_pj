@@ -1,7 +1,9 @@
 // 썰매 놀이 두 가지 (마을이 넓어져서 광장 바깥쪽에 배치)
 // 1) 언덕 썰매: 오른쪽 뒤 언덕 꼭대기에서 광장까지 미끄러져 내려옴
 // 2) 빙판 썰매: 왼쪽 얼음 빙판 위를 씽씽 돌다가 가장자리에서 멈춤
-export type RideKind = "hill" | "ice";
+export type RideKind = "hill" | "ice" | "dog" | "deer";
+export const isTour = (k: RideKind) => k === "dog" || k === "deer";
+export const RIDE_KINDS: RideKind[] = ["hill", "ice", "dog", "deer"];
 
 export const HILL = { x: 11, z: -7, r: 3.6, h: 2.8 };
 export const SLED_SPOT = { x: 6.5, z: 0.5 }; // 언덕 썰매 도착 지점 (광장)
@@ -37,7 +39,27 @@ export function iceAt(s: number, seed = 0) {
   return { x, y: 0.03, z, ry };
 }
 
-export const rideMs = (k: RideKind) => (k === "ice" ? ICE_MS : SLED_MS);
-export const rideAt = (k: RideKind, s: number, seed = 0) => (k === "ice" ? iceAt(s, seed) : sledAt(s));
-export const rideEnd = (k: RideKind) => (k === "ice" ? ICE_END : SLED_SPOT);
-export const rideSay = (k: RideKind) => (k === "ice" ? "⛸️ 씽씽~!" : "🛷 슝~!");
+// 3) 개썰매·사슴썰매: 마을을 크게 한 바퀴 (앞쪽은 넓게, 뒤쪽 모닥불·연못은 피해서)
+export const TOUR_MS = 36000;
+const TOUR_A0 = Math.PI * 0.75; // 정류장 자리 (왼쪽 앞)
+function ellipse(a: number) {
+  const s = Math.sin(a);
+  return { x: Math.cos(a) * 9.2, z: s * (s > 0 ? 8.5 : 6.2) };
+}
+const st = ellipse(TOUR_A0);
+// 정류장: 길 바로 옆에 썰매 두 대를 세워 둠 (길 방향을 바라봄)
+export const TOUR_STATION = { x: st.x * 0.86, z: st.z * 0.86, ry: Math.atan2(-Math.sin(TOUR_A0) * 9.2, Math.cos(TOUR_A0) * 8.5) };
+function tourPoint(s: number) {
+  const e = s < 0.04 ? s * s / 0.08 : s > 0.96 ? 1 - (1 - s) * (1 - s) / 0.08 : s - 0.02; // 살살 출발·도착
+  return ellipse(TOUR_A0 + e * Math.PI * 2 * (1 / 0.96 * 0.96));
+}
+export function tourAt(s: number) {
+  const p = tourPoint(s), q = tourPoint(Math.min(1, s + 0.003)), b = tourPoint(Math.max(0, s - 0.003));
+  return { x: p.x, y: 0.03, z: p.z, ry: Math.atan2(q.x - b.x, q.z - b.z) };
+}
+const TOUR_END = { x: st.x * 0.8, z: st.z * 0.8 };
+
+export const rideMs = (k: RideKind) => (isTour(k) ? TOUR_MS : k === "ice" ? ICE_MS : SLED_MS);
+export const rideAt = (k: RideKind, s: number, seed = 0) => (isTour(k) ? tourAt(s) : k === "ice" ? iceAt(s, seed) : sledAt(s));
+export const rideEnd = (k: RideKind) => (isTour(k) ? TOUR_END : k === "ice" ? ICE_END : SLED_SPOT);
+export const rideSay = (k: RideKind) => (k === "dog" ? "🐕 개썰매 출발~ 멍멍!" : k === "deer" ? "🦌 사슴썰매 출발~ 딸랑딸랑" : k === "ice" ? "⛸️ 씽씽~!" : "🛷 슝~!");

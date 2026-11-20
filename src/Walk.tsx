@@ -6,7 +6,8 @@ import Character3D from "./Character3D";
 import { Avatar, DEFAULT_AVATAR, parseAvatar, toStr } from "./avatar";
 import { supabase } from "./supabase";
 import { BENCHES, LOG_Y, POND, SIT_Y } from "./benches";
-import { RideKind, rideAt, rideEnd, rideMs, rideSay } from "./sled";
+import { RIDE_KINDS, RideKind, isTour, rideAt, rideEnd, rideMs, rideSay } from "./sled";
+import { TourTeam } from "./Tour";
 import { SledMesh } from "./Village";
 import { CARDS, loadToday } from "./Fortune";
 
@@ -50,7 +51,8 @@ export const NPCS = [
   { id: "npc:3", nick: "너구리 할배", avatar: { animal: "raccoon", color: "#8d8d95", acc: "santa" }, fisher: true },
 ];
 const FISHER = { x: POND.x + 0.6, z: POND.z + POND.r * 0.8 + 0.5 }; // 연못 앞쪽 가장자리
-const NPC_STEP = 7000; // 7초마다 새 자리로 (4.5초 걷고 쉼)
+const NPC_STEP = 16000; // 16초마다 새 자리로 (11초 천천히 걷고 쉼) — 사용자 요청으로 느리게
+const NPC_WALK = 11000;
 const hash = (a: number, b: number) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
 function npcSpot(i: number, slot: number): [number, number] {
   const ang = hash(i, slot) * Math.PI * 2, r = 3.4 + hash(i + 7, slot) * 6;
@@ -65,7 +67,7 @@ export function npcPos(id: string, now = Date.now()) {
     return { x, z, ry: Math.atan2(POND.x - FISHER.x, POND.z - FISHER.z), walking: false, spin };
   }
   const t = now + i * 2300; // NPC마다 엇갈려 움직이게
-  const slot = Math.floor(t / NPC_STEP), phase = (t % NPC_STEP) / 4500;
+  const slot = Math.floor(t / NPC_STEP), phase = (t % NPC_STEP) / NPC_WALK;
   const [ax, az] = npcSpot(i, slot - 1), [bx, bz] = npcSpot(i, slot);
   const k = Math.min(1, phase), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
   let x = ax + (bx - ax) * e, z = az + (bz - az) * e;
@@ -133,9 +135,13 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
       .on("broadcast", { event: "smash" }, ({ payload }) => onSmashRef.current?.((payload as { id: string }).id))
       .on("broadcast", { event: "sled" }, ({ payload }) => {
         const p = payload as { key: string; kind?: RideKind; seed?: number };
-        const kind = p.kind === "ice" ? "ice" : "hill";
+        const kind: RideKind = RIDE_KINDS.includes(p.kind as RideKind) ? (p.kind as RideKind) : "hill";
         setSleds((prev) => ({ ...prev, [p.key]: { t: Date.now(), kind, seed: p.seed ?? 0 } }));
         setSays((prev) => ({ ...prev, [p.key]: { e: rideSay(kind), t: Date.now() } }));
+      })
+      .on("broadcast", { event: "sledStop" }, ({ payload }) => {
+        const k = (payload as { key: string }).key;
+        setSleds((prev) => { const n = { ...prev }; delete n[k]; return n; });
       })
       .on("broadcast", { event: "say" }, ({ payload }) => {
         const p = payload as { key: string; text: string };
@@ -280,6 +286,19 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
     setMySay({ e: rideSay(kind), t: Date.now() });
     chRef.current?.send({ type: "broadcast", event: "sled", payload: { key: keyRef.current, kind, seed: mySledSeed.current } });
   };
+  // 개썰매·사슴썰매는 중간에 아무 곳이나 누르면 그 자리에서 내림
+  const stopRide = () => {
+    if (mySled.current === null || !isTour(mySledKind.current)) return false;
+    const k = mySledKind.current;
+    const p = rideAt(k, Math.min(1, (Date.now() - mySled.current) / rideMs(k)), mySledSeed.current);
+    mySled.current = null;
+    setSledding(false);
+    meRef.current = { ...meRef.current, x: p.x, z: p.z };
+    sendPos();
+    chRef.current?.send({ type: "broadcast", event: "sledStop", payload: { key: keyRef.current } });
+    say("👋 여기서 내릴게요!");
+    return true;
+  };
   const endSled = () => {
     mySled.current = null;
     setSledding(false);
@@ -290,7 +309,7 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
   othersRef.current = others;
   // NPC끼리 장난: 모든 화면이 같은 시각에 같은 장난을 계산하므로 서버로 보내지 않고 각자 실행
   const localAct = (a: Act) => handleActRef.current(a);
-  return { onBellRef, announceBell, mySledSeed, localAct, mySledKind, onSmashRef, announceSmash, onSnowmanRef, announceSnowman, showSay, showEmote, rideSled, endSled, mySled, sledding, sleds, sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
+  return { stopRide, onBellRef, announceBell, mySledSeed, localAct, mySledKind, onSmashRef, announceSmash, onSnowmanRef, announceSnowman, showSay, showEmote, rideSled, endSled, mySled, sledding, sleds, sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
 }
 
 // 감정 표현: 3초 동안 머리 위에 띄우고, 그동안 캐릭터가 깡충 뜀
@@ -332,8 +351,34 @@ function EmoteBubble({ e }: { e: string }) {
 
 const fortuneIcon = (c?: number | null) => (c != null && CARDS[c] ? ` ${CARDS[c].icon}` : "");
 
-function NameTag({ text }: { text: string }) {
-  return <Html pointerEvents="none" position={[0, 1.75, 0]} center distanceFactor={9} zIndexRange={[5, 0]}><div className="name-tag">{text}</div></Html>;
+function NameTag({ text, mine }: { text: string; mine?: boolean }) {
+  return <Html pointerEvents="none" position={[0, 1.75, 0]} center distanceFactor={9} zIndexRange={[5, 0]}><div className={mine ? "name-tag mine" : "name-tag"}>{text}</div></Html>;
+}
+
+// 카메라가 따라갈 수 있게 내 캐릭터의 실제 위치(썰매 포함)를 여기에 적어 둠
+export const myWorldPos = new THREE.Vector3(0, 0, 0);
+export const myMoved = { current: false }; // 처음 한 번이라도 움직였는지 (처음엔 트리 전체를 보여 줌)
+
+// 내 캐릭터 표시: 머리 위 통통 튀는 노란 화살표 + 발밑 빛나는 동그라미
+function MyMarker() {
+  const arrow = useRef<THREE.Group>(null);
+  const ring = useRef<THREE.MeshBasicMaterial>(null);
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    if (arrow.current) { arrow.current.position.y = 2.25 + Math.abs(Math.sin(t * 3)) * 0.18; arrow.current.rotation.y = t * 1.5; }
+    if (ring.current) ring.current.opacity = 0.45 + Math.sin(t * 3) * 0.2;
+  });
+  return (
+    <>
+      <group ref={arrow} position={[0, 2.25, 0]}>
+        <mesh rotation={[Math.PI, 0, 0]}><coneGeometry args={[0.14, 0.26, 4]} /><meshBasicMaterial color="#ffd84d" /></mesh>
+      </group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
+        <ringGeometry args={[0.42, 0.56, 32]} />
+        <meshBasicMaterial ref={ring} color="#ffd84d" transparent opacity={0.5} depthWrite={false} />
+      </mesh>
+    </>
+  );
 }
 
 export function MyWalker({ walk, target, avatar }: {
@@ -367,11 +412,13 @@ export function MyWalker({ walk, target, avatar }: {
       if (s >= 1) { const end = rideEnd(kind); walk.endSled(); if (g.current) g.current.position.set(end.x, 0, end.z); return; }
       const p = rideAt(kind, s, walk.mySledSeed.current);
       if (g.current) { g.current.position.set(p.x, p.y, p.z); g.current.rotation.y = p.ry; }
+      myWorldPos.set(p.x, 0, p.z); myMoved.current = true;
       return;
     }
     const k = keys.current;
     let dx = (k["arrowright"] || k["d"] ? 1 : 0) - (k["arrowleft"] || k["a"] ? 1 : 0);
     let dz = (k["arrowdown"] || k["s"] ? 1 : 0) - (k["arrowup"] || k["w"] ? 1 : 0);
+    if (g.current && g.current.position.y !== 0 && walk.mySled.current === null) g.current.position.y = 0;
     if (dx || dz) {
       goal.current = null;
       if (me.sit || walk.benchTo.current !== null) walk.standUp();
@@ -398,17 +445,19 @@ export function MyWalker({ walk, target, avatar }: {
     const [x, z] = clampSpot(me.x + (dx / len) * step, me.z + (dz / len) * step);
     const ry = knocked ? (g.current?.rotation.y ?? 0) + dt * 22 : Math.atan2(dx, dz);
     if (g.current) { g.current.position.set(x, 0, z); g.current.rotation.y = ry; }
+    myWorldPos.set(x, 0, z); myMoved.current = true;
     walk.share({ x, z, ry });
   });
 
   const me = walk.me.current;
   return (
     <group ref={g} position={[me.x, 0, me.z]} rotation={[0, me.ry, 0]}>
-      {walk.sledding && <SledMesh />}
+      {walk.sledding && (isTour(walk.mySledKind.current) ? <TourTeam kind={walk.mySledKind.current} /> : <SledMesh />)}
       <group position={[0, walk.sitting ? (walk.me.current.z < -7 ? LOG_Y : SIT_Y) : walk.sledding ? 0.12 : 0, 0]}>
         <group ref={hop}><Character3D avatar={avatar ?? DEFAULT_AVATAR} walking={moving} /></group>
       </group>
-      <NameTag text={`${me.nick} (나)${fortuneIcon(me.fortune)}`} />
+      <MyMarker />
+      <NameTag mine text={`${me.nick} (나)${fortuneIcon(me.fortune)}`} />
       {myShow && <EmoteBubble e={myShow.e} />}
       {mySay && <SayBubble text={mySay.e} high={!!myShow} />}
     </group>
@@ -447,7 +496,7 @@ function OtherWalker({ w, emote, said, onSelect, sled }: { w: Walker; emote?: Em
   });
   return (
     <group ref={g} position={[w.x, 0, w.z]} rotation={[0, w.ry, 0]}>
-      {riding && <SledMesh />}
+      {riding && sled && (isTour(sled.kind) ? <TourTeam kind={sled.kind} /> : <SledMesh />)}
       <group position={[0, w.sit ? (w.z < -7 ? LOG_Y : SIT_Y) : riding ? 0.12 : 0, 0]}>
       <group ref={hop}
         onClick={(e) => { if (onSelect && e.delta < 6) { e.stopPropagation(); onSelect(); } }}

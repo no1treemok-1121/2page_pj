@@ -68,13 +68,21 @@ export function AvatarEditor({ initial, onSave, onClose }: { initial: Avatar | n
 // 입장 코드 다음 단계: 캐릭터를 고르고 마을(또는 방)로 들어감
 export function CharacterSetup({ initial, onDone }: { initial: Avatar | null; onDone: (a: Avatar) => void }) {
   const [a, setA] = useState<Avatar>(initial ?? DEFAULT_AVATAR);
+  const [nick, setNick] = useState(loadNickname);
+  const enter = () => {
+    // 닉네임을 비우면 귀여운 이름을 대신 붙여 줌 (나중에 왼쪽 위 캐릭터에서 바꿀 수 있음)
+    saveNickname(nick.trim() || `눈송이${Math.floor(100 + Math.random() * 900)}`);
+    onDone(a);
+  };
   return (
     <div className="intro">
       <div className="intro-inner">
         <div className="card setup-card">
           <h2>{initial ? "오늘은 이 캐릭터로 갈까요?" : "마을에서 쓸 캐릭터를 골라 주세요"}</h2>
+          <p className="pick-label">닉네임</p>
+          <input className="field nick-field" value={nick} maxLength={12} placeholder="닉네임 (이름표·채팅에 보여요)" onChange={(e) => setNick(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") enter(); }} />
           <Picker a={a} setA={setA} />
-          <button className="btn wide" onClick={() => onDone(a)}>이 캐릭터로 입장 →</button>
+          <button className="btn wide" onClick={enter}>이 캐릭터로 입장 →</button>
         </div>
       </div>
     </div>
