@@ -17,14 +17,13 @@
 ## Supabase
 - 사용자 소유 프로젝트 **`2page_pj` (ref `iabzybciyltmydycynat`, 서울 리전)**. 연결 정보는 `.env` (공개용 publishable 키라 저장소에 포함).
 - `wishes` 테이블: SQL은 `supabase/wishes.sql`. 읽기·추가만 허용(RLS). DB 구조를 바꾸면 SQL 파일을 저장소에 남길 것.
-- 같은 DB에 예전 2Page용 테이블 11개(posts, profiles 등, 비어 있음)와 가입 트리거 `on_auth_user_created` 가 아직 남아 있음 — 지울지 사용자 결정 대기 중.
+- DB에는 `wishes` 테이블만 있음 (2Page용 테이블·함수·트리거는 2026-11-20 삭제). `rls_auto_enable` 함수는 Supabase가 만든 것(새 테이블 RLS 자동 켜기)이니 지우지 말 것.
 - 관리 방법: 환경에 저장된 Supabase 개인 접근 토큰(api.supabase.com, 프록시가 자동 주입)으로 Management API 사용. SQL 실행은 `POST https://api.supabase.com/v1/projects/{ref}/database/query` 에 `{"query": "..."}`. 토큰 권한은 좁음(프로젝트 목록 조회 불가, ref 직접 지정), 2026-11-20 발급·7일 만료 — 만료되면 새 토큰 발급을 안내.
 
 ## 배포
 - Netlify 예정. `netlify.toml` 준비됨 (Base directory 비움).
 
 ## 남은 일
-- [ ] 2Page용 DB 테이블 삭제 여부 결정
 - [ ] Netlify 배포
 - [ ] 마을 꾸미기, 휴대폰 화면 다듬기, 링크 미리보기
 - [ ] 편지·방 기능 정의 → 로그인(카카오/구글) → 구현
