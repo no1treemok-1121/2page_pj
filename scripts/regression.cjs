@@ -97,7 +97,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   check('👊 목록에 NPC 포함', plist.filter(t => t.includes('NPC')).length === 4);
   await A.click('.people-list button:has-text("햄찌")'); await A.click('.act-btn:has-text("들이받기")'); await A.waitForTimeout(3000);
   check('NPC 들이받기: 아야', await seen(A, '아야'));
-  for (let i = 0; i < 8 && !(await A.$('.act-btn')); i++) { // NPC가 걷는 중이면 빗나갈 수 있어 몇 번 시도
+  for (let i = 0; i < 12 && !(await A.$('.act-btn')); i++) { // NPC가 걷는 중이면 빗나갈 수 있어 몇 번 시도
     const nt = await A.$$eval('.npc-tag', x => { const e = x.find(el => el.textContent.includes('루루')); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height + 40]; });
     if (nt) { await A.mouse.click(nt[0], nt[1]); await A.waitForTimeout(500); }
     if (!(await A.$('.act-btn'))) { await A.keyboard.press('Escape'); await A.waitForTimeout(1500); }
@@ -210,6 +210,21 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   const gA = await seen(A, '그만할래요', 1500);
   check('낚시 그만하기: 그만할래요', await seen(B, '그만할래요'), 'A:' + gA + ' ' + (await bubbles(B)).join(','));
   // 노점 간판·지붕 모형은 3D라 화면 오류 없음으로 확인
+  // 지워진 '내 방'을 가진 기기: '내 방이 없어졌어요' → 새 방 만들기 창
+  {
+    const c = await b.newContext({ viewport: { width: 900, height: 600 } });
+    const rid = '00000000-0000-4000-8000-000000000000';
+    await c.addInitScript(r => localStorage.setItem('3d_pj.myRoom', JSON.stringify({ roomId: r, ownerKey: 'x', nickname: '[테스트]옛방' })), rid);
+    const p = await c.newPage();
+    await p.goto(BASE + '/?room=' + rid); await p.fill('.gate input', '1225'); await p.press('.gate input', 'Enter'); await p.waitForTimeout(400);
+    await p.click('text=이 캐릭터로 입장'); await p.waitForTimeout(1500);
+    if (await p.$('.owner-ask')) { await p.keyboard.press('Escape'); await p.waitForTimeout(300); }
+    check('지워진 내 방: 안내 화면', !!(await p.$('text=내 방이 없어졌어요')));
+    if (await p.$('text=🏠 새 방 만들기')) await p.click('text=🏠 새 방 만들기');
+    await p.waitForTimeout(800);
+    check('지워진 내 방: 새 방 만들기 창', !!(await p.$('.find-first')));
+    await c.close();
+  }
   // 첫 입장 화면에 닉네임 입력 칸
   {
     const c = await b.newContext({ viewport: { width: 900, height: 600 } });
@@ -269,7 +284,8 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     check('꾸미기: 다른 기기에서도 저장된 소품', !!(await D.$('.decor-panel .chip.on:has-text("선물 상자")')));
     await D.click('.decor-panel >> text=취소');
     // 열쇠 창의 로그아웃 버튼 (D: 열쇠로 들어온 기기)
-    await D.click('.bottom-bar >> text=🔑 열쇠'); await D.waitForTimeout(1200);
+    await D.click('.bottom-bar >> text=🔑 열쇠');
+    await D.waitForSelector('.leave-btn:not([disabled])', { timeout: 6000 }).catch(() => null);
     check('열쇠 창: 이 기기에서 로그아웃 버튼', !!(await D.$('.leave-btn:not([disabled])')));
     await C.context().close(); await D.context().close();
     // 테스트로 만든 방 지우기 (Supabase 관리 API, 토큰은 환경 프록시가 넣어 줌)

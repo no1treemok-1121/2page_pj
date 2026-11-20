@@ -98,11 +98,12 @@ type Props = {
   onGoMyRoom: () => void;
   notify: (msg: string) => void;
   onLeaveRoom?: () => void;
+  onRoomGone?: (create: boolean) => void;
   onNickname: (nickname: string) => void;
   myAvatar: Avatar | null;
 };
 
-export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, notify, onNickname, myAvatar, onLeaveRoom }: Props) {
+export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, notify, onNickname, myAvatar, onLeaveRoom, onRoomGone }: Props) {
   const isOwner = myRoom?.roomId === roomId;
   const [info, setInfo] = useState<RoomInfo | null | undefined>(undefined);
   const [dialog, setDialog] = useState<"write" | "box" | "share" | "visitor" | "sent" | "key" | "decor" | null>(null);
@@ -139,6 +140,19 @@ export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, noti
   };
 
   if (info === null) {
+    // 이 기기에 '내 방'으로 저장돼 있던 방이 지워졌으면: 기억을 지우고 새로 만들 수 있게
+    if (myRoom?.roomId === roomId) {
+      return (
+        <div className="gate">
+          <div className="card">
+            <h2>내 방이 없어졌어요</h2>
+            <p className="hint">이 방은 정리되어 사라졌어요. 새 방을 만들어 주세요! (방 꾸미기·🔑 열쇠 기능이 생겼어요)</p>
+            <button className="btn wide" onClick={() => onRoomGone?.(true)}>🏠 새 방 만들기</button>
+            <button className="btn ghost wide" onClick={() => onRoomGone?.(false)}>마을로 가기</button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="gate">
         <div className="card">
