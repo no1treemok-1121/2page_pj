@@ -7,7 +7,7 @@ import Scene from "./Scene";
 import WishDialog from "./WishDialog";
 import { Wish, addWish, fetchWishes, isShared, loadMyWishIds, newWishDraft, rememberMyWish } from "./wishes";
 import RoomView, { Modal, ShareDialog } from "./RoomView";
-import { MyRoom, copyText, createRoom, loadMyRoom, rpc, saveMyRoom } from "./rooms";
+import { LOGIN_RE, MyRoom, copyText, createRoom, loadMyRoom, loginRoom, rpc, saveMyRoom, setRoomLogin } from "./rooms";
 import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup } from "./Avatar";
 import RandomLetters, { useRandomInbox } from "./RandomLetters";
@@ -591,30 +591,75 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   );
 }
 
-function CreateRoom({ onCreated, onClose }: { onCreated: (room: MyRoom) => void; onClose: () => void }) {
+function CreateRoom({ onCreated, onClose, onFind }: { onCreated: (room: MyRoom) => void; onClose: () => void; onFind: () => void }) {
   const [name, setName] = useState("");
+  const [id, setId] = useState("");
+  const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const made = useRef<MyRoom | null>(null); // 아이디가 겹쳐서 다시 시도할 때 방을 또 만들지 않게
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || busy) return;
+    if (!LOGIN_RE.test(id.trim())) { setError("아이디는 한글·영어·숫자로 3~16자로 해 주세요. (띄어쓰기·기호 안 돼요)"); return; }
+    if (pw.length < 4) { setError("비밀번호는 4자 이상으로 해 주세요."); return; }
     setBusy(true);
     setError("");
-    try { onCreated(await createRoom(name.trim())); }
-    catch (err) { setError((err as Error).message); setBusy(false); }
+    try {
+      made.current = made.current ?? (await createRoom(name.trim()));
+      await setRoomLogin(made.current, id, pw);
+      onCreated(made.current);
+    } catch (err) { setError((err as Error).message); setBusy(false); }
   };
   return (
     <Modal onClose={onClose}>
       <form onSubmit={submit}>
         <h2>내 방 만들기</h2>
         <p className="hint">친구들이 놀러 와서 편지를 남길 수 있는 나만의 방이에요.</p>
+        <p className="pick-label">방 이름에 쓸 닉네임</p>
         <input className="field" value={name} maxLength={12} placeholder="닉네임 (최대 12자)" autoFocus
           onChange={(e) => setName(e.target.value)} />
+        <p className="pick-label">🔑 내 방 열쇠 (아이디·비밀번호)</p>
+        <p className="hint small">다른 휴대폰·컴퓨터에서 <b>☰ 메뉴 → 🔑 내 방 찾기</b>로 내 방에 다시 들어올 때 써요. 꼭 기억해 두세요!</p>
+        <input className="field" value={id} maxLength={16} placeholder="아이디 (한글·영어·숫자 3~16자)" onChange={(e) => setId(e.target.value)} autoComplete="username" />
+        <input className="field" type="password" value={pw} maxLength={30} placeholder="비밀번호 (4자 이상)" onChange={(e) => setPw(e.target.value)} autoComplete="new-password" />
         {error && <p className="gate-error">{error}</p>}
         <div className="actions center">
           <button type="button" className="btn ghost" onClick={onClose}>취소</button>
           <button type="submit" className="btn" disabled={!name.trim() || busy}>{busy ? "만드는 중…" : "만들기"}</button>
         </div>
+        <button type="button" className="link-btn small center-link" onClick={onFind}>이미 내 방이 있나요? 🔑 내 방 찾기</button>
+      </form>
+    </Modal>
+  );
+}
+
+// 🔑 내 방 찾기: 아이디·비밀번호로 이 기기를 내 방 주인으로 등록
+function FindRoom({ onFound, onClose }: { onFound: (room: MyRoom) => void; onClose: () => void }) {
+  const [id, setId] = useState("");
+  const [pw, setPw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id.trim() || !pw || busy) return;
+    setBusy(true); setError("");
+    try { onFound(await loginRoom(id, pw)); }
+    catch (err) { setError((err as Error).message); setBusy(false); }
+  };
+  return (
+    <Modal onClose={onClose}>
+      <form onSubmit={submit} className="find-room">
+        <h2>🔑 내 방 찾기</h2>
+        <p className="hint">방을 만들 때 정한 <b>아이디</b>와 <b>비밀번호</b>를 넣으면, 이 기기에서도 내 방에 들어갈 수 있어요.</p>
+        <input className="field" value={id} maxLength={16} placeholder="아이디" autoFocus onChange={(e) => setId(e.target.value)} autoComplete="username" />
+        <input className="field" type="password" value={pw} maxLength={30} placeholder="비밀번호" onChange={(e) => setPw(e.target.value)} autoComplete="current-password" />
+        {error && <p className="gate-error">{error}</p>}
+        <div className="actions center">
+          <button type="button" className="btn ghost" onClick={onClose}>취소</button>
+          <button type="submit" className="btn" disabled={!id.trim() || !pw || busy}>{busy ? "찾는 중…" : "내 방 들어가기"}</button>
+        </div>
+        <p className="hint small">열쇠를 아직 안 만들었다면, 처음 방을 만든 기기에서 내 방의 <b>🔑 열쇠</b> 버튼으로 만들 수 있어요.</p>
       </form>
     </Modal>
   );
@@ -624,7 +669,8 @@ type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "
 const SETUP_KEY = "3d_pj.setupDone";
 
 // 오른쪽 위 ☰ 메뉴: 마을 소개와 바로가기
-function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
+function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose, onFindRoom }: {
+  onFindRoom: () => void;
   myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
 }) {
   useEffect(() => {
@@ -648,6 +694,9 @@ function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
           </button>
           <button className="intro-card" onClick={onMyRoom}>
             <span>🏠</span><strong>{myRoom ? "내 방 가기" : "내 방 만들기"}</strong><small>링크를 받은 친구가 편지를 남겨요. 편지는 나만 읽어요</small>
+          </button>
+          <button className="intro-card" onClick={onFindRoom}>
+            <span>🔑</span><strong>내 방 찾기</strong><small>다른 휴대폰·컴퓨터에서 아이디·비밀번호로 내 방에 들어가요</small>
           </button>
           <button className="intro-card" onClick={() => onAction("letters")}>
             <span>✉️</span><strong>랜덤 편지</strong><small>모르는 누군가에게 편지를 띄우고, 답장을 받아요</small>
@@ -726,6 +775,7 @@ export default function App() {
     return loadMyRoom();
   });
   const [creating, setCreating] = useState(false);
+  const [finding, setFinding] = useState(false);
   const [myAvatar, setMyAvatar] = useState<Avatar | null>(() => loadMyAvatar());
   const [editingAvatar, setEditingAvatar] = useState(false);
   const saveAvatar = async (a: Avatar) => {
@@ -800,7 +850,7 @@ export default function App() {
         </>
       )}
       {menuOpen && (
-        <Menu myRoom={myRoom} onAction={runAction} onMyRoom={goMyRoom} onClose={() => setMenuOpen(false)}
+        <Menu myRoom={myRoom} onAction={runAction} onMyRoom={goMyRoom} onFindRoom={() => { setMenuOpen(false); setFinding(true); }} onClose={() => setMenuOpen(false)}
           onCharacter={() => { setMenuOpen(false); setEditingAvatar(true); }} />
       )}
       {editingAvatar && <AvatarEditor initial={myAvatar} onSave={saveAvatar} onClose={() => setEditingAvatar(false)} />}
@@ -808,11 +858,19 @@ export default function App() {
       {notice && <div className="toast" role="status">{notice}</div>}
 
       {creating && (
-        <CreateRoom onClose={() => setCreating(false)} onCreated={(room) => {
+        <CreateRoom onClose={() => setCreating(false)} onFind={() => { setCreating(false); setFinding(true); }} onCreated={(room) => {
           if (myAvatar) setRoomAvatar(room, toStr(myAvatar)).catch(() => undefined);
           setMyRoom(room);
           setCreating(false);
           setJustCreated(true);
+          go(room.roomId);
+        }} />
+      )}
+      {finding && (
+        <FindRoom onClose={() => setFinding(false)} onFound={(room) => {
+          setMyRoom(room);
+          setFinding(false);
+          notify("🔑 내 방을 찾았어요! 이 기기에서도 이제 내 방이에요");
           go(room.roomId);
         }} />
       )}

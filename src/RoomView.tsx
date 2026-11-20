@@ -4,7 +4,7 @@ import { OrbitControls } from "@react-three/drei";
 import RoomScene from "./RoomScene";
 import { Avatar, DEFAULT_AVATAR, parseAvatar } from "./avatar";
 import {
-  Letter, MyRoom, RoomInfo, copyText, deleteLetter, getLetters, getRoom, ownerLink, roomLink, sendLetter,
+  LOGIN_RE, Letter, MyRoom, RoomInfo, copyText, deleteLetter, getLetters, getRoom, getRoomLogin, ownerLink, roomLink, sendLetter, setRoomLogin,
 } from "./rooms";
 
 export function Modal({ onClose, children }: { onClose: () => void; children: ReactNode }) {
@@ -103,7 +103,12 @@ type Props = {
 export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, notify, onNickname, myAvatar }: Props) {
   const isOwner = myRoom?.roomId === roomId;
   const [info, setInfo] = useState<RoomInfo | null | undefined>(undefined);
-  const [dialog, setDialog] = useState<"write" | "box" | "share" | "visitor" | "sent" | null>(null);
+  const [dialog, setDialog] = useState<"write" | "box" | "share" | "visitor" | "sent" | "key" | null>(null);
+  // 열쇠(아이디·비밀번호)가 없는 주인에게 한 번 알려 주기
+  useEffect(() => {
+    if (myRoom?.roomId !== roomId) return;
+    getRoomLogin(myRoom).then((l) => { if (!l) notify("🔑 아직 내 방 열쇠가 없어요! 아래 '🔑 열쇠'에서 아이디·비밀번호를 만들어 두세요"); }).catch(() => undefined);
+  }, [roomId]); // eslint-disable-line react-hooks/exhaustive-deps
   // 주인: 마지막으로 편지함을 열었을 때의 편지 수보다 많으면 '새 편지'
   const [seenCount, setSeenCount] = useState(() => loadSeenCount(roomId));
   const hasNew = isOwner && (info?.letterCount ?? 0) > seenCount;
@@ -165,6 +170,7 @@ export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, noti
           <>
             <button className="btn" onClick={openBox}>편지함 ({info?.letterCount ?? 0})</button>
             <button className="btn" onClick={() => setDialog("share")}>내 방 공유</button>
+            <button className="btn" onClick={() => setDialog("key")}>🔑 열쇠</button>
           </>
         ) : (
           <>
@@ -214,6 +220,7 @@ export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, noti
           }} />
       )}
       {dialog === "share" && myRoom && <ShareDialog room={myRoom} onCopy={copy} onClose={() => setDialog(null)} />}
+      {dialog === "key" && myRoom && <KeyDialog room={myRoom} onCopy={copy} onClose={() => setDialog(null)} />}
     </>
   );
 }
@@ -226,12 +233,60 @@ export function ShareDialog({ room, onCopy, onClose, first }: {
       <h2>{first ? "내 방이 생겼어요! 🏠" : "내 방 공유"}</h2>
       <p className="hint">아래 <b>방 링크</b>를 친구에게 보내면 내 방에 놀러 와서 편지를 남길 수 있어요.</p>
       <button className="btn wide" onClick={() => onCopy(roomLink(room.roomId), "방 링크")}>방 링크 복사 (친구에게)</button>
-      <p className="hint warn">
-        <b>주인 링크</b>는 다른 기기에서 내 방 주인으로 들어갈 때 필요해요. 나만 볼 수 있는 곳(메모 앱 등)에 저장하고, 다른 사람에게는 보내지 마세요.
-      </p>
-      <button className="btn ghost wide" onClick={() => onCopy(ownerLink(room), "주인 링크")}>주인 링크 복사 (나만 보관)</button>
+      <KeySection room={room} onCopy={onCopy} />
       <button className="btn wide" onClick={onClose}>확인</button>
     </Modal>
+  );
+}
+
+export function KeyDialog({ room, onCopy, onClose }: { room: MyRoom; onCopy: (text: string, label: string) => void; onClose: () => void }) {
+  return (
+    <Modal onClose={onClose}>
+      <h2>🔑 내 방 열쇠</h2>
+      <KeySection room={room} onCopy={onCopy} />
+      <button className="btn ghost wide" onClick={onClose}>닫기</button>
+    </Modal>
+  );
+}
+
+// 🔑 아이디·비밀번호: 다른 휴대폰·컴퓨터에서 ☰ 메뉴 → '내 방 찾기'로 다시 들어올 때 씀
+function KeySection({ room, onCopy }: { room: MyRoom; onCopy: (text: string, label: string) => void }) {
+  const [login, setLogin] = useState<string | null | undefined>(undefined); // undefined = 불러오는 중
+  const [editing, setEditing] = useState(false);
+  const [id, setId] = useState("");
+  const [pw, setPw] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { getRoomLogin(room).then(setLogin).catch(() => setLogin(null)); }, [room]);
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    if (!LOGIN_RE.test(id.trim())) { setError("아이디는 한글·영어·숫자로 3~16자로 해 주세요. (띄어쓰기·기호 안 돼요)"); return; }
+    if (pw.length < 4) { setError("비밀번호는 4자 이상으로 해 주세요."); return; }
+    setBusy(true); setError("");
+    try { setLogin(await setRoomLogin(room, id, pw)); setEditing(false); setPw(""); }
+    catch (err) { setError((err as Error).message); }
+    setBusy(false);
+  };
+  if (login === undefined) return <p className="hint">🔑 열쇠 확인 중…</p>;
+  return (
+    <div className="key-box">
+      {login && !editing ? (
+        <>
+          <p className="hint"><b>🔑 내 방 아이디: {login}</b><br />다른 휴대폰·컴퓨터에서는 <b>☰ 메뉴 → 🔑 내 방 찾기</b>에 이 아이디와 비밀번호를 넣으면 내 방에 들어올 수 있어요.</p>
+          <button className="btn ghost wide" onClick={() => { setEditing(true); setId(login); }}>아이디·비밀번호 바꾸기</button>
+        </>
+      ) : (
+        <form onSubmit={save}>
+          <p className="hint warn"><b>🔑 내 방 열쇠 만들기</b><br />아이디와 비밀번호를 정해 두면, 다른 휴대폰·컴퓨터에서도 <b>☰ 메뉴 → 🔑 내 방 찾기</b>로 내 방에 다시 들어올 수 있어요. 꼭 기억해 두세요!</p>
+          <input className="field" value={id} maxLength={16} placeholder="아이디 (한글·영어·숫자 3~16자)" onChange={(e) => setId(e.target.value)} autoComplete="username" />
+          <input className="field" type="password" value={pw} maxLength={30} placeholder="비밀번호 (4자 이상)" onChange={(e) => setPw(e.target.value)} autoComplete="new-password" />
+          {error && <p className="gate-error">{error}</p>}
+          <button type="submit" className="btn wide" disabled={busy}>{busy ? "저장 중…" : "🔑 열쇠 저장"}</button>
+        </form>
+      )}
+      <button className="link-btn small" onClick={() => onCopy(ownerLink(room), "주인 링크")}>예전 방식: 주인 링크 복사 (나만 보관)</button>
+    </div>
   );
 }
 
