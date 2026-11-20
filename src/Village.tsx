@@ -57,18 +57,45 @@ function House({ position, rotationY, color, scale = 1 }: {
   );
 }
 
+// 가로등: 빨강·하양 줄무늬 캔디케인 + 고리에 매달린 네모 랜턴 (동그란 소원 장식과 헷갈리지 않게)
 function Lamp({ position }: { position: [number, number, number] }) {
+  const SEG = 9;
+  const H = 0.2;
   return (
     <group position={position}>
-      <mesh position={[0, 0.9, 0]}>
-        <cylinderGeometry args={[0.04, 0.05, 1.8, 8]} />
-        <meshStandardMaterial color="#2b2f3a" />
-      </mesh>
-      <mesh position={[0, 1.85, 0]}>
-        <sphereGeometry args={[0.13, 12, 12]} />
-        <meshStandardMaterial color="#fff1c4" emissive="#ffcf70" emissiveIntensity={2} />
-      </mesh>
-      <pointLight position={[0, 1.85, 0]} color="#ffcf70" intensity={3} distance={5} />
+      {Array.from({ length: SEG }, (_, i) => (
+        <mesh key={i} position={[0, H / 2 + i * H, 0]}>
+          <cylinderGeometry args={[0.07, 0.07, H, 12]} />
+          <meshStandardMaterial color={i % 2 ? "#ffffff" : "#d62f3a"} roughness={0.4} />
+        </mesh>
+      ))}
+      {/* 지팡이 고리 */}
+      <group position={[0.2, SEG * H, 0]}>
+        <mesh rotation={[0, 0, 0]}>
+          <torusGeometry args={[0.2, 0.07, 10, 20, Math.PI]} />
+          <meshStandardMaterial color="#d62f3a" roughness={0.4} />
+        </mesh>
+        <mesh rotation={[0, 0, Math.PI / 3]}>
+          <torusGeometry args={[0.2, 0.072, 10, 6, Math.PI / 6]} />
+          <meshStandardMaterial color="#ffffff" roughness={0.4} />
+        </mesh>
+      </group>
+      {/* 매달린 랜턴 */}
+      <group position={[0.4, SEG * H - 0.28, 0]}>
+        <mesh position={[0, 0.17, 0]}>
+          <cylinderGeometry args={[0.01, 0.01, 0.18, 4]} />
+          <meshStandardMaterial color="#2b2f3a" />
+        </mesh>
+        <mesh>
+          <boxGeometry args={[0.18, 0.22, 0.18]} />
+          <meshStandardMaterial color="#ffe9b0" emissive="#ffb347" emissiveIntensity={1.8} />
+        </mesh>
+        <mesh position={[0, 0.13, 0]}>
+          <coneGeometry args={[0.15, 0.1, 4]} />
+          <meshStandardMaterial color="#2b2f3a" />
+        </mesh>
+        <pointLight color="#ffcf70" intensity={3} distance={5} />
+      </group>
     </group>
   );
 }
@@ -145,7 +172,8 @@ export default function Village({ onGround }: { onGround?: (x: number, z: number
         scale: 0.9 + rand() * 0.35,
       };
     });
-    const lamps = [-130, -40, 50, 140].map((deg) => {
+    // 가로등은 옆·뒤쪽에만 (카메라 앞에서 트리를 가리지 않게)
+    const lamps = [-110, -35, 35, 110].map((deg) => {
       const a = THREE.MathUtils.degToRad(deg - 90);
       return [Math.cos(a) * 5.2, 0, Math.sin(a) * 5.2] as [number, number, number];
     });
