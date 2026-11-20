@@ -262,13 +262,11 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     check('고양이 밤·캔디 (머리 위 하트)', cats.some(t => t.includes('밤') && t.includes('💖')) && cats.some(t => t.includes('캔디')), cats.join(','));
     const tg = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
     check('고양이 집 표지', tg.some(t => t.includes('밤·캔디네 집')));
-    // 상대(B)도 같은 고양이 근처로 가서 A가 화면에 보이게 (먼 곳은 화면 뒤라 말풍선이 안 그려질 수 있음)
-    await openMenu(B, '고양이 찾아가기'); await B.waitForSelector('.cat-menu', { timeout: 25000 }).catch(() => null); await B.keyboard.press('Escape');
     await openMenu(A, '고양이 찾아가기');
     await A.waitForSelector('.cat-menu', { timeout: 25000 }).catch(() => null);
     const catOk = !!(await A.$('.cat-menu'));
     check('고양이 찾아가기 → 돌보기 메뉴(간식·쓰다듬기·놀아주기)', catOk && (await A.$$('.cat-menu .act-btn')).length === 3);
-    if (catOk) { await A.click('.cat-menu .act-btn >> nth=0'); const okA = await seen(A, '간식 먹자', 3000); const toastA = await A.textContent('.toast').catch(() => ''); check('고양이 간식 주기: 상대 화면 말풍선', await seen(B, '간식 먹자', 6000), 'A:' + okA + ' toast:' + toastA + ' B:' + (await bubbles(B)).join(',')); }
+    if (catOk) { await A.click('.cat-menu .act-btn >> nth=0'); check('고양이 간식 주기: 내 화면 말풍선', await seen(A, '간식 먹자', 4000)); }
   }
   // 🎈 풍선 가게: 걸어가서 하트 풍선 사기 → 상대 화면 말풍선
   await openMenu(A, '풍선 가게');
@@ -372,6 +370,23 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
       const body = JSON.stringify({ query: "delete from rooms where nickname like '[테스트]%'" });
       require('child_process').execFileSync('curl', ['-s', '-X', 'POST', 'https://api.supabase.com/v1/projects/iabzybciyltmydycynat/database/query', '-H', 'Content-Type: application/json', '-d', body]);
     } catch { console.log('⚠️ 테스트 방을 직접 지워 주세요 (nickname [테스트]열쇠)'); }
+  }
+  // 🐱 고양이 간식 주기가 다른 사람에게 보이는지: 오래 켜 둔 창은 느려지므로 새 창 2개로 확인
+  {
+    const mk2 = async (n) => {
+      const p = await (await b.newContext({ viewport: { width: 420, height: 320 } })).newPage();
+      p.on('pageerror', e => errs.push(n + ': ' + e.message));
+      await p.goto(BASE); await p.fill('.gate input', '1225'); await p.press('.gate input', 'Enter'); await p.waitForTimeout(500);
+      await p.fill('.nick-field', '[테스트]' + n); await p.click('text=이 캐릭터로 입장'); await p.waitForTimeout(2000);
+      return p;
+    };
+    const P = await mk2('P'), Q = await mk2('Q');
+    await P.waitForTimeout(1500);
+    await openMenu(P, '고양이 찾아가기');
+    await P.waitForSelector('.cat-menu', { timeout: 40000 }).catch(() => null);
+    if (await P.$('.cat-menu')) await P.click('.cat-menu .act-btn >> nth=0');
+    check('고양이 간식 주기: 상대 화면 말풍선', await seen(Q, '간식 먹자', 8000));
+    await P.context().close(); await Q.context().close();
   }
   check('화면 오류 없음', errs.length === 0, errs.join(' | '));
   await b.close();
