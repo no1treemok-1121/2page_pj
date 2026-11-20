@@ -7,8 +7,10 @@ import Scene from "./Scene";
 import WishDialog from "./WishDialog";
 import { Wish, addWish, fetchWishes, isShared, loadMyWishIds, newWishDraft, rememberMyWish } from "./wishes";
 import RoomView, { Modal, ShareDialog } from "./RoomView";
-import { LOGIN_RE, MyRoom, copyText, createRoom, forgetMyRoom, getRoom, getRoomLogin, loadMyRoom, loginRoom, rpc, saveMyRoom, setRoomLogin } from "./rooms";
+import { LOGIN_RE, MyRoom, copyText, createRoom, forgetMyRoom, getRoom, getRoomLogin, loadMyRoom, loginRoom, rpc, saveMyRoom, setRoomLogin, setRoomName } from "./rooms";
 import { MAX_FOOD, normDecor, setRoomDecor } from "./decor";
+import { BUNGEO_SRC, IconText } from "./FoodIcon";
+import { IGLOO_DOOR, IglooCamera, IglooScene, VillageIgloo, useIgloo } from "./Igloo";
 import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup, loadNickname } from "./Avatar";
 import RandomLetters, { useRandomInbox } from "./RandomLetters";
@@ -86,6 +88,9 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   // 걸어 다니는 캐릭터: 이름은 채팅 닉네임 → 방 닉네임 → 익명 순
   const walkNick = (() => { try { return localStorage.getItem("3d_pj.chatNick") || myRoom?.nickname || "익명"; } catch { return myRoom?.nickname || "익명"; } })();
   const walk = useWalkers(myAvatar, walkNick);
+  // ❄️ 이글루: 안에 들어가면 화면이 이글루 안으로 바뀜 (마을 채널은 그대로)
+  const [inIgloo, setInIgloo] = useState(false);
+  const igloo = useIgloo(inIgloo, walk.myKey, walkNick, myAvatar ? toStr(myAvatar) : null);
   const [walkTarget, setWalkTarget] = useState<[number, number] | null>(null);
   const [emoteOpen, setEmoteOpen] = useState(false);
   const [treeMenu, setTreeMenu] = useState(false);
@@ -158,7 +163,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   };
   autoTick.current = () => {
     const now = Date.now();
-    if (!autoOn || now - lastInput.current < 10000 || now - lastAuto.current < 7000) return;
+    if (inIgloo || !autoOn || now - lastInput.current < 10000 || now - lastAuto.current < 7000) return;
     if (walk.sledding || walk.goal.current || timers.current.length || pending.current || document.querySelector(".backdrop, .menu")) return;
     lastAuto.current = now;
     const r = Math.random();
@@ -179,6 +184,10 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const rideTour = (kind: "dog" | "deer") => goThen(TOUR_STATION.x, TOUR_STATION.z, 1.6, () => {
     walk.rideSled(kind);
     setNotice("마을 한 바퀴 출발! 아무 곳이나 누르면 내려요 🛷");
+  });
+  const enterIgloo = () => goThen(IGLOO_DOOR.x, IGLOO_DOOR.z, 0.6, () => {
+    setInIgloo(true);
+    walk.say("❄️ 이글루에 들어갔어요");
   });
   const rideIce = () => goThen(RINK.x, RINK.z, RINK.r + 0.6, () => walk.rideSled("ice"));
   const [dexOpen, setDexOpen] = useState(false);
@@ -339,6 +348,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     if (action.type === "dex") setDexOpen(true);
     if (action.type === "photo") setTimeout(takePhoto, 400);
     if (action.type === "bell") setTimeout(ringBell, 300);
+    if (action.type === "igloo") setTimeout(enterIgloo, 300);
     if (action.type === "dog" || action.type === "deer") { const k = action.type; setTimeout(() => rideTour(k), 300); }
     if (action.type === "fish") setTimeout(goFish, 300);
     if (action.type === "fire") setTimeout(() => warmUp(0), 300);
@@ -390,6 +400,13 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
 
   return (
     <>
+      {inIgloo ? (
+        <Canvas camera={{ position: [0, isPortrait ? 5.2 : 4.2, isPortrait ? 7.2 : 6.2], fov: isPortrait ? 62 : 52 }} dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
+          <IglooScene people={igloo.people} myKey={walk.myKey} emotes={igloo.emotes} wishCount={wishes.length} onBoard={() => setTreeMenu(true)} />
+          <IglooCamera portrait={isPortrait} />
+          <OrbitControls makeDefault enablePan={false} target={[0, 1, -0.6]} minDistance={3} maxDistance={isPortrait ? 9.5 : 8} maxPolarAngle={Math.PI / 2.1} />
+        </Canvas>
+      ) : (
       <Canvas camera={CAMERA} dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
         <color attach="background" args={["#0b1733"]} />
         <fog attach="fog" args={["#0b1733", 20, 58]} />
@@ -404,6 +421,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           onWarm={warmUp}
           onBench={(i) => { walk.stopRide(); walk.sitAt(i); setNotice("벤치로 가서 앉아요 🪑 움직이면 일어나요"); }} />
         <TourStation onRide={rideTour} />
+        <VillageIgloo count={igloo.count} onEnter={enterIgloo} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
         <Npcs walk={walk} onSelect={setActTarget} />
         <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} onSelect={setActTarget} />
@@ -419,7 +437,9 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           target={[0, 2, 0]}
         />
       </Canvas>
+      )}
 
+      {!inIgloo && <>
       {event && (
         <div className="event-banner" key={event}>
           {event === "sparkle" ? "✨ 트리에 소원을 빌어요!" : event === "shooting" ? "🌠 별똥별이다! 소원을 빌어요" : "🎆 불꽃놀이가 시작됐어요!"}
@@ -440,7 +460,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
       {walk.sledding ? (
         <button className="btn ride-off" onClick={() => { if (walk.stopRide()) setNotice("🛷 썰매에서 내렸어요"); }}>🛷 여기서 내리기</button>
       ) : busy && (
-        <button className="btn ride-off busy-off" onClick={cancelBusy}>{busy} · ✋ 그만하기</button>
+        <button className="btn ride-off busy-off" onClick={cancelBusy}><IconText text={busy} /> · ✋ 그만하기</button>
       )}
       <div className="cam-wrap">
         <button className={camFollow ? "cam-btn on" : "cam-btn"} onClick={toggleFollow} aria-label="카메라 따라가기" aria-pressed={camFollow}>🎥<small>{camFollow ? "ON" : "OFF"}</small></button>
@@ -462,6 +482,23 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           👊{othersCount > 0 && <span className="badge">{othersCount}</span>}
         </button>
       </div>
+      </>}
+      {inIgloo && <>
+        <div className="title igloo-title">
+          <h1>❄️ 이글루</h1>
+          <p>지금 {igloo.people.length}명이 둘러앉아 있어요 · 📖 소원 방명록을 눌러 소원을 남겨요</p>
+        </div>
+        <div className="igloo-bar">
+          <div className="igloo-emotes">
+            {EMOTES.map((x) => <button key={x.e} title={x.label} onClick={() => igloo.emote(x.e)}>{x.e}</button>)}
+          </div>
+          <div className="igloo-actions">
+            <button className="btn ghost light" onClick={() => setInIgloo(false)}>← 마을로 나가기</button>
+            <button className="btn" onClick={() => setWriting(true)}>✏️ 소원 쓰기</button>
+            <button className="btn" onClick={() => setBoxOpen(true)}>📜 방명록</button>
+          </div>
+        </div>
+      </>}
       {fortuneOpen && (
         <Fortune onClose={() => setFortuneOpen(false)} onPicked={walk.setFortune}
           peers={Object.values(walk.others).filter((w) => w.fortune != null).map((w) => ({ nick: w.nick, avatar: w.avatar, card: w.fortune as number }))} />
@@ -654,7 +691,7 @@ function CreateRoom({ onCreated, onClose, onFind }: { onCreated: (room: MyRoom) 
 }
 
 // 같은 기기를 여러 사람이 쓸 때: "이 기기에 저장된 ○○의 방, 내 방이 맞나요?"
-function OwnerAsk({ room, nick, onKeep, onLeave }: { room: MyRoom; nick: string; onKeep: () => void; onLeave: () => void }) {
+function OwnerAsk({ room, nick, onKeep, onLeave, onRename }: { room: MyRoom; nick: string; onKeep: () => void; onLeave: () => void; onRename: () => void }) {
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   useEffect(() => { getRoomLogin(room).then((l) => setHasKey(!!l)).catch(() => setHasKey(false)); }, [room]);
   return (
@@ -662,7 +699,8 @@ function OwnerAsk({ room, nick, onKeep, onLeave }: { room: MyRoom; nick: string;
       <div className="owner-ask">
         <h2>🏠 '{room.nickname}의 방'이 이 기기에 있어요</h2>
         <p className="hint">지금 닉네임은 <b>{nick}</b>이에요. {room.nickname} 님의 방이 맞나요?</p>
-        <button className="btn wide" onClick={onKeep}>네, 제 방이에요 (그대로 쓰기)</button>
+        <button className="btn wide" onClick={onRename}>네, 제 방이에요 → '{nick.slice(0, 12)}의 방'으로 이름 바꾸기</button>
+        <button className="btn ghost wide" onClick={onKeep}>네, 이름은 '{room.nickname}의 방' 그대로 둘게요</button>
         <button className="btn ghost wide" disabled={hasKey === false} onClick={onLeave}>아니요, 다른 사람이에요 (이 기기에서 내려놓기)</button>
         {hasKey === false && (
           <p className="hint warn small">이 방은 아직 <b>🔑 열쇠(아이디·비밀번호)</b>가 없어서 내려놓으면 다시 찾을 수 없어요. {room.nickname} 님이 먼저 내 방의 🔑 열쇠 버튼으로 열쇠를 만들어 주세요.</p>
@@ -704,13 +742,13 @@ function FindRoom({ onFound, onClose }: { onFound: (room: MyRoom) => void; onClo
   );
 }
 
-type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer"; n: number } | null;
+type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo"; n: number } | null;
 const SETUP_KEY = "3d_pj.setupDone";
 
 // 오른쪽 위 ☰ 메뉴: 마을 소개와 바로가기
 function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose, onFindRoom }: {
   onFindRoom: () => void;
-  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
+  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -756,13 +794,16 @@ function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose, onFindRoom }: 
             <span>🔥</span><strong>모닥불 쬐기</strong><small>연못가 통나무에 앉아 몸을 녹여요</small>
           </button>
           <button className="intro-card" onClick={() => onAction("bungeo")}>
-            <span>🐟</span><strong>붕어빵 노점</strong><small>슈크림·피자·팥많이 붕어빵, 호빵, 우유</small>
+            <span><img className="food-ico big" src={BUNGEO_SRC} alt="" /></span><strong>붕어빵 노점</strong><small>슈크림·피자·팥많이 붕어빵, 호빵, 우유</small>
           </button>
           <button className="intro-card" onClick={() => onAction("cocoa")}>
             <span>☕</span><strong>코코아 노점</strong><small>핫코코아·마시멜로 코코아·유자차·따뜻한 우유</small>
           </button>
           <button className="intro-card" onClick={() => onAction("dex")}>
             <span>📖</span><strong>낚시 도감</strong><small>연못에서 낚은 것들을 모아 봐요</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("igloo")}>
+            <span>❄️</span><strong>이글루</strong><small>누구나 들어가는 반짝반짝 이글루! 둘러앉아 소원 방명록을 써요</small>
           </button>
           <button className="intro-card" onClick={() => onAction("dog")}>
             <span>🐕</span><strong>개썰매 한 바퀴</strong><small>산타 모자 쓴 리트리버·허스키가 마을을 크게 한 바퀴! 아무 곳이나 누르면 내려요</small>
@@ -817,12 +858,25 @@ export default function App() {
   const [finding, setFinding] = useState(false);
   const [myAvatar, setMyAvatar] = useState<Avatar | null>(() => loadMyAvatar());
   const [editingAvatar, setEditingAvatar] = useState(false);
-  const saveAvatar = async (a: Avatar) => {
+  const saveAvatar = async (a: Avatar, newNick?: string) => {
     saveMyAvatar(a);
     setMyAvatar(a);
     setEditingAvatar(false);
     notify("캐릭터를 저장했어요");
     if (myRoom) setRoomAvatar(myRoom, toStr(a)).catch(() => notify("내 방 캐릭터를 바꾸지 못했어요"));
+    // 닉네임을 바꾸면 내 방 이름도 같이 (방 이름 = 주인 닉네임)
+    if (myRoom && newNick && newNick !== myRoom.nickname) renameRoom(newNick.slice(0, 12));
+  };
+  const [roomVer, setRoomVer] = useState(0); // 방 이름이 바뀌면 방 화면을 다시 불러옴
+  const renameRoom = async (name: string, room = myRoom) => {
+    if (!room) return;
+    try {
+      const updated = await setRoomName(room, name);
+      setMyRoom(updated);
+      setRoomVer((v) => v + 1);
+      try { localStorage.setItem("3d_pj.ownerNickOk", ""); } catch { /* 무시 */ }
+      notify(`✏️ 방 이름을 '${updated.nickname}의 방'으로 바꿨어요`);
+    } catch (e) { notify((e as Error).message); }
   };
   // 입장 코드 다음에 캐릭터 고르기 (방문마다 한 번)
   const [setupDone, setSetupDone] = useState<boolean>(() => { try { return !!sessionStorage.getItem(SETUP_KEY); } catch { return false; } });
@@ -849,7 +903,7 @@ export default function App() {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [villageAction, setVillageAction] = useState<VillageAction>(null);
-  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer") => {
+  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo") => {
     setMenuOpen(false);
     setVillageAction({ type, n: Date.now() });
     if (roomId) go(null);
@@ -881,7 +935,7 @@ export default function App() {
       {!setupDone ? (
         <CharacterSetup initial={myAvatar} onDone={finishSetup} />
       ) : roomId ? (
-        <RoomView key={roomId} roomId={roomId} myRoom={myRoom} onLeaveRoom={leaveMyRoom}
+        <RoomView key={`${roomId}:${roomVer}`} roomId={roomId} myRoom={myRoom} onLeaveRoom={leaveMyRoom}
           onRoomGone={(create) => { forgetMyRoom(); setMyRoom(null); go(null); if (create) setCreating(true); }} onGoVillage={() => go(null)} onGoMyRoom={goMyRoom}
           notify={notify} myAvatar={myAvatar} onNickname={(nickname) => {
             if (myRoom?.roomId === roomId && myRoom.nickname !== nickname) {
@@ -908,7 +962,7 @@ export default function App() {
       )}
       {editingAvatar && <AvatarEditor initial={myAvatar} onSave={saveAvatar} onClose={() => setEditingAvatar(false)} />}
 
-      {notice && <div className="toast" role="status">{notice}</div>}
+      {notice && <div className="toast" role="status"><IconText text={notice} /></div>}
 
       {creating && (
         <CreateRoom onClose={() => setCreating(false)} onFind={() => { setCreating(false); setFinding(true); }} onCreated={(room) => {
@@ -920,7 +974,13 @@ export default function App() {
         }} />
       )}
       {askOwner && (
-        <OwnerAsk room={askOwner} nick={loadNickname()} onLeave={leaveMyRoom} onKeep={() => {
+        <OwnerAsk room={askOwner} nick={loadNickname()} onLeave={leaveMyRoom}
+          onRename={() => {
+            if (myAvatar) setRoomAvatar(askOwner, toStr(myAvatar)).catch(() => undefined);
+            renameRoom(loadNickname().slice(0, 12), askOwner);
+            setAskOwner(null);
+          }}
+          onKeep={() => {
           try { localStorage.setItem("3d_pj.ownerNickOk", loadNickname()); } catch { /* 무시 */ } // 이 닉네임으로는 다시 묻지 않음
           if (myAvatar) setRoomAvatar(askOwner, toStr(myAvatar)).catch(() => undefined);
           setAskOwner(null);

@@ -26,7 +26,7 @@
 - DB에는 `wishes` 테이블만 있음 (2Page용 테이블·함수·트리거는 2026-11-20 삭제). `rls_auto_enable` 함수는 Supabase가 만든 것(새 테이블 RLS 자동 켜기)이니 지우지 말 것.
 - 방·편지: `supabase/rooms.sql`. 로그인 없는 '방 링크' 방식 — 방 만들 때 주인 열쇠(owner_key)를 발급하고 DB엔 SHA-256 해시만 저장. `rooms`·`letters` 테이블은 RLS 정책 없음(직접 접근 불가), `create_room`·`get_room`·`send_letter`(방당 1분 10통 제한)·`get_letters`·`delete_letter` 함수(security definer)로만 접근. 주인 링크 = `?room=<id>#key=<열쇠>` (# 뒤는 서버로 안 감, 열면 이 기기에 저장 후 주소에서 지움).
 - 🔑 내 방 열쇠: `supabase/room_login.sql` — `room_logins`(아이디 unique, 비밀번호 bcrypt, owner_key를 비밀번호로 pgp_sym 암호화한 key_box, 5번 틀리면 10분 잠금). 함수 `set_room_login`(주인 열쇠 필요)·`get_room_login`·`room_login`(status ok/fail/locked). 프론트 `CreateRoom`(아이디·비번 필수), `FindRoom`(☰ 🔑 내 방 찾기), 방의 '🔑 열쇠'(`KeySection`). 회귀 테스트가 [테스트] 방을 만들고 끝에서 지움.
-- 🎨 방 꾸미기: `supabase/room_decor.sql` — rooms.decor jsonb(2000자 이하), `set_room_decor`(주인 열쇠), `get_room`이 decor도 반환. 프론트 `src/decor.ts`(normDecor·기본값·색 목록), `RoomScene` decor prop, `DecorPanel`. 노점 '🏠 내 방에 사 가기'로 테이블 음식 추가. 같은 기기 다른 닉네임이면 `OwnerAsk`(localStorage `3d_pj.ownerNickOk`).
+- 🎨 방 꾸미기: `supabase/room_decor.sql` — rooms.decor jsonb(2000자 이하), `set_room_decor`(주인 열쇠), `get_room`이 decor도 반환. 프론트 `src/decor.ts`(normDecor·기본값·색 목록), `RoomScene` decor prop, `DecorPanel`. 노점 '🏠 내 방에 사 가기'로 테이블 음식 추가. 같은 기기 다른 닉네임이면 `OwnerAsk`(localStorage `3d_pj.ownerNickOk`). 방 이름 = 주인 닉네임: `supabase/room_name.sql` `set_room_name`, 닉네임 바꾸면 방 이름도(`renameRoom`). 붕어빵은 직접 그린 그림(`src/FoodIcon.tsx`, 글자 속 "[붕어빵]" → `IconText`).
 - 마을 광장 채팅: `supabase/chat.sql` (`chat_messages`, Realtime publication 등록). 최근 10분만 읽기 가능(RLS), 새 메시지 insert 때 트리거가 10분 지난 것 삭제, 화면에서도 15초마다 정리 (사용자 요청으로 24시간→10분, `KEEP_MINUTES`). 도배 방지·금칙어는 사용자 결정으로 넣지 않음(300자 제한만). 프론트 `src/Chat.tsx`(supabase-js Realtime: postgres_changes + presence로 접속자 수), `src/supabase.ts`.
 - 캐릭터: `supabase/avatar.sql` — wishes·chat_messages·rooms에 `avatar` 문자열("동물:#색:장식", 정규식 검사). `get_room`이 avatar 반환, `set_room_avatar`(주인 열쇠)로 변경. 프론트: `src/avatar.ts`(목록·저장, localStorage `3d_pj.avatar`), `src/Avatar.tsx`(2D 배지·편집기, 왼쪽 위 버튼), `src/Character3D.tsx`(방의 3D 캐릭터).
 - 랜덤 편지·답장: `supabase/random_letters.sql` — 브라우저마다 visitor key(localStorage `3d_pj.visitor`, 서버엔 해시) 사용. 편지는 마을에 들어온 다른 사람 최대 10명에게 전달(`receive_random_letters`가 입장 때 최대 3통씩 배달), 받은 사람은 한 번 답장(`reply_random_letter`), 쓴 사람은 `my_random_letters`로 답장 확인. 테이블 직접 접근 불가. 프론트 `src/randomLetters.ts`, `src/RandomLetters.tsx`(마을 하단 ✉️ 편지 버튼, ☰ 메뉴).
@@ -37,6 +37,7 @@
 - 닉네임: 왼쪽 위 캐릭터 편집기에서도 변경(채팅과 같은 localStorage `3d_pj.chatNick`, 걸어 다니는 캐릭터 이름표에도 사용).
 - 실제 방문자가 쓰고 있음 — 테스트 데이터는 '[테스트]'로 시작하게 넣고 반드시 지울 것.
 - 카메라 따라가기(`CameraFollow`, OrbitControls makeDefault, 🎥 ON/OFF·📍 내 위치), 개썰매·사슴썰매 한 바퀴(`src/Tour.tsx`, RideKind dog/deer, 중간에 내리기 `stopRide`/broadcast `sledStop`). NPC는 16초마다 천천히 이동(사용자 요청). 모든 탈것 중간에 내리기, 낚시·먹기·마시멜로는 `later`/`cancelBusy`로 중단 가능. 🐾 자율 활동(`autoTick`, 기본 OFF).
+- ❄️ 이글루(`src/Igloo.tsx`): 마을 (3.8,-10.2), 들어가면 VillageView의 Canvas가 `IglooScene`으로 바뀜(`inIgloo`). 안에 있는 사람은 Realtime 채널 `igloo-room` presence(밖에서도 구독해서 인원 표시, 안에서만 track). 소원 방명록 = 트리와 같은 wishes.
 - 마을 이벤트(`src/events.ts`): 2분 주기, 기기 시계 기준. 0~30초 트리 반짝임, 40~48·100~108초 별똥별, 60~90초 불꽃놀이 — 겹치지 않음. 화면 위 안내 배너.
 - 운세 공유: 뽑은 카드를 `village-walk` presence에 `fortune`으로 실어 보냄 → 이름표 옆 아이콘, 운세 창에 '광장 친구들의 오늘 카드'(지금 마을에 있는 사람만).
 - 채팅 말풍선: 광장 채팅을 보내면 broadcast `say` → 캐릭터 머리 위 4초.

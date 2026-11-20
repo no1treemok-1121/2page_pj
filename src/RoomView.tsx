@@ -2,10 +2,11 @@ import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import RoomScene from "./RoomScene";
+import { IconText } from "./FoodIcon";
 import { DEFAULT_DECOR, Decor, FLOORS, MAX_FOOD, PROPS, RUGS, WALLS, foodById, normDecor, setRoomDecor } from "./decor";
 import { Avatar, DEFAULT_AVATAR, parseAvatar } from "./avatar";
 import {
-  LOGIN_RE, Letter, MyRoom, RoomInfo, copyText, deleteLetter, getLetters, getRoom, getRoomLogin, ownerLink, roomLink, sendLetter, setRoomLogin,
+  LOGIN_RE, Letter, MyRoom, RoomInfo, copyText, setRoomName, deleteLetter, getLetters, getRoom, getRoomLogin, ownerLink, roomLink, sendLetter, setRoomLogin,
 } from "./rooms";
 
 export function Modal({ onClose, children }: { onClose: () => void; children: ReactNode }) {
@@ -239,7 +240,15 @@ export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, noti
       )}
       {dialog === "share" && myRoom && <ShareDialog room={myRoom} onCopy={copy} onClose={() => setDialog(null)} />}
       {dialog === "decor" && myRoom && preview && (
-        <DecorPanel decor={preview} onChange={setPreview}
+        <DecorPanel decor={preview} onChange={setPreview} roomName={info?.nickname ?? myRoom.nickname}
+          onRename={async (name) => {
+            try {
+              const updated = await setRoomName(myRoom, name);
+              setInfo((i) => (i ? { ...i, nickname: updated.nickname } : i));
+              onNickname(updated.nickname);
+              notify(`✏️ 방 이름을 '${updated.nickname}의 방'으로 바꿨어요`);
+            } catch (e) { notify((e as Error).message); }
+          }}
           onCancel={() => { setPreview(null); setDialog(null); }}
           onSave={async () => {
             try {
@@ -270,8 +279,9 @@ export function ShareDialog({ room, onCopy, onClose, first }: {
 }
 
 // 🎨 방 꾸미기 패널: 아래쪽에 떠서 방이 바뀌는 걸 보면서 고름 (저장 전까지는 나에게만 보임)
-function DecorPanel({ decor, onChange, onSave, onCancel }: { decor: Decor; onChange: (d: Decor) => void; onSave: () => void; onCancel: () => void }) {
+function DecorPanel({ decor, onChange, onSave, onCancel, roomName, onRename }: { decor: Decor; onChange: (d: Decor) => void; onSave: () => void; onCancel: () => void; roomName: string; onRename: (name: string) => void }) {
   const set = (p: Partial<Decor>) => onChange({ ...decor, ...p });
+  const [name, setName] = useState(roomName);
   const swatches = (list: string[], cur: string, key: "wall" | "floor" | "rug") => (
     <div className="swatches">{list.map((c) => <button key={c} className={c === cur ? "sw on" : "sw"} style={{ background: c }} onClick={() => set({ [key]: c } as Partial<Decor>)} aria-label={c} />)}</div>
   );
@@ -279,6 +289,12 @@ function DecorPanel({ decor, onChange, onSave, onCancel }: { decor: Decor; onCha
     <div className="decor-panel">
       <h3>🎨 방 꾸미기 <small>바꾸면 바로 방에 보여요</small></h3>
       <div className="decor-body">
+        <p className="pick-label">✏️ 방 이름</p>
+        <div className="name-row">
+          <input className="field" value={name} maxLength={12} onChange={(e) => setName(e.target.value)} placeholder="방 이름 (1~12자)" />
+          <span>의 방</span>
+          <button className="btn" disabled={!name.trim() || name.trim() === roomName} onClick={() => onRename(name)}>바꾸기</button>
+        </div>
         <p className="pick-label">벽지</p>{swatches(WALLS, decor.wall, "wall")}
         <p className="pick-label">바닥</p>{swatches(FLOORS, decor.floor, "floor")}
         <p className="pick-label">러그</p>{swatches(RUGS, decor.rug, "rug")}
@@ -296,7 +312,7 @@ function DecorPanel({ decor, onChange, onSave, onCancel }: { decor: Decor; onCha
         {decor.food.length ? (
           <div className="chips">
             {decor.food.map((id, i) => { const f = foodById(id); return f && (
-              <button key={i} className="chip on" onClick={() => set({ food: decor.food.filter((_, j) => j !== i) })}>{f.emoji} {f.name} ✕</button>
+              <button key={i} className="chip on" onClick={() => set({ food: decor.food.filter((_, j) => j !== i) })}><IconText text={f.emoji} /> {f.name} ✕</button>
             ); })}
           </div>
         ) : <p className="hint small">비어 있어요. 마을 노점에서 <b>🏠 내 방에 사 가기</b>를 고르면 테이블에 놓여요.</p>}

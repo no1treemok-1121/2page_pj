@@ -31,7 +31,7 @@ const Window = ({ x, y, z }: { x: number; y: number; z: number }) => (
 function House(p: HouseProps) {
   const { position, rotationY, color, scale = 1, kind } = p;
   if (kind === "igloo") return (
-    <group position={position} rotation={[0, rotationY, 0]} scale={scale}>
+    <group position={position} rotation={[0, rotationY, 0]} scale={scale * 1.45}>
       <mesh position={[0, 0, 0]}><sphereGeometry args={[1.1, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color="#eef5ff" roughness={0.9} /></mesh>
       {/* 얼음 블록 줄 */}
       {[0.35, 0.7].map((y) => <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[Math.sqrt(1.21 - y * y), 0.015, 4, 32]} /><meshStandardMaterial color="#c9dcf0" /></mesh>)}

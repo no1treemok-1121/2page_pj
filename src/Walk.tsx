@@ -10,6 +10,7 @@ import { RIDE_KINDS, RideKind, isTour, rideAt, rideEnd, rideMs, rideSay } from "
 import { TourTeam } from "./Tour";
 import { SledMesh } from "./Village";
 import { CARDS, loadToday } from "./Fortune";
+import { IconText } from "./FoodIcon";
 
 // 마을을 걸어 다니는 캐릭터 + 다른 사람 캐릭터 실시간 표시 (Supabase Realtime presence)
 export type Walker = { avatar: string; nick: string; x: number; z: number; ry: number; fortune?: number | null; sit?: boolean };
@@ -342,11 +343,11 @@ function useTimed(v: Emote | null | undefined, ms: number) {
 }
 
 function SayBubble({ text, high }: { text: string; high?: boolean }) {
-  return <Html pointerEvents="none" position={[0, high ? 2.95 : 2.3, 0]} center distanceFactor={9} zIndexRange={[7, 0]}><div className="say-bubble" key={text}>{text}</div></Html>;
+  return <Html pointerEvents="none" position={[0, high ? 2.95 : 2.3, 0]} center distanceFactor={9} zIndexRange={[7, 0]}><div className="say-bubble" key={text}><IconText text={text} /></div></Html>;
 }
 
 function EmoteBubble({ e }: { e: string }) {
-  return <Html pointerEvents="none" position={[0, 2.35, 0]} center distanceFactor={9} zIndexRange={[6, 0]}><div className="emote-bubble" key={e}>{e}</div></Html>;
+  return <Html pointerEvents="none" position={[0, 2.35, 0]} center distanceFactor={9} zIndexRange={[6, 0]}><div className="emote-bubble" key={e}><IconText text={e} /></div></Html>;
 }
 
 const fortuneIcon = (c?: number | null) => (c != null && CARDS[c] ? ` ${CARDS[c].icon}` : "");
