@@ -8,6 +8,7 @@ import RoomView, { Modal, ShareDialog } from "./RoomView";
 import { MyRoom, copyText, createRoom, loadMyRoom, saveMyRoom } from "./rooms";
 import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup } from "./Avatar";
+import RandomLetters, { useRandomInbox } from "./RandomLetters";
 import { Avatar, loadMyAvatar, saveMyAvatar, toStr } from "./avatar";
 import { setRoomAvatar } from "./rooms";
 
@@ -33,12 +34,15 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice, action, myAvatar }: 
   const chat = useVillageChat();
   const [chatOpen, setChatOpen] = useState(action?.type === "chat");
   const [boxOpen, setBoxOpen] = useState(action?.type === "box");
+  const letters = useRandomInbox();
+  const [lettersOpen, setLettersOpen] = useState(action?.type === "letters");
   // 메뉴에서 고른 동작 실행
   useEffect(() => {
     if (!action) return;
     if (action.type === "wish") setWriting(true);
     if (action.type === "chat") setChatOpen(true);
     if (action.type === "box") setBoxOpen(true);
+    if (action.type === "letters") setLettersOpen(true);
   }, [action?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = useCallback(async () => {
@@ -110,6 +114,10 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice, action, myAvatar }: 
 
       <div className="bottom-bar">
         <button className="btn" onClick={onMyRoom}>{myRoom ? `🏠 ${myRoom.nickname}의 방` : "🏠 내 방 만들기"}</button>
+        <button className="btn chat-btn" onClick={() => setLettersOpen(true)}>
+          ✉️ 편지
+          {letters.unseen > 0 && <span className="badge">{letters.unseen}</span>}
+        </button>
         <button className="btn chat-btn" onClick={() => setChatOpen(true)}>
           💬 광장 {chat.online > 1 ? `(${chat.online}명)` : ""}
           {chat.unread > 0 && <span className="badge">{chat.unread > 99 ? "99+" : chat.unread}</span>}
@@ -117,6 +125,8 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice, action, myAvatar }: 
       </div>
 
       {chatOpen && <ChatPanel chat={chat} avatar={myAvatar ? toStr(myAvatar) : null} defaultNick={myRoom?.nickname ?? ""} onClose={() => setChatOpen(false)} />}
+
+      {lettersOpen && <RandomLetters box={letters} myAvatar={myAvatar ? toStr(myAvatar) : null} notify={setNotice} onClose={() => setLettersOpen(false)} />}
 
       {boxOpen && (
         <Modal onClose={() => setBoxOpen(false)}>
@@ -185,12 +195,12 @@ function CreateRoom({ onCreated, onClose }: { onCreated: (room: MyRoom) => void;
   );
 }
 
-type VillageAction = { type: "wish" | "chat" | "box"; n: number } | null;
+type VillageAction = { type: "wish" | "chat" | "box" | "letters"; n: number } | null;
 const SETUP_KEY = "3d_pj.setupDone";
 
 // 오른쪽 위 ☰ 메뉴: 마을 소개와 바로가기
 function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
-  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
+  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -213,6 +223,9 @@ function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
           </button>
           <button className="intro-card" onClick={onMyRoom}>
             <span>🏠</span><strong>{myRoom ? "내 방 가기" : "내 방 만들기"}</strong><small>링크를 받은 친구가 편지를 남겨요. 편지는 나만 읽어요</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("letters")}>
+            <span>✉️</span><strong>랜덤 편지</strong><small>모르는 누군가에게 편지를 띄우고, 답장을 받아요</small>
           </button>
           <button className="intro-card" onClick={() => onAction("chat")}>
             <span>💬</span><strong>마을 광장</strong><small>지금 마을에 있는 사람들과 이야기해요</small>
@@ -267,7 +280,7 @@ export default function App() {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [villageAction, setVillageAction] = useState<VillageAction>(null);
-  const runAction = (type: "wish" | "chat" | "box") => {
+  const runAction = (type: "wish" | "chat" | "box" | "letters") => {
     setMenuOpen(false);
     setVillageAction({ type, n: Date.now() });
     if (roomId) go(null);
