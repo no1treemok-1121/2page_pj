@@ -28,6 +28,11 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     const e = x.find(el => el.textContent.includes(n) && el.textContent.includes('(나)') === mine);
     if (!e) return null; const r = e.getBoundingClientRect(); return [Math.round(r.x + r.width / 2), Math.round(r.y + r.height)];
   }, [n, mine]);
+  // ☰ 메뉴 항목 누르기 (앞에서 열린 창이 남아 있으면 먼저 닫음)
+  const openMenu = async (p, text) => {
+    for (let i = 0; i < 4 && (await p.$('.backdrop')); i++) { await p.keyboard.press('Escape'); await p.waitForTimeout(300); }
+    await p.click('.menu-btn'); await p.click(`.menu >> text=${text}`);
+  };
   const bubbles = async (p) => p.$$eval('.say-bubble, .emote-bubble', x => x.map(e => e.textContent));
   // 3D 화면이 느린 환경을 위해 최대 3초 동안 다시 확인
   const seen = async (p, word, ms = 3000) => {
@@ -84,7 +89,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
 
   // 빙판 썰매 (메뉴로)
   await A.waitForTimeout(6500); // 언덕 썰매(5초)가 확실히 끝난 뒤
-  await A.click('.menu-btn'); await A.click('.menu >> text=빙판 썰매'); await A.waitForTimeout(1200);
+  await openMenu(A, '빙판 썰매'); await A.waitForTimeout(1200);
   const ia = await bubbles(A), ib = await bubbles(B);
   check('빙판 썰매: 내 화면 씽씽', await seen(A, '씽씽', 15000), ia.join(','));
   check('빙판 썰매: 상대 화면 씽씽', await seen(B, '씽씽', 3000), ib.join(','));
@@ -110,7 +115,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   for (let i = 0; i < 4 && (await A.$('.backdrop')); i++) { await A.keyboard.press('Escape'); await A.waitForTimeout(300); }
   for (let tryN = 0; tryN < 2 && !(await A.$('.snack-grid')); tryN++) {
     for (let i = 0; i < 4 && (await A.$('.backdrop')); i++) { await A.keyboard.press('Escape'); await A.waitForTimeout(300); }
-    await A.click('.menu-btn'); await A.click('.menu >> text=분식집');
+    await openMenu(A, '분식집');
     await A.waitForSelector('.snack-grid', { timeout: 20000 }).catch(() => null);
   }
   check('분식집 메뉴 6가지', (await A.$$('.snack-grid .act-btn')).length === 6);
@@ -121,12 +126,12 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   check('분식집 표지 보임', (await A.$$eval('.spot-tag', x => x.map(e => e.textContent))).some(t => t.includes('분식집')));
   // 낚시·모닥불
   await A.waitForTimeout(6000);
-  await A.click('.menu-btn'); await A.click('.menu >> text=연못 낚시');
+  await openMenu(A, '연못 낚시');
   check('낚시: 던졌다 말풍선', await seen(A, '던졌다', 9000));
   check('연못 표지 보임', (await A.$$eval('.spot-tag', x => x.map(e => e.textContent))).some(t => t.includes('연못')));
   check('낚시꾼 너구리 할배 말풍선', await seen(A, '', 100) && (await A.$$eval('.npc-tag', x => x.map(e => e.textContent))).some(t => t.includes('너구리')));
   await A.waitForTimeout(4000);
-  await A.click('.menu-btn'); await A.click('.menu >> text=모닥불 쬐기');
+  await openMenu(A, '모닥불 쬐기');
   check('모닥불: 따뜻해 말풍선', await seen(B, '따뜻해', 12000));
   // 마시멜로 굽기 (통나무에 앉은 뒤 버튼)
   for (let i = 0; i < 20 && !(await A.$('.mallow-btn')); i++) await A.waitForTimeout(500);
@@ -135,22 +140,22 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   // 노점 3곳
   const stalls = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
   check('노점 3곳 표지', ['분식집', '붕어빵', '코코아'].every(n => stalls.some(t => t.includes(n))), stalls.join(','));
-  await A.click('.menu-btn'); await A.click('.menu >> text=붕어빵 노점');
+  await openMenu(A, '붕어빵 노점');
   await A.waitForSelector('.snack-grid', { timeout: 15000 }).catch(() => null);
   const bm = await A.$$eval('.snack-grid .act-btn', x => x.map(e => e.innerText.replace(/\n/g, '')));
   check('붕어빵 노점 메뉴 5가지(우유 포함)', bm.length === 5 && bm.some(t => t.includes('우유')) && bm.some(t => t.includes('슈크림')), bm.join(','));
   check('붕어빵 노점: 붕어빵은 직접 그린 그림', (await A.$$('.snack-grid .food-ico')).length >= 1);
   await A.keyboard.press('Escape');
-  await A.click('.menu-btn'); await A.click('.menu >> text=코코아 노점');
+  await openMenu(A, '코코아 노점');
   await A.waitForSelector('.snack-grid', { timeout: 15000 }).catch(() => null);
   check('노점: 내 방에 사 가기 선택', !!(await A.$('.take-mode')));
   check('코코아 노점 메뉴(커피 포함 7가지)', (await A.$$('.snack-grid .act-btn')).length === 7 && !!(await A.$('.snack-grid >> text=카페라떼')));
   await A.keyboard.press('Escape');
   // 낚시 도감 · 포토존
-  await A.click('.menu-btn'); await A.click('.menu >> text=낚시 도감'); await A.waitForTimeout(300);
+  await openMenu(A, '낚시 도감'); await A.waitForTimeout(300);
   check('낚시 도감 8칸', (await A.$$('.dex-item')).length === 8);
   await A.keyboard.press('Escape');
-  await A.click('.menu-btn'); await A.click('.menu >> text=포토존'); await A.waitForSelector('.photo-preview', { timeout: 8000 }).catch(() => null);
+  await openMenu(A, '포토존'); await A.waitForSelector('.photo-preview', { timeout: 8000 }).catch(() => null);
   check('포토존: 사진 미리보기', !!(await A.$('.photo-preview')));
   await A.keyboard.press('Escape');
   // 장식 9가지(없음 포함) + 동물 6가지
@@ -168,11 +173,11 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     await c.close();
   }
   // 🔔 종 울리기 (메뉴로)
-  await A.click('.menu-btn'); await A.click('.menu >> text=종 울리기');
+  await openMenu(A, '종 울리기');
   check('종: 상대 화면 딩동댕', await seen(B, '딩동댕', 25000));
   check('종 표지 보임', (await A.$$eval('.spot-tag', x => x.map(e => e.textContent))).some(t => t.includes('종 울리기')));
   // 장소 범위: 메뉴로 붕어빵 노점을 열면 먼저 걸어가서 도착 후 메뉴가 열림
-  await A.click('.menu-btn'); await A.click('.menu >> text=붕어빵 노점');
+  await openMenu(A, '붕어빵 노점');
   const walking = await A.textContent('.toast').catch(() => '');
   check('장소 범위: 멀면 먼저 걸어감', walking.includes('총총총') || !!(await A.$('.snack-grid')), walking);
   await A.waitForSelector('.snack-grid', { timeout: 15000 }).catch(() => null);
@@ -187,7 +192,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   await A.click('.cam-btn[aria-label="카메라 따라가기"]'); await A.waitForTimeout(200);
   check('카메라 따라가기 다시 켜기', (await A.textContent('.cam-btn').catch(() => '')).includes('ON'));
   // 🐕 개썰매 한 바퀴: 걸어가서 타고, 상대에게 보이고, 땅을 누르면 내림
-  await A.click('.menu-btn'); await A.click('.menu >> text=개썰매 한 바퀴');
+  await openMenu(A, '개썰매 한 바퀴');
   check('개썰매: 상대 화면 출발', await seen(B, '개썰매 출발', 15000));
   const tags = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
   check('썰매 정류장 표지 2개', tags.some(t => t.includes('개썰매')) && tags.some(t => t.includes('사슴썰매')));
@@ -203,13 +208,13 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   check('자율 활동 켜기', (await A.textContent('.cam-btn[aria-label="자율 활동"]').catch(() => '')).includes('ON'));
   await A.click('.cam-btn[aria-label="자율 활동"]'); await A.waitForTimeout(200);
   // 🛷 언덕 썰매도 중간에 내리기
-  await A.click('.menu-btn'); await A.click('.menu >> text=썰매 타기');
+  await openMenu(A, '썰매 타기');
   for (let i = 0; i < 40 && !(await A.$('.ride-off')); i++) await A.waitForTimeout(300);
   check('언덕 썰매: 내리기 버튼', !!(await A.$('.ride-off')));
   await A.$eval('.ride-off', b => b.click()).catch(() => null); await A.waitForTimeout(200);
   { const t = await A.textContent('.toast').catch(() => ''); check('언덕 썰매: 중간에 내림', t.includes('내렸어요') || !(await A.$('.ride-off')), t); }
   // 🎣 낚시 그만하기
-  await A.click('.menu-btn'); await A.click('.menu >> text=연못 낚시');
+  await openMenu(A, '연못 낚시');
   // 느린 컴퓨터에서도 놓치지 않게: 화면 안에서 버튼이 뜨자마자 바로 누름
   const gotBusy = await A.evaluate(() => new Promise(res => {
     const end = Date.now() + 20000;
@@ -252,14 +257,14 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     check('고양이 밤·캔디 (머리 위 하트)', cats.some(t => t.includes('밤') && t.includes('💖')) && cats.some(t => t.includes('캔디')), cats.join(','));
     const tg = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
     check('고양이 집 표지', tg.some(t => t.includes('밤·캔디네 집')));
-    await A.click('.menu-btn'); await A.click('.menu >> text=고양이 찾아가기');
+    await openMenu(A, '고양이 찾아가기');
     await A.waitForSelector('.cat-menu', { timeout: 25000 }).catch(() => null);
     const catOk = !!(await A.$('.cat-menu'));
     check('고양이 찾아가기 → 돌보기 메뉴(간식·쓰다듬기·놀아주기)', catOk && (await A.$$('.cat-menu .act-btn')).length === 3);
     if (catOk) { await A.click('.cat-menu .act-btn >> nth=0'); const okA = await seen(A, '간식 먹자', 3000); const toastA = await A.textContent('.toast').catch(() => ''); check('고양이 간식 주기: 상대 화면 말풍선', await seen(B, '간식 먹자', 6000), 'A:' + okA + ' toast:' + toastA + ' B:' + (await bubbles(B)).join(',')); }
   }
   // 🎈 풍선 가게: 걸어가서 하트 풍선 사기 → 상대 화면 말풍선
-  await A.click('.menu-btn'); await A.click('.menu >> text=풍선 가게');
+  await openMenu(A, '풍선 가게');
   await A.waitForSelector('.snack-grid', { timeout: 20000 }).catch(() => null);
   check('풍선 가게 메뉴 4가지', (await A.$$('.snack-grid .act-btn')).length === 4);
   if (await A.$('.snack-grid')) await A.click('.snack-grid >> text=하트 풍선');
@@ -269,10 +274,10 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   {
     const tagA = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
     check('이글루 표지', tagA.some(t => t.includes('이글루')));
-    await A.click('.menu-btn'); await A.click('.menu >> text=이글루');
+    await openMenu(A, '이글루');
     await A.waitForSelector('.igloo-bar', { timeout: 25000 }).catch(() => null);
     check('이글루: 걸어가서 안으로', !!(await A.$('.igloo-bar')));
-    await B.click('.menu-btn'); await B.click('.menu >> text=이글루');
+    await openMenu(B, '이글루');
     await B.waitForSelector('.igloo-bar', { timeout: 25000 }).catch(() => null);
     let both = false;
     for (let i = 0; i < 15 && !both; i++) { await A.waitForTimeout(400); const t = await A.$$eval('.name-tag', x => x.map(e => e.textContent)); both = t.some(v => v.includes('[테스트]A')) && t.some(v => v.includes('[테스트]B')); }
@@ -298,7 +303,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   {
     const kid = 'tk' + Math.floor(Math.random() * 1e8), kpw = 'pw' + Math.floor(Math.random() * 1e6);
     const C = await mk('[테스트]C');
-    await C.click('.menu-btn'); await C.click('.menu >> text=내 방 만들기'); await C.waitForTimeout(300);
+    await openMenu(C, '내 방 만들기'); await C.waitForTimeout(300);
     const f = await C.$$('.backdrop .field');
     await f[0].fill('[테스트]열쇠'); await f[1].fill(kid); await f[2].fill(kpw);
     check('내 방 창: 내 방 찾기 버튼이 맨 위에', !!(await C.$('.find-first')));
@@ -307,7 +312,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     check('방 만들기: 아이디·비밀번호 입력 후 내 방', !!(await C.$('text=[테스트]열쇠의 방')));
     await C.keyboard.press('Escape'); await C.waitForTimeout(300); // '내 방이 생겼어요' 창 닫기
     const D = await mk('[테스트]D');
-    await D.click('.menu-btn'); await D.click('.menu >> text=내 방 찾기'); await D.waitForTimeout(300);
+    await openMenu(D, '내 방 찾기'); await D.waitForTimeout(300);
     const g = await D.$$('.find-room .field');
     await g[0].fill(kid); await g[1].fill('틀린비번'); await D.click('.find-room button[type=submit]');
     await D.waitForFunction(() => (document.querySelector('.find-room')?.textContent || '').includes('남은 기회'), null, { timeout: 8000 }).catch(() => null);
