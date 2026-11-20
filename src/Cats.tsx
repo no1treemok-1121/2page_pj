@@ -53,9 +53,10 @@ function plan(cat: number, slot: number): Plan {
 }
 
 // ---------------- 고양이 모양 ----------------
-type Look = { base: string; patches: { p: [number, number, number]; s: [number, number, number]; c: string }[]; head: { p: [number, number, number]; s: [number, number, number]; c: string }[]; stripes?: string; tail: string[]; ear: [string, string]; muzzle: string };
-const LOOKS: Look[] = [
-  { // 밤: 삼색
+type Look = { eye: string; cheek?: string; noseSpot?: string; base: string; patches: { p: [number, number, number]; s: [number, number, number]; c: string }[]; head: { p: [number, number, number]; s: [number, number, number]; c: string }[]; stripes?: string; tail: string[]; ear: [string, string]; muzzle: string };
+export const LOOKS: Look[] = [
+  { // 밤: 삼색 (흰 얼굴, 왼쪽 눈·귀 쪽 주황, 오른쪽 귀 쪽 검정, 코 옆 주황 점)
+    eye: "#9cc77a", noseSpot: "#d98a4a",
     base: "#fbf8f2",
     patches: [
       { p: [0.05, 0.37, -0.1], s: [0.19, 0.13, 0.23], c: "#c8732e" },
@@ -64,24 +65,31 @@ const LOOKS: Look[] = [
       { p: [0.15, 0.24, -0.02], s: [0.06, 0.12, 0.16], c: "#1e1a1a" },
     ],
     head: [
-      { p: [-0.07, 0.11, -0.02], s: [0.12, 0.09, 0.1], c: "#c8732e" },
-      { p: [0.08, 0.11, -0.03], s: [0.1, 0.09, 0.1], c: "#1e1a1a" },
+      { p: [-0.075, 0.08, 0.0], s: [0.13, 0.11, 0.15], c: "#c8732e" },
+      { p: [-0.1, 0.03, 0.06], s: [0.07, 0.07, 0.1], c: "#c8732e" },
+      { p: [0.085, 0.085, -0.01], s: [0.12, 0.1, 0.14], c: "#1e1a1a" },
+      { p: [0.03, 0.12, -0.02], s: [0.07, 0.06, 0.1], c: "#c8732e" },
     ],
     tail: ["#c8732e", "#1e1a1a", "#c8732e", "#1e1a1a"], ear: ["#c8732e", "#1e1a1a"], muzzle: "#fbf8f2",
   },
-  { // 캔디: 고등어 태비 + 살짝 삼색
+  { // 캔디: 고등어 태비 + 살짝 삼색 (흰 코·입·가슴, 볼은 살짝 주황빛)
+    eye: "#a6c46a", cheek: "#9a7a55",
     base: "#8b7357",
     patches: [
       { p: [-0.05, 0.3, -0.18], s: [0.14, 0.1, 0.14], c: "#b8742f" },
       { p: [0.0, 0.2, 0.12], s: [0.12, 0.08, 0.1], c: "#f4f0ea" },
     ],
-    head: [{ p: [0, 0.02, 0.1], s: [0.07, 0.08, 0.05], c: "#f4f0ea" }],
+    head: [
+      { p: [0, 0.0, 0.12], s: [0.05, 0.1, 0.06], c: "#f4f0ea" },
+      { p: [0, -0.09, 0.08], s: [0.09, 0.06, 0.09], c: "#f4f0ea" },
+      { p: [-0.09, 0.07, 0.03], s: [0.06, 0.05, 0.08], c: "#b8742f" },
+    ],
     stripes: "#2b241e",
     tail: ["#8b7357", "#2b241e", "#8b7357", "#2b241e"], ear: ["#6f5a44", "#6f5a44"], muzzle: "#f4f0ea",
   },
 ];
 
-function CatBody({ look, pose, t }: { look: Look; pose: string; t: number }) {
+export function CatBody({ look, pose, t }: { look: Look; pose: string; t: number }) {
   const walk = pose === "walk";
   const legSwing = walk ? Math.sin(t * 12) * 0.5 : 0;
   const sitting = pose === "sit";
@@ -90,7 +98,7 @@ function CatBody({ look, pose, t }: { look: Look; pose: string; t: number }) {
     <group>
       {/* 몸 */}
       <group position={[0, lying ? 0.13 : 0.24, 0]} rotation={[sitting ? -0.45 : 0, 0, 0]}>
-        <mesh scale={[0.2, 0.18, 0.32]}><sphereGeometry args={[1, 18, 14]} /><meshStandardMaterial color={look.base} /></mesh>
+        <mesh scale={[0.21, 0.19, 0.31]}><sphereGeometry args={[1, 24, 18]} /><meshStandardMaterial color={look.base} roughness={0.9} /></mesh>
         {look.patches.map((q, i) => <mesh key={i} position={[q.p[0], q.p[1] - 0.24, q.p[2]]} scale={q.s}><sphereGeometry args={[1, 12, 10]} /><meshStandardMaterial color={q.c} /></mesh>)}
         {/* 고등어 줄무늬: 등을 가로지르는 얇은 띠 */}
         {look.stripes && [-0.22, -0.13, -0.04, 0.05, 0.14].map((z) => (
@@ -101,7 +109,8 @@ function CatBody({ look, pose, t }: { look: Look; pose: string; t: number }) {
         ))}
         {/* 꼬리 (띠 무늬) */}
         <group position={[0, 0.05, -0.3]} rotation={[sitting ? 1.3 : walk ? -0.5 + Math.sin(t * 4) * 0.2 : 0.9, Math.sin(t * 2) * 0.3, 0]}>
-          {look.tail.map((c, i) => <mesh key={i} position={[0, 0, -0.07 - i * 0.08]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.035 - i * 0.003, 0.038 - i * 0.003, 0.085, 8]} /><meshStandardMaterial color={c} /></mesh>)}
+          {look.tail.map((c, i) => <mesh key={i} position={[0, 0, -0.07 - i * 0.08]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.035 - i * 0.003, 0.038 - i * 0.003, 0.085, 10]} /><meshStandardMaterial color={c} roughness={0.9} /></mesh>)}
+          <mesh position={[0, 0, -0.07 - look.tail.length * 0.08 + 0.02]}><sphereGeometry args={[0.024, 10, 8]} /><meshStandardMaterial color={look.tail[look.tail.length - 1]} /></mesh>
         </group>
       </group>
       {/* 다리 */}
@@ -111,25 +120,45 @@ function CatBody({ look, pose, t }: { look: Look; pose: string; t: number }) {
           <mesh position={[0, -0.16, 0.01]}><sphereGeometry args={[0.04, 8, 6]} /><meshStandardMaterial color="#ffffff" /></mesh>
         </group>
       ))}
-      {/* 머리 */}
-      <group position={[0, lying ? 0.18 : sitting ? 0.52 : 0.42, lying ? 0.3 : sitting ? 0.18 : 0.32]}>
-        <mesh scale={[0.17, 0.15, 0.15]}><sphereGeometry args={[1, 18, 14]} /><meshStandardMaterial color={look.base} /></mesh>
-        {look.head.map((q, i) => <mesh key={i} position={q.p} scale={q.s}><sphereGeometry args={[1, 12, 10]} /><meshStandardMaterial color={q.c} /></mesh>)}
-        {look.stripes && [-0.05, 0, 0.05].map((x) => <mesh key={x} position={[x, 0.12, 0.04]} scale={[0.012, 0.04, 0.02]}><sphereGeometry args={[1, 6, 6]} /><meshStandardMaterial color={look.stripes} /></mesh>)}
-        {[-1, 1].map((s, i) => (
-          <group key={s} position={[s * 0.09, 0.13, -0.01]} rotation={[0, 0, -s * 0.25]}>
-            <mesh><coneGeometry args={[0.06, 0.12, 4]} /><meshStandardMaterial color={look.ear[i]} /></mesh>
-            <mesh position={[0, -0.01, 0.02]} scale={[0.6, 0.7, 0.4]}><coneGeometry args={[0.05, 0.1, 4]} /><meshStandardMaterial color="#f2a6b0" /></mesh>
+      {/* 머리: 크고 동그란 얼굴, 반짝이는 큰 눈, 볼터치, 수염 */}
+      <group position={[0, lying ? 0.2 : sitting ? 0.56 : 0.46, lying ? 0.32 : sitting ? 0.2 : 0.34]} rotation={[0, 0, pose === "sit" ? Math.sin(t * 0.8) * 0.12 : 0]}>
+        <mesh scale={[0.2, 0.175, 0.18]}><sphereGeometry args={[1, 24, 18]} /><meshStandardMaterial color={look.base} roughness={0.9} /></mesh>
+        {/* 볼 털 (동글동글) */}
+        {[-1, 1].map((sd) => <mesh key={sd} position={[sd * 0.12, -0.06, 0.04]} scale={[0.09, 0.075, 0.09]}><sphereGeometry args={[1, 14, 10]} /><meshStandardMaterial color={look.cheek ?? look.base} roughness={0.9} /></mesh>)}
+        {look.head.map((q, i) => <mesh key={i} position={q.p} scale={q.s}><sphereGeometry args={[1, 14, 10]} /><meshStandardMaterial color={q.c} roughness={0.9} /></mesh>)}
+        {/* 이마 줄무늬 (태비의 M자) */}
+        {look.stripes && [-0.055, -0.018, 0.018, 0.055].map((x, i) => <mesh key={x} position={[x, 0.12, 0.1]} rotation={[0.5, 0, (i - 1.5) * 0.25]} scale={[0.011, 0.045, 0.012]}><sphereGeometry args={[1, 6, 6]} /><meshStandardMaterial color={look.stripes} /></mesh>)}
+        {look.stripes && [-1, 1].map((sd) => [0, 1].map((k) => <mesh key={`${sd}${k}`} position={[sd * 0.17, -0.01 - k * 0.04, 0.06]} rotation={[0, sd * 0.6, sd * 0.3]} scale={[0.035, 0.01, 0.012]}><sphereGeometry args={[1, 6, 6]} /><meshStandardMaterial color={look.stripes} /></mesh>))}
+        {/* 귀 */}
+        {[-1, 1].map((sd, i) => (
+          <group key={sd} position={[sd * 0.11, 0.14, -0.01]} rotation={[-0.1, 0, -sd * 0.32]}>
+            <mesh scale={[1, 1, 0.55]}><coneGeometry args={[0.07, 0.14, 12]} /><meshStandardMaterial color={look.ear[i]} roughness={0.9} /></mesh>
+            <mesh position={[0, -0.01, 0.025]} scale={[0.62, 0.72, 0.3]}><coneGeometry args={[0.065, 0.12, 12]} /><meshStandardMaterial color="#f7b6c2" /></mesh>
           </group>
         ))}
-        <mesh position={[0, -0.04, 0.12]} scale={[0.07, 0.05, 0.05]}><sphereGeometry args={[1, 12, 10]} /><meshStandardMaterial color={look.muzzle} /></mesh>
-        <mesh position={[0, -0.02, 0.165]}><sphereGeometry args={[0.016, 8, 6]} /><meshStandardMaterial color="#f08a98" /></mesh>
-        {[-0.06, 0.06].map((x) => (
-          <group key={x} position={[x, 0.02, 0.13]}>
+        {/* 주둥이: 하얀 ω 볼 + 분홍 코 + 입 */}
+        {[-1, 1].map((sd) => <mesh key={sd} position={[sd * 0.032, -0.055, 0.15]} scale={[0.04, 0.032, 0.03]}><sphereGeometry args={[1, 12, 10]} /><meshStandardMaterial color={look.muzzle} roughness={0.9} /></mesh>)}
+        {look.noseSpot && <mesh position={[0.045, -0.04, 0.165]} scale={[0.025, 0.018, 0.012]}><sphereGeometry args={[1, 10, 8]} /><meshStandardMaterial color={look.noseSpot} /></mesh>}
+        <mesh position={[0, -0.025, 0.175]} rotation={[Math.PI, 0, 0]} scale={[1.25, 0.9, 0.7]}><coneGeometry args={[0.017, 0.022, 3]} /><meshStandardMaterial color="#f08a98" /></mesh>
+        {/* 볼터치 */}
+        {[-1, 1].map((sd) => <mesh key={sd} position={[sd * 0.105, -0.035, 0.135]} rotation={[0, sd * 0.6, 0]}><circleGeometry args={[0.024, 14]} /><meshBasicMaterial color="#ff9fb2" transparent opacity={0.55} depthWrite={false} /></mesh>)}
+        {/* 수염 */}
+        {[-1, 1].map((sd) => [-0.012, 0.004, 0.02].map((dy, k) => (
+          <mesh key={`${sd}${k}`} position={[sd * 0.1, -0.05 + dy, 0.15]} rotation={[0, 0, sd * (k - 1) * 0.18]}>
+            <boxGeometry args={[0.11, 0.003, 0.003]} /><meshBasicMaterial color="#ffffff" />
+          </mesh>
+        )))}
+        {/* 눈: 초록 홍채 + 세로 동공 + 반짝이 (잘 때는 ⌒) */}
+        {[-0.068, 0.068].map((x) => (
+          <group key={x} position={[x, 0.015, 0.15]}>
             {pose === "sleep"
-              ? <mesh rotation={[0, 0, Math.PI / 2]}><torusGeometry args={[0.02, 0.006, 4, 8, Math.PI]} /><meshStandardMaterial color="#1b1b1b" /></mesh>
-              : <><mesh><sphereGeometry args={[0.028, 10, 8]} /><meshStandardMaterial color="#8fbf6a" /></mesh>
-                <mesh position={[0, 0, 0.02]} scale={[0.35, 1, 0.5]}><sphereGeometry args={[0.02, 6, 6]} /><meshStandardMaterial color="#111111" /></mesh></>}
+              ? <mesh rotation={[0, 0, Math.PI]}><torusGeometry args={[0.022, 0.006, 4, 10, Math.PI]} /><meshStandardMaterial color="#2a1f1a" /></mesh>
+              : <>
+                <mesh scale={[1, 1.1, 0.55]}><sphereGeometry args={[0.04, 16, 12]} /><meshStandardMaterial color={look.eye} roughness={0.25} /></mesh>
+                <mesh position={[0, 0, 0.018]} scale={[0.38, 1.05, 0.4]}><sphereGeometry args={[0.03, 10, 8]} /><meshStandardMaterial color="#141010" /></mesh>
+                <mesh position={[0.013, 0.017, 0.026]}><sphereGeometry args={[0.009, 8, 6]} /><meshBasicMaterial color="#ffffff" /></mesh>
+                <mesh position={[-0.01, -0.012, 0.025]}><sphereGeometry args={[0.004, 6, 6]} /><meshBasicMaterial color="#ffffff" /></mesh>
+              </>}
           </group>
         ))}
       </group>
