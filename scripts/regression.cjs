@@ -74,7 +74,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   // ☰ 메뉴 항목
   await A.click('.menu-btn'); await A.waitForTimeout(300);
   const items = await A.$$eval('.menu .intro-card strong', x => x.map(e => e.textContent));
-  for (const need of ['소원 걸기', '소원함', '랜덤 편지', '마을 광장', '오늘의 운세', '썰매 타기', '빙판 썰매', '분식집', '연못 낚시', '모닥불 쬐기', '눈사람 만들기', '내 캐릭터'])
+  for (const need of ['소원 걸기', '소원함', '랜덤 편지', '마을 광장', '오늘의 운세', '썰매 타기', '빙판 썰매', '분식집', '붕어빵 노점', '코코아 노점', '낚시 도감', '포토존', '연못 낚시', '모닥불 쬐기', '눈사람 만들기', '내 캐릭터'])
     check(`☰ 메뉴: ${need}`, items.some(i => i.includes(need)));
   // 썰매 (메뉴로)
   await A.click('.menu >> text=썰매 타기'); await A.waitForTimeout(1500);
@@ -83,7 +83,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   check('썰매: 상대 화면 슝', await seen(B, '슝'), sb.join(','));
 
   // 빙판 썰매 (메뉴로)
-  await A.waitForTimeout(5000); // 언덕 썰매(2.8초)가 확실히 끝난 뒤
+  await A.waitForTimeout(6500); // 언덕 썰매(5초)가 확실히 끝난 뒤
   await A.click('.menu-btn'); await A.click('.menu >> text=빙판 썰매'); await A.waitForTimeout(1200);
   const ia = await bubbles(A), ib = await bubbles(B);
   check('빙판 썰매: 내 화면 씽씽', await seen(A, '씽씽'), ia.join(','));
@@ -122,6 +122,41 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   await A.waitForTimeout(4000);
   await A.click('.menu-btn'); await A.click('.menu >> text=모닥불 쬐기');
   check('모닥불: 따뜻해 말풍선', await seen(B, '따뜻해', 12000));
+  // 마시멜로 굽기 (통나무에 앉은 뒤 버튼)
+  for (let i = 0; i < 20 && !(await A.$('.mallow-btn')); i++) await A.waitForTimeout(500);
+  check('마시멜로 굽기 버튼', !!(await A.$('.mallow-btn')));
+  if (await A.$('.mallow-btn')) { await A.click('.mallow-btn'); check('마시멜로: 상대 화면 말풍선', await seen(B, '마시멜로')); }
+  // 노점 3곳
+  const stalls = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
+  check('노점 3곳 표지', ['분식집', '붕어빵', '코코아'].every(n => stalls.some(t => t.includes(n))), stalls.join(','));
+  await A.click('.menu-btn'); await A.click('.menu >> text=붕어빵 노점'); await A.waitForTimeout(300);
+  const bm = await A.$$eval('.snack-grid .act-btn', x => x.map(e => e.innerText.replace(/\n/g, '')));
+  check('붕어빵 노점 메뉴 5가지(우유 포함)', bm.length === 5 && bm.some(t => t.includes('우유')) && bm.some(t => t.includes('슈크림')), bm.join(','));
+  await A.keyboard.press('Escape');
+  await A.click('.menu-btn'); await A.click('.menu >> text=코코아 노점'); await A.waitForTimeout(300);
+  check('코코아 노점 메뉴', (await A.$$('.snack-grid .act-btn')).length === 4);
+  await A.keyboard.press('Escape');
+  // 낚시 도감 · 포토존
+  await A.click('.menu-btn'); await A.click('.menu >> text=낚시 도감'); await A.waitForTimeout(300);
+  check('낚시 도감 8칸', (await A.$$('.dex-item')).length === 8);
+  await A.keyboard.press('Escape');
+  await A.click('.menu-btn'); await A.click('.menu >> text=포토존'); await A.waitForTimeout(1500);
+  check('포토존: 사진 미리보기', !!(await A.$('.photo-preview')));
+  await A.keyboard.press('Escape');
+  // 장식 9가지(없음 포함) + 동물 6가지
+  await A.click('.me-btn'); await A.waitForTimeout(300);
+  const picks = await A.$$eval('.picks', x => x.map(p => p.children.length));
+  check('캐릭터 편집: 동물 6 · 장식 9', picks[0] === 6 && picks[2] === 9, picks.join(','));
+  await A.keyboard.press('Escape');
+  {
+    const c = await b.newContext({ viewport: { width: 900, height: 600 } });
+    await c.addInitScript(() => { const real = Date.now.bind(Date); const off = ((41 - (real() / 1000) % 120) + 120) % 120 * 1000; Date.now = () => real() + off; });
+    const p = await c.newPage(); p.on('pageerror', e => errs.push('E: ' + e.message));
+    await p.goto(BASE); await p.fill('.gate input', '1225'); await p.press('.gate input', 'Enter'); await p.waitForTimeout(400);
+    await p.click('text=이 캐릭터로 입장'); await p.waitForTimeout(1500);
+    check('별똥별 이벤트 배너', (await p.textContent('.event-banner').catch(() => '')).includes('별똥별'));
+    await c.close();
+  }
   check('화면 오류 없음', errs.length === 0, errs.join(' | '));
   await b.close();
   for (const [r, n, d] of results) console.log(`${r}  ${n}${d ? '  (' + d + ')' : ''}`);

@@ -7,7 +7,7 @@ import { currentEvent } from "./events";
 const WHITE = new THREE.Color("#ffffff");
 import { BENCHES } from "./benches";
 import { HILL, RINK, SLED_PARK } from "./sled";
-import { SnackStand } from "./Snack";
+import { STALLS, SnackStand } from "./Snack";
 import PondArea from "./Pond";
 import { Html } from "@react-three/drei";
 
@@ -22,7 +22,44 @@ function seeded(seed: number) {
 
 const WALL_COLORS = ["#c96f53", "#d9b48f", "#8c5a44", "#a3b6c9", "#e0cfa8"];
 
-function House({ position, rotationY, color, scale = 1 }: {
+// 집 모양 4가지: 기본 집 / 2층 뾰족집 / 둥근 지붕 오두막 / 이글루
+type HouseProps = { position: [number, number, number]; rotationY: number; color: string; scale?: number; kind?: string };
+const Window = ({ x, y, z }: { x: number; y: number; z: number }) => (
+  <mesh position={[x, y, z]}><planeGeometry args={[0.32, 0.32]} /><meshStandardMaterial color="#ffd27a" emissive="#ffb347" emissiveIntensity={1.4} /></mesh>
+);
+function House(p: HouseProps) {
+  const { position, rotationY, color, scale = 1, kind } = p;
+  if (kind === "igloo") return (
+    <group position={position} rotation={[0, rotationY, 0]} scale={scale}>
+      <mesh position={[0, 0, 0]}><sphereGeometry args={[1.1, 24, 14, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color="#eef5ff" roughness={0.9} /></mesh>
+      {/* 얼음 블록 줄 */}
+      {[0.35, 0.7].map((y) => <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[Math.sqrt(1.21 - y * y), 0.015, 4, 32]} /><meshStandardMaterial color="#c9dcf0" /></mesh>)}
+      {/* 입구 터널 */}
+      <mesh position={[0, 0, 1.0]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.45, 0.45, 0.6, 16, 1, false, 0, Math.PI]} /><meshStandardMaterial color="#e3eefb" side={THREE.DoubleSide} /></mesh>
+      <mesh position={[0, 0.2, 1.31]}><circleGeometry args={[0.3, 16, 0, Math.PI]} /><meshStandardMaterial color="#ffcf70" emissive="#ffb347" emissiveIntensity={1.2} /></mesh>
+    </group>
+  );
+  if (kind === "tall") return (
+    <group position={position} rotation={[0, rotationY, 0]} scale={scale}>
+      <mesh position={[0, 1.0, 0]}><boxGeometry args={[1.2, 2.0, 1.1]} /><meshStandardMaterial color={color} roughness={0.9} /></mesh>
+      <mesh position={[0, 2.45, 0]} rotation={[0, Math.PI / 4, 0]}><coneGeometry args={[1.05, 1.0, 4]} /><meshStandardMaterial color="#3d4f7a" /></mesh>
+      <mesh position={[0, 2.62, 0]} rotation={[0, Math.PI / 4, 0]}><coneGeometry args={[0.85, 0.7, 4]} /><meshStandardMaterial color="#f4f7fb" /></mesh>
+      <Window x={-0.28} y={0.6} z={0.56} /><Window x={0.28} y={0.6} z={0.56} /><Window x={0} y={1.45} z={0.56} />
+    </group>
+  );
+  if (kind === "round") return (
+    <group position={position} rotation={[0, rotationY, 0]} scale={scale}>
+      <mesh position={[0, 0.5, 0]}><boxGeometry args={[1.8, 1.0, 1.2]} /><meshStandardMaterial color={color} roughness={0.9} /></mesh>
+      <mesh position={[0, 1.0, 0]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.65, 0.65, 1.9, 18, 1, false, Math.PI / 2, Math.PI]} /><meshStandardMaterial color="#8b3a3a" side={THREE.DoubleSide} /></mesh>
+      <mesh position={[0, 1.04, 0]} rotation={[0, 0, Math.PI / 2]}><cylinderGeometry args={[0.6, 0.6, 1.92, 18, 1, false, Math.PI / 2 + 0.6, Math.PI - 1.2]} /><meshStandardMaterial color="#f4f7fb" side={THREE.DoubleSide} /></mesh>
+      <Window x={-0.45} y={0.55} z={0.61} /><Window x={0.45} y={0.55} z={0.61} />
+    </group>
+  );
+  return <HouseBasic position={position} rotationY={rotationY} color={color} scale={scale} />;
+}
+const HOUSE_KINDS = ["basic", "igloo", "tall", "round", "igloo", "basic", "tall"];
+
+function HouseBasic({ position, rotationY, color, scale = 1 }: {
   position: [number, number, number];
   rotationY: number;
   color: string;
@@ -322,7 +359,7 @@ export function TreeLights({ count = 46 }) {
   );
 }
 
-export default function Village({ onGround, onBench, onSled, onIce, onSnack, onFish, onWarm }: { onGround?: (x: number, z: number) => void; onBench?: (i: number) => void; onSled?: () => void; onIce?: () => void; onSnack?: () => void; onFish?: () => void; onWarm?: (i: number) => void }) {
+export default function Village({ onGround, onBench, onSled, onIce, onSnack, onFish, onWarm }: { onGround?: (x: number, z: number) => void; onBench?: (i: number) => void; onSled?: () => void; onIce?: () => void; onSnack?: (stall: string) => void; onFish?: () => void; onWarm?: (i: number) => void }) {
   const layout = useMemo(() => {
     const rand = seeded(7);
     // 트리를 둘러싼 집들 (카메라 정면 쪽은 비워 두어 트리가 잘 보이게)
@@ -387,14 +424,14 @@ export default function Village({ onGround, onBench, onSled, onIce, onSnack, onF
 
       {layout.houses.map((h, i) => (
         <FadeWhenBlocking key={i} center={[h.position[0], 1, h.position[2]]} radius={1.6 * h.scale}>
-          <House {...h} />
+          <House {...h} kind={HOUSE_KINDS[i % HOUSE_KINDS.length]} />
         </FadeWhenBlocking>
       ))}
       {BENCHES.map((b, i) => b.kind === "bench" && <Bench key={i} {...b} onClick={onBench && (() => onBench(i))} />)}
       <PondArea onFish={onFish} onSeat={onBench} onWarm={onWarm} />
       <SledHill onSled={onSled} />
       <IceRink onIce={onIce} />
-      <SnackStand onOpen={onSnack} />
+      {STALLS.map((st) => <SnackStand key={st.id} stall={st} onOpen={onSnack && (() => onSnack(st.id))} />)}
       {layout.lamps.map((p, i) => (
         <Lamp key={i} position={p} />
       ))}
