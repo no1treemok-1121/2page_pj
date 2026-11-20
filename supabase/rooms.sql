@@ -53,7 +53,9 @@ begin
   if (select count(*) from letters where room_id = p_room and created_at > now() - interval '1 minute') >= 10 then
     raise exception 'too many letters';
   end if;
-  insert into letters (room_id, from_name, body) values (p_room, btrim(p_from), btrim(p_body));
+  -- 보내는 사람을 비우면 익명으로
+  insert into letters (room_id, from_name, body)
+    values (p_room, coalesce(nullif(btrim(coalesce(p_from, '')), ''), '익명의 누군가'), btrim(p_body));
 end $$;
 
 -- 편지 읽기 (방 주인만)

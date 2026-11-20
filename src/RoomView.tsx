@@ -23,7 +23,7 @@ function WriteLetter({ to, onSend, onClose }: { to: string; onSend: (from: strin
   const [from, setFrom] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
-  const ok = from.trim() && body.trim() && !sending;
+  const ok = body.trim() && !sending;
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!ok) return;
@@ -34,7 +34,7 @@ function WriteLetter({ to, onSend, onClose }: { to: string; onSend: (from: strin
     <Modal onClose={onClose}>
       <form onSubmit={submit}>
         <h2>{to}에게 편지 쓰기</h2>
-        <input className="field" value={from} maxLength={12} placeholder="보내는 사람 (이름이나 별명)"
+        <input className="field" value={from} maxLength={12} placeholder="보내는 사람 (선택, 비우면 익명)"
           onChange={(e) => setFrom(e.target.value)} autoFocus />
         <textarea value={body} maxLength={500} rows={6} placeholder="전하고 싶은 마음을 적어 주세요"
           onChange={(e) => setBody(e.target.value)} />

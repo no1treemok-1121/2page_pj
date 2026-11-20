@@ -19,3 +19,6 @@ create policy "wishes are readable" on public.wishes
 drop policy if exists "anyone can hang a wish" on public.wishes;
 create policy "anyone can hang a wish" on public.wishes
   for insert to anon, authenticated with check (true);
+
+-- 소원에 이름·별명 (선택, 최대 12자)
+alter table public.wishes add column if not exists name text check (name is null or char_length(btrim(name)) between 1 and 12);
