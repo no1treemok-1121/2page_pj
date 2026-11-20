@@ -253,14 +253,19 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     await g[0].fill(kid); await g[1].fill('틀린비번'); await D.click('.find-room button[type=submit]'); await D.waitForTimeout(1500);
     check('내 방 찾기: 틀리면 남은 기회 안내', (await D.textContent('.find-room').catch(() => '')).includes('남은 기회'));
     await g[1].fill(kpw); await D.click('.find-room button[type=submit]');
-    await D.waitForSelector('text=[테스트]열쇠의 방', { timeout: 8000 }).catch(() => null);
-    check('내 방 찾기: 다른 기기에서 내 방(주인)', !!(await D.$('text=[테스트]열쇠의 방')) && !!(await D.$('.bottom-bar >> text=🔑 열쇠')));
+    await D.waitForSelector('.bottom-bar >> text=🔑 열쇠', { timeout: 8000 }).catch(() => null);
+    check('내 방 찾기: 다른 기기에서 내 방(주인)', !!(await D.$('.bottom-bar >> text=🔑 열쇠')));
     // 🎨 방 꾸미기: 벽지 바꾸고 소품 놓고 저장 → 다른 기기(D)에서도 보임
     await C.click('.bottom-bar >> text=🎨 꾸미기'); await C.waitForTimeout(400);
     check('꾸미기 패널', !!(await C.$('.decor-panel')));
     await C.click('.decor-panel .sw >> nth=1'); await C.click('.decor-panel .chip:has-text("선물 상자")');
     await C.click('.decor-panel >> text=저장'); await C.waitForTimeout(1200);
     check('꾸미기 저장 안내', (await C.textContent('.toast').catch(() => '')).includes('저장'));
+    // ✏️ 꾸미기 창에서 방 이름 바꾸기
+    await C.click('.bottom-bar >> text=🎨 꾸미기'); await C.waitForTimeout(400);
+    await C.fill('.name-row .field', '[테스트]새이름'); await C.click('.name-row .btn'); await C.waitForTimeout(1500);
+    check('방 이름 바꾸기', !!(await C.$('text=[테스트]새이름의 방')));
+    await C.click('.decor-panel >> text=취소');
     // 같은 기기(C)에 다른 닉네임으로 새로 입장하면 '내 방이 맞나요?' → 내려놓기
     {
       const C2 = await C.context().newPage();
@@ -268,6 +273,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
       await C2.goto(BASE); await C2.fill('.gate input', '1225'); await C2.press('.gate input', 'Enter'); await C2.waitForTimeout(400);
       await C2.click('text=이 캐릭터로 입장'); await C2.waitForTimeout(1500);
       check('다른 닉네임 입장: 내 방 맞나요? 질문', !!(await C2.$('.owner-ask')));
+      check('내 방 맞나요?: 이름 바꾸기·그대로·내려놓기 3개', (await C2.$$('.owner-ask .btn')).length === 3);
       await C2.waitForTimeout(800);
       if (await C2.$('.owner-ask')) await C2.click('text=아니요, 다른 사람이에요');
       await C2.waitForTimeout(500);

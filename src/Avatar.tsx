@@ -47,7 +47,7 @@ const NICK_KEY = "3d_pj.chatNick";
 export const loadNickname = () => { try { return localStorage.getItem(NICK_KEY) || ""; } catch { return ""; } };
 export const saveNickname = (n: string) => { try { localStorage.setItem(NICK_KEY, n); } catch { /* 무시 */ } };
 
-export function AvatarEditor({ initial, onSave, onClose }: { initial: Avatar | null; onSave: (a: Avatar) => void; onClose: () => void }) {
+export function AvatarEditor({ initial, onSave, onClose }: { initial: Avatar | null; onSave: (a: Avatar, nickChanged?: string) => void; onClose: () => void }) {
   const [a, setA] = useState<Avatar>(initial ?? DEFAULT_AVATAR);
   const [nick, setNick] = useState(loadNickname);
   return (
@@ -59,7 +59,11 @@ export function AvatarEditor({ initial, onSave, onClose }: { initial: Avatar | n
       <p className="hint">채팅·소원·내 방·마을에서 이 캐릭터와 닉네임이 보여요.</p>
       <div className="actions center">
         <button className="btn ghost" onClick={onClose}>취소</button>
-        <button className="btn" onClick={() => { if (nick.trim()) saveNickname(nick.trim()); onSave(a); }}>저장</button>
+        <button className="btn" onClick={() => {
+          const n = nick.trim(), changed = !!n && n !== loadNickname();
+          if (n) saveNickname(n);
+          onSave(a, changed ? n : undefined);
+        }}>저장</button>
       </div>
     </Modal>
   );

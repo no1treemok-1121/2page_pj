@@ -448,3 +448,8 @@ a.btn { display: inline-block; text-decoration: none; text-align: center; box-si
 .food-ico { height: 1.15em; width: auto; vertical-align: -0.2em; }
 .food-ico.big { height: 1em; }
 .act-btn .food-ico { height: 1.1em; }
+
+.name-row { display: flex; align-items: center; gap: 6px; }
+.name-row .field { flex: 1; min-width: 0; margin: 0; }
+.name-row span { font-size: 13px; white-space: nowrap; }
+.name-row .btn { padding: 8px 12px; font-size: 13px; }

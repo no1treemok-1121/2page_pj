@@ -23,6 +23,7 @@ export async function rpc<T>(fn: string, body: Record<string, unknown>): Promise
     if (msg.includes("cannot reply")) throw new Error("이미 답장한 편지예요.");
     if (msg.includes("login taken") || msg.includes("duplicate")) throw new Error("이미 누가 쓰고 있는 아이디예요. 다른 아이디로 해 주세요.");
     if (msg.includes("bad login")) throw new Error("아이디는 한글·영어·숫자로 3~16자로 해 주세요. (띄어쓰기·기호 안 돼요)");
+    if (msg.includes("bad name")) throw new Error("방 이름은 1~12자로 해 주세요.");
     if (msg.includes("bad pw")) throw new Error("비밀번호는 4~30자로 해 주세요.");
     throw new Error(`요청에 실패했어요 (${res.status})`);
   }
@@ -58,6 +59,14 @@ export async function getLetters(roomId: string, ownerKey: string): Promise<Lett
 
 export function deleteLetter(roomId: string, ownerKey: string, letterId: string) {
   return rpc<void>("delete_letter", { p_room: roomId, p_key: ownerKey, p_letter: letterId });
+}
+
+// ✏️ 방 이름 바꾸기 (주인만). 이 기기의 '내 방' 정보도 같이 고침
+export async function setRoomName(room: MyRoom, name: string): Promise<MyRoom> {
+  await rpc<void>("set_room_name", { p_room: room.roomId, p_key: room.ownerKey, p_name: name.trim() });
+  const updated = { ...room, nickname: name.trim() };
+  saveMyRoom(updated);
+  return updated;
 }
 
 // 🔑 내 방 열쇠 (아이디 + 비밀번호)

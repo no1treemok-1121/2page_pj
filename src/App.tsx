@@ -7,7 +7,7 @@ import Scene from "./Scene";
 import WishDialog from "./WishDialog";
 import { Wish, addWish, fetchWishes, isShared, loadMyWishIds, newWishDraft, rememberMyWish } from "./wishes";
 import RoomView, { Modal, ShareDialog } from "./RoomView";
-import { LOGIN_RE, MyRoom, copyText, createRoom, forgetMyRoom, getRoom, getRoomLogin, loadMyRoom, loginRoom, rpc, saveMyRoom, setRoomLogin } from "./rooms";
+import { LOGIN_RE, MyRoom, copyText, createRoom, forgetMyRoom, getRoom, getRoomLogin, loadMyRoom, loginRoom, rpc, saveMyRoom, setRoomLogin, setRoomName } from "./rooms";
 import { MAX_FOOD, normDecor, setRoomDecor } from "./decor";
 import { BUNGEO_SRC, IconText } from "./FoodIcon";
 import ChatPanel, { useVillageChat } from "./Chat";
@@ -655,7 +655,7 @@ function CreateRoom({ onCreated, onClose, onFind }: { onCreated: (room: MyRoom) 
 }
 
 // 같은 기기를 여러 사람이 쓸 때: "이 기기에 저장된 ○○의 방, 내 방이 맞나요?"
-function OwnerAsk({ room, nick, onKeep, onLeave }: { room: MyRoom; nick: string; onKeep: () => void; onLeave: () => void }) {
+function OwnerAsk({ room, nick, onKeep, onLeave, onRename }: { room: MyRoom; nick: string; onKeep: () => void; onLeave: () => void; onRename: () => void }) {
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   useEffect(() => { getRoomLogin(room).then((l) => setHasKey(!!l)).catch(() => setHasKey(false)); }, [room]);
   return (
@@ -663,7 +663,8 @@ function OwnerAsk({ room, nick, onKeep, onLeave }: { room: MyRoom; nick: string;
       <div className="owner-ask">
         <h2>🏠 '{room.nickname}의 방'이 이 기기에 있어요</h2>
         <p className="hint">지금 닉네임은 <b>{nick}</b>이에요. {room.nickname} 님의 방이 맞나요?</p>
-        <button className="btn wide" onClick={onKeep}>네, 제 방이에요 (그대로 쓰기)</button>
+        <button className="btn wide" onClick={onRename}>네, 제 방이에요 → '{nick.slice(0, 12)}의 방'으로 이름 바꾸기</button>
+        <button className="btn ghost wide" onClick={onKeep}>네, 이름은 '{room.nickname}의 방' 그대로 둘게요</button>
         <button className="btn ghost wide" disabled={hasKey === false} onClick={onLeave}>아니요, 다른 사람이에요 (이 기기에서 내려놓기)</button>
         {hasKey === false && (
           <p className="hint warn small">이 방은 아직 <b>🔑 열쇠(아이디·비밀번호)</b>가 없어서 내려놓으면 다시 찾을 수 없어요. {room.nickname} 님이 먼저 내 방의 🔑 열쇠 버튼으로 열쇠를 만들어 주세요.</p>
@@ -818,12 +819,25 @@ export default function App() {
   const [finding, setFinding] = useState(false);
   const [myAvatar, setMyAvatar] = useState<Avatar | null>(() => loadMyAvatar());
   const [editingAvatar, setEditingAvatar] = useState(false);
-  const saveAvatar = async (a: Avatar) => {
+  const saveAvatar = async (a: Avatar, newNick?: string) => {
     saveMyAvatar(a);
     setMyAvatar(a);
     setEditingAvatar(false);
     notify("캐릭터를 저장했어요");
     if (myRoom) setRoomAvatar(myRoom, toStr(a)).catch(() => notify("내 방 캐릭터를 바꾸지 못했어요"));
+    // 닉네임을 바꾸면 내 방 이름도 같이 (방 이름 = 주인 닉네임)
+    if (myRoom && newNick && newNick !== myRoom.nickname) renameRoom(newNick.slice(0, 12));
+  };
+  const [roomVer, setRoomVer] = useState(0); // 방 이름이 바뀌면 방 화면을 다시 불러옴
+  const renameRoom = async (name: string, room = myRoom) => {
+    if (!room) return;
+    try {
+      const updated = await setRoomName(room, name);
+      setMyRoom(updated);
+      setRoomVer((v) => v + 1);
+      try { localStorage.setItem("3d_pj.ownerNickOk", ""); } catch { /* 무시 */ }
+      notify(`✏️ 방 이름을 '${updated.nickname}의 방'으로 바꿨어요`);
+    } catch (e) { notify((e as Error).message); }
   };
   // 입장 코드 다음에 캐릭터 고르기 (방문마다 한 번)
   const [setupDone, setSetupDone] = useState<boolean>(() => { try { return !!sessionStorage.getItem(SETUP_KEY); } catch { return false; } });
@@ -882,7 +896,7 @@ export default function App() {
       {!setupDone ? (
         <CharacterSetup initial={myAvatar} onDone={finishSetup} />
       ) : roomId ? (
-        <RoomView key={roomId} roomId={roomId} myRoom={myRoom} onLeaveRoom={leaveMyRoom}
+        <RoomView key={`${roomId}:${roomVer}`} roomId={roomId} myRoom={myRoom} onLeaveRoom={leaveMyRoom}
           onRoomGone={(create) => { forgetMyRoom(); setMyRoom(null); go(null); if (create) setCreating(true); }} onGoVillage={() => go(null)} onGoMyRoom={goMyRoom}
           notify={notify} myAvatar={myAvatar} onNickname={(nickname) => {
             if (myRoom?.roomId === roomId && myRoom.nickname !== nickname) {
@@ -921,7 +935,13 @@ export default function App() {
         }} />
       )}
       {askOwner && (
-        <OwnerAsk room={askOwner} nick={loadNickname()} onLeave={leaveMyRoom} onKeep={() => {
+        <OwnerAsk room={askOwner} nick={loadNickname()} onLeave={leaveMyRoom}
+          onRename={() => {
+            if (myAvatar) setRoomAvatar(askOwner, toStr(myAvatar)).catch(() => undefined);
+            renameRoom(loadNickname().slice(0, 12), askOwner);
+            setAskOwner(null);
+          }}
+          onKeep={() => {
           try { localStorage.setItem("3d_pj.ownerNickOk", loadNickname()); } catch { /* 무시 */ } // 이 닉네임으로는 다시 묻지 않음
           if (myAvatar) setRoomAvatar(askOwner, toStr(myAvatar)).catch(() => undefined);
           setAskOwner(null);
