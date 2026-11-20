@@ -42,16 +42,24 @@ function Picker({ a, setA }: { a: Avatar; setA: (a: Avatar) => void }) {
   );
 }
 
+// 닉네임: 채팅·걸어 다니는 캐릭터 이름표에 함께 쓰임
+const NICK_KEY = "3d_pj.chatNick";
+export const loadNickname = () => { try { return localStorage.getItem(NICK_KEY) || ""; } catch { return ""; } };
+export const saveNickname = (n: string) => { try { localStorage.setItem(NICK_KEY, n); } catch { /* 무시 */ } };
+
 export function AvatarEditor({ initial, onSave, onClose }: { initial: Avatar | null; onSave: (a: Avatar) => void; onClose: () => void }) {
   const [a, setA] = useState<Avatar>(initial ?? DEFAULT_AVATAR);
+  const [nick, setNick] = useState(loadNickname);
   return (
     <Modal onClose={onClose}>
       <h2>내 캐릭터</h2>
+      <p className="pick-label">닉네임</p>
+      <input className="field" value={nick} maxLength={12} placeholder="닉네임 (채팅·이름표에 보여요)" onChange={(e) => setNick(e.target.value)} />
       <Picker a={a} setA={setA} />
-      <p className="hint">채팅·소원·내 방에서 이 캐릭터가 보여요.</p>
+      <p className="hint">채팅·소원·내 방·마을에서 이 캐릭터와 닉네임이 보여요.</p>
       <div className="actions center">
         <button className="btn ghost" onClick={onClose}>취소</button>
-        <button className="btn" onClick={() => onSave(a)}>저장</button>
+        <button className="btn" onClick={() => { if (nick.trim()) saveNickname(nick.trim()); onSave(a); }}>저장</button>
       </div>
     </Modal>
   );

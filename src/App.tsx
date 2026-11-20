@@ -3,12 +3,13 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import Scene from "./Scene";
 import WishDialog from "./WishDialog";
-import { Wish, addWish, fetchWishes, isShared, newWishDraft } from "./wishes";
+import { Wish, addWish, fetchWishes, isShared, loadMyWishIds, newWishDraft, rememberMyWish } from "./wishes";
 import RoomView, { Modal, ShareDialog } from "./RoomView";
 import { MyRoom, copyText, createRoom, loadMyRoom, saveMyRoom } from "./rooms";
 import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup } from "./Avatar";
 import RandomLetters, { useRandomInbox } from "./RandomLetters";
+import Fortune from "./Fortune";
 import { EMOTES, MyWalker, OtherWalkers, useWalkers } from "./Walk";
 import { Avatar, loadMyAvatar, saveMyAvatar, toStr } from "./avatar";
 import { setRoomAvatar } from "./rooms";
@@ -42,6 +43,9 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const walk = useWalkers(myAvatar, walkNick);
   const [walkTarget, setWalkTarget] = useState<[number, number] | null>(null);
   const [emoteOpen, setEmoteOpen] = useState(false);
+  const [treeMenu, setTreeMenu] = useState(false);
+  const [myWishIds, setMyWishIds] = useState<Set<string>>(() => loadMyWishIds());
+  const [fortuneOpen, setFortuneOpen] = useState(action?.type === "fortune");
   const [lettersOpen, setLettersOpen] = useState(action?.type === "letters");
   // 메뉴에서 고른 동작 실행
   useEffect(() => {
@@ -50,6 +54,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     if (action.type === "chat") setChatOpen(true);
     if (action.type === "box") setBoxOpen(true);
     if (action.type === "letters") setLettersOpen(true);
+    if (action.type === "fortune") setFortuneOpen(true);
   }, [action?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = useCallback(async () => {
@@ -86,6 +91,8 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     setWishes((prev) => [...prev, { ...draft, id: tempId, createdAt: Date.now() }]);
     try {
       const saved = await addWish(draft);
+      rememberMyWish(saved.id);
+      setMyWishIds(loadMyWishIds());
       setWishes((prev) => prev.map((w) => (w.id === tempId ? saved : w)));
     } catch (e) {
       setWishes((prev) => prev.filter((w) => w.id !== tempId));
@@ -98,7 +105,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
       <Canvas camera={CAMERA} dpr={[1, 2]}>
         <color attach="background" args={["#0b1733"]} />
         <fog attach="fog" args={["#0b1733", 14, 38]} />
-        <Scene wishes={wishes} onTreeClick={() => setWriting(true)} onWishClick={setViewing}
+        <Scene wishes={wishes} mineIds={myWishIds} onTreeClick={() => setTreeMenu(true)} onWishClick={setViewing}
           onGround={(x, z) => setWalkTarget([x, z])} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
         <OtherWalkers others={walk.others} emotes={walk.emotes} />
@@ -113,7 +120,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
 
       <div className="title">
         <h1>눈 내리는 마을</h1>
-        <p>트리를 눌러 소원을 걸어 보세요<span className="sep"> · </span><br className="br-mobile" />땅을 누르면 내 캐릭터가 걸어가요</p>
+        <p>트리를 눌러 소원을 쓰거나 읽어 보세요<span className="sep"> · </span><br className="br-mobile" />땅을 누르면 내 캐릭터가 걸어가요</p>
         {wishes.length > 0 && (
           <p className="count">
             {isShared ? "함께 건 소원" : "지금까지 걸린 소원"} {wishes.length}개
@@ -131,7 +138,17 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           </div>
         )}
         <button className="emote-btn" onClick={() => setEmoteOpen((v) => !v)} aria-label="감정 표현">😊</button>
+        <button className="emote-btn" onClick={() => setFortuneOpen(true)} aria-label="오늘의 운세">🔮</button>
       </div>
+      {fortuneOpen && <Fortune onClose={() => setFortuneOpen(false)} />}
+      {treeMenu && (
+        <Modal onClose={() => setTreeMenu(false)}>
+          <h2>🎄 소원 트리</h2>
+          <p className="hint">트리에 걸린 소원 {wishes.length}개</p>
+          <button className="btn wide" onClick={() => { setTreeMenu(false); setWriting(true); }}>✏️ 소원 쓰기</button>
+          <button className="btn ghost wide" onClick={() => { setTreeMenu(false); setBoxOpen(true); }}>📜 소원함 보기</button>
+        </Modal>
+      )}
 
       <div className="bottom-bar">
         <button className="btn" onClick={onMyRoom}>{myRoom ? `🏠 ${myRoom.nickname}의 방` : "🏠 내 방 만들기"}</button>
@@ -224,12 +241,12 @@ function CreateRoom({ onCreated, onClose }: { onCreated: (room: MyRoom) => void;
   );
 }
 
-type VillageAction = { type: "wish" | "chat" | "box" | "letters"; n: number } | null;
+type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune"; n: number } | null;
 const SETUP_KEY = "3d_pj.setupDone";
 
 // 오른쪽 위 ☰ 메뉴: 마을 소개와 바로가기
 function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
-  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
+  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -258,6 +275,9 @@ function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
           </button>
           <button className="intro-card" onClick={() => onAction("chat")}>
             <span>💬</span><strong>마을 광장</strong><small>지금 마을에 있는 사람들과 이야기해요</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("fortune")}>
+            <span>🔮</span><strong>오늘의 운세</strong><small>하루 한 장, 카드를 뽑아 오늘의 운세를 봐요</small>
           </button>
           <button className="intro-card" onClick={onCharacter}>
             <span>🐾</span><strong>내 캐릭터</strong><small>동물·색·장식을 바꿔요</small>
@@ -309,7 +329,7 @@ export default function App() {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [villageAction, setVillageAction] = useState<VillageAction>(null);
-  const runAction = (type: "wish" | "chat" | "box" | "letters") => {
+  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune") => {
     setMenuOpen(false);
     setVillageAction({ type, n: Date.now() });
     if (roomId) go(null);

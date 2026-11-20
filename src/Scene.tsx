@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ThreeEvent, useFrame } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { Wish } from "./wishes";
 import Village, { TreeLights } from "./Village";
@@ -24,29 +25,52 @@ function useHoverCursor() {
   };
 }
 
-function Ornament({ wish, onClick }: { wish: Wish; onClick: (w: Wish) => void }) {
+function Ornament({ wish, onClick, mine }: { wish: Wish; onClick: (w: Wish) => void; mine?: boolean }) {
   const ref = useRef<THREE.Mesh>(null);
+  const mat = useRef<THREE.MeshStandardMaterial>(null);
+  const glow = useRef<THREE.Mesh>(null);
   const hover = useHoverCursor();
   const phase = useMemo(() => Math.random() * Math.PI * 2, []);
   useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
     const m = ref.current;
     if (!m) return;
-    const s = 1 + Math.sin(clock.elapsedTime * 2 + phase) * 0.08;
-    m.scale.setScalar(s);
+    if (mine) {
+      // 내 소원: 크게 두근두근 + 강하게 반짝 + 빛 번짐
+      m.scale.setScalar(1 + Math.abs(Math.sin(t * 3)) * 0.35);
+      if (mat.current) mat.current.emissiveIntensity = 1.2 + (Math.sin(t * 7) + 1) * 1.6;
+      if (glow.current) {
+        glow.current.scale.setScalar(1.6 + Math.sin(t * 3) * 0.5);
+        (glow.current.material as THREE.MeshBasicMaterial).opacity = 0.25 + (Math.sin(t * 7) + 1) * 0.15;
+      }
+    } else {
+      m.scale.setScalar(1 + Math.sin(t * 2 + phase) * 0.08);
+    }
   });
+  const click = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    if (isClick(e)) onClick(wish);
+  };
   return (
-    <mesh
-      ref={ref}
-      position={wish.position}
-      {...hover}
-      onClick={(e) => {
-        e.stopPropagation();
-        if (isClick(e)) onClick(wish);
-      }}
-    >
-      <sphereGeometry args={[0.14, 16, 16]} />
-      <meshStandardMaterial color={wish.color} emissive={wish.color} emissiveIntensity={0.6} roughness={0.3} />
-    </mesh>
+    <group position={wish.position}>
+      <mesh ref={ref} {...hover} onClick={click}>
+        <sphereGeometry args={[mine ? 0.19 : 0.14, 16, 16]} />
+        <meshStandardMaterial ref={mat} color={mine ? "#fff4c2" : wish.color} emissive={mine ? "#ffd36b" : wish.color}
+          emissiveIntensity={mine ? 2 : 0.6} roughness={0.3} />
+      </mesh>
+      {mine && (
+        <>
+          <mesh ref={glow} raycast={() => null}>
+            <sphereGeometry args={[0.19, 16, 16]} />
+            <meshBasicMaterial color="#ffe08a" transparent opacity={0.35} depthWrite={false} />
+          </mesh>
+          <pointLight color="#ffd36b" intensity={3} distance={2.2} />
+          <Html position={[0, 0.42, 0]} center distanceFactor={8} zIndexRange={[4, 0]}>
+            <div className="my-wish-tag">✨ 내 소원</div>
+          </Html>
+        </>
+      )}
+    </group>
   );
 }
 
@@ -118,9 +142,10 @@ type SceneProps = {
   onTreeClick: () => void;
   onWishClick: (w: Wish) => void;
   onGround?: (x: number, z: number) => void;
+  mineIds?: Set<string>;
 };
 
-export default function Scene({ wishes, onTreeClick, onWishClick, onGround }: SceneProps) {
+export default function Scene({ wishes, onTreeClick, onWishClick, onGround, mineIds }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.35} color="#9fb4ff" />
@@ -129,7 +154,7 @@ export default function Scene({ wishes, onTreeClick, onWishClick, onGround }: Sc
       <Tree onClick={onTreeClick} />
       <TreeLights />
       {wishes.map((w) => (
-        <Ornament key={w.id} wish={w} onClick={onWishClick} />
+        <Ornament key={w.id} wish={w} onClick={onWishClick} mine={mineIds?.has(w.id) || w.id.startsWith("pending-")} />
       ))}
       <Snow />
     </>
