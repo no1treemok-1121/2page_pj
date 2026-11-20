@@ -13,8 +13,10 @@
 - 패키지 관리는 npm만 사용 (bun 잠금 파일은 제거함)
 
 ## Supabase
-- 두 프로젝트 모두 같은 Supabase 프로젝트(`rlmggdhtorteumnphzus`)를 사용. 연결 정보는 각 폴더의 `.env` (공개용 publishable 키라 저장소에 포함).
-- 루트 앱 테이블: banned_words, categories, comment_daily_usage, comments, invite_codes, legal_documents, likes, notifications, posts, profiles 등 (`src/integrations/supabase/types.ts` 참고). 테이블 구조(SQL)는 저장소에 없음.
+- 두 프로젝트 모두 사용자 소유의 Supabase 프로젝트 **`2page_pj` (ref `iabzybciyltmydycynat`, 서울 리전)** 를 사용. 연결 정보는 각 폴더의 `.env` (공개용 publishable 키라 저장소에 포함). Lovable 시절 데이터는 버리고 새로 시작함(사용자 결정).
+- 루트 앱 테이블 구조: `supabase/schema.sql` (여러 번 실행해도 안전). 가입 시 프로필·초대코드 자동 생성, 좋아요/댓글 수 자동 집계, 보호 컬럼 트리거 포함.
+- 타입: `src/integrations/supabase/types.ts` 는 Management API(`GET /v1/projects/{ref}/types/typescript`)로 생성.
+- 관리 방법: 환경에 저장된 Supabase 개인 접근 토큰(api.supabase.com, 프록시가 자동 주입)으로 Management API 사용. SQL 실행은 `POST https://api.supabase.com/v1/projects/{ref}/database/query` 에 `{"query": "..."}`. 토큰 권한은 좁음(프로젝트 목록 조회 불가, ref를 직접 지정해야 함), 만료 7일 — 만료되면 사용자에게 새 토큰 발급을 안내.
 - 3D 사이트 테이블: `wishes` — SQL은 `3d_pj/supabase/wishes.sql`. 읽기·추가만 허용(RLS).
 - DB 구조를 바꾸면 SQL 파일을 저장소에 남길 것.
 
@@ -26,7 +28,8 @@
 
 ## 진행 중인 이전 작업 (Lovable → 직접 관리)
 - [x] Lovable 전용 코드 제거, npm으로 통일, README 정리
-- [ ] Supabase 소유 확인 (사용자 계정에 프로젝트가 보이는지) → 안 보이면 새 프로젝트로 데이터 이전
-- [ ] `wishes` 테이블 생성 (`3d_pj/supabase/wishes.sql`)
+- [x] 새 Supabase 프로젝트 생성, 2Page 테이블 + `wishes` 테이블 적용, 두 앱 연결 전환 (실제 소원 걸기 테스트 완료)
+- [ ] 카카오·구글 로그인 설정 (각 개발자 콘솔에서 앱 등록 → Supabase Auth에 키 입력, 현재 둘 다 꺼져 있음)
+- [ ] 예전 "2페이지 프로젝트"(일시 중지된 것) 삭제 — 사용자가 직접
 - [ ] Netlify에 두 사이트 배포
 - [ ] 다 옮긴 뒤 Lovable과 GitHub 연결 해제
