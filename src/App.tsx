@@ -16,7 +16,8 @@ const CAMERA = isPortrait
   ? { position: [0, 3.5, 14] as [number, number, number], fov: 62 }
   : { position: [0, 3, 10] as [number, number, number], fov: 50 };
 
-function VillageView({ onMyRoom, myRoom, notice, setNotice }: {
+function VillageView({ onMyRoom, myRoom, notice, setNotice, initialAction }: {
+  initialAction: IntroAction;
   onMyRoom: () => void;
   myRoom: MyRoom | null;
   notice: string | null;
@@ -26,7 +27,9 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice }: {
   const [writing, setWriting] = useState(false);
   const [viewing, setViewing] = useState<Wish | null>(null);
   const chat = useVillageChat();
-  const [chatOpen, setChatOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(initialAction === "chat");
+  const [boxOpen, setBoxOpen] = useState(false);
+  useEffect(() => { if (initialAction === "wish") setWriting(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = useCallback(async () => {
     try {
@@ -54,9 +57,9 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice }: {
     };
   }, [refresh]);
 
-  const hangWish = async (text: string) => {
+  const hangWish = async (text: string, name: string) => {
     setWriting(false);
-    const draft = newWishDraft(text);
+    const draft = newWishDraft(text, name);
     const tempId = `pending-${Date.now()}`;
     // 바로 트리에 보이게 먼저 걸고, 저장되면 실제 값으로 교체
     setWishes((prev) => [...prev, { ...draft, id: tempId, createdAt: Date.now() }]);
@@ -90,6 +93,7 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice }: {
         {wishes.length > 0 && (
           <p className="count">
             {isShared ? "함께 건 소원" : "지금까지 걸린 소원"} {wishes.length}개
+            <button className="link-btn" onClick={() => setBoxOpen(true)}>📜 소원함 보기</button>
           </p>
         )}
       </div>
@@ -104,6 +108,27 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice }: {
 
       {chatOpen && <ChatPanel chat={chat} defaultNick={myRoom?.nickname ?? ""} onClose={() => setChatOpen(false)} />}
 
+      {boxOpen && (
+        <Modal onClose={() => setBoxOpen(false)}>
+          <h2>📜 소원함</h2>
+          <p className="hint">트리에 걸린 소원 {wishes.length}개</p>
+          {wishes.length === 0 ? <p className="hint">아직 걸린 소원이 없어요.</p> : (
+            <ul className="wish-list">
+              {[...wishes].reverse().map((w) => (
+                <li key={w.id}>
+                  <span className="dot small" style={{ background: w.color }} />
+                  <div>
+                    <p>{w.text}</p>
+                    <small>{w.name || "익명"} · {new Date(w.createdAt).toLocaleDateString("ko-KR")}</small>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button className="btn wide" onClick={() => setBoxOpen(false)}>닫기</button>
+        </Modal>
+      )}
+
       {writing && <WishDialog onSubmit={hangWish} onClose={() => setWriting(false)} />}
 
       {viewing && (
@@ -111,6 +136,7 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice }: {
           <div className="card" onClick={(e) => e.stopPropagation()}>
             <span className="dot" style={{ background: viewing.color }} />
             <p className="wish-text">{viewing.text}</p>
+            <p className="wish-name">— {viewing.name || "익명"}</p>
             <p className="date">{new Date(viewing.createdAt).toLocaleDateString("ko-KR")}</p>
             <button className="btn" onClick={() => setViewing(null)}>닫기</button>
           </div>
@@ -149,6 +175,33 @@ function CreateRoom({ onCreated, onClose }: { onCreated: (room: MyRoom) => void;
   );
 }
 
+type IntroAction = "wish" | "chat" | null;
+const INTRO_KEY = "3d_pj.introSeen";
+
+function Intro({ myRoom, onEnter, onMyRoom }: { myRoom: MyRoom | null; onEnter: (a: IntroAction) => void; onMyRoom: () => void }) {
+  return (
+    <div className="intro">
+      <div className="intro-inner">
+        <div className="intro-star">✦</div>
+        <h1>눈 내리는 마을</h1>
+        <p className="intro-lead">눈 내리는 마을에서 소원을 걸고,<br />소중한 사람과 편지를 나누고, 함께 이야기해요.</p>
+        <div className="intro-cards">
+          <button className="intro-card" onClick={() => onEnter("wish")}>
+            <span>🎄</span><strong>소원 걸기</strong><small>트리에 올해의 소원을 걸어요</small>
+          </button>
+          <button className="intro-card" onClick={onMyRoom}>
+            <span>🏠</span><strong>{myRoom ? "내 방 가기" : "내 방 만들기"}</strong><small>링크를 받은 친구가 편지를 남겨요. 편지는 나만 읽어요</small>
+          </button>
+          <button className="intro-card" onClick={() => onEnter("chat")}>
+            <span>💬</span><strong>마을 광장</strong><small>지금 마을에 있는 사람들과 이야기해요</small>
+          </button>
+        </div>
+        <button className="btn intro-go" onClick={() => onEnter(null)}>마을 구경하기 →</button>
+      </div>
+    </div>
+  );
+}
+
 // 주소의 ?room=… 으로 마을/방 화면을 전환. #key=… 이 있으면 이 기기를 방 주인으로 등록
 function readRoute() {
   const roomId = new URLSearchParams(location.search).get("room");
@@ -169,6 +222,14 @@ export default function App() {
     return loadMyRoom();
   });
   const [creating, setCreating] = useState(false);
+  // 소개 화면: 이번 방문(탭)에서 처음 마을에 올 때만 보여 줌
+  const [intro, setIntro] = useState<boolean>(() => { try { return !sessionStorage.getItem(INTRO_KEY); } catch { return true; } });
+  const [introAction, setIntroAction] = useState<IntroAction>(null);
+  const leaveIntro = (a: IntroAction) => {
+    try { sessionStorage.setItem(INTRO_KEY, "1"); } catch { /* 무시 */ }
+    setIntroAction(a);
+    setIntro(false);
+  };
   const [justCreated, setJustCreated] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -188,7 +249,7 @@ export default function App() {
     history.pushState(null, "", id ? `/?room=${id}` : "/");
     setRoomId(id);
   };
-  const goMyRoom = () => (myRoom ? go(myRoom.roomId) : setCreating(true));
+  const goMyRoom = () => { leaveIntro(null); if (myRoom) go(myRoom.roomId); else setCreating(true); };
   const notify = useCallback((m: string) => setNotice(m), []);
 
   return (
@@ -202,8 +263,10 @@ export default function App() {
               setMyRoom(updated);
             }
           }} />
+      ) : intro ? (
+        <Intro myRoom={myRoom} onEnter={leaveIntro} onMyRoom={goMyRoom} />
       ) : (
-        <VillageView onMyRoom={goMyRoom} myRoom={myRoom} notice={notice} setNotice={setNotice} />
+        <VillageView onMyRoom={goMyRoom} myRoom={myRoom} notice={notice} setNotice={setNotice} initialAction={introAction} />
       )}
 
       {notice && <div className="toast" role="status">{notice}</div>}
