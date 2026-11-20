@@ -9,7 +9,7 @@ import { MyRoom, copyText, createRoom, loadMyRoom, saveMyRoom } from "./rooms";
 import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup } from "./Avatar";
 import RandomLetters, { useRandomInbox } from "./RandomLetters";
-import { MyWalker, OtherWalkers, useWalkers } from "./Walk";
+import { EMOTES, MyWalker, OtherWalkers, useWalkers } from "./Walk";
 import { Avatar, loadMyAvatar, saveMyAvatar, toStr } from "./avatar";
 import { setRoomAvatar } from "./rooms";
 
@@ -41,6 +41,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const walkNick = (() => { try { return localStorage.getItem("3d_pj.chatNick") || myRoom?.nickname || "익명"; } catch { return myRoom?.nickname || "익명"; } })();
   const walk = useWalkers(myAvatar, walkNick);
   const [walkTarget, setWalkTarget] = useState<[number, number] | null>(null);
+  const [emoteOpen, setEmoteOpen] = useState(false);
   const [lettersOpen, setLettersOpen] = useState(action?.type === "letters");
   // 메뉴에서 고른 동작 실행
   useEffect(() => {
@@ -100,7 +101,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         <Scene wishes={wishes} onTreeClick={() => setWriting(true)} onWishClick={setViewing}
           onGround={(x, z) => setWalkTarget([x, z])} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
-        <OtherWalkers others={walk.others} />
+        <OtherWalkers others={walk.others} emotes={walk.emotes} />
         <OrbitControls
           enablePan={false}
           minDistance={6}
@@ -119,6 +120,17 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
             <button className="link-btn" onClick={() => setBoxOpen(true)}>📜 소원함 보기</button>
           </p>
         )}
+      </div>
+
+      <div className="emote-wrap">
+        {emoteOpen && (
+          <div className="emote-picker">
+            {EMOTES.map((x) => (
+              <button key={x.e} title={x.label} onClick={() => { walk.emote(x.e); setEmoteOpen(false); }}>{x.e}</button>
+            ))}
+          </div>
+        )}
+        <button className="emote-btn" onClick={() => setEmoteOpen((v) => !v)} aria-label="감정 표현">😊</button>
       </div>
 
       <div className="bottom-bar">
