@@ -13,7 +13,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   const errs = [];
   // 느린 컴퓨터(그래픽 없이 CPU로 그림)에서 여러 창을 띄우면 실시간 반응이 늦어져서, 보조 창(B 등)은 작게
   const mk = async (n, small) => {
-    const c = await b.newContext({ viewport: small ? { width: 480, height: 360 } : { width: 900, height: 600 } });
+    const c = await b.newContext({ viewport: small ? { width: 480, height: 360 } : { width: 680, height: 460 } });
     await c.addInitScript(n => localStorage.setItem('3d_pj.chatNick', n), n);
     const p = await c.newPage(); p.on('pageerror', e => errs.push(n + ': ' + e.message));
     await p.goto(BASE);
