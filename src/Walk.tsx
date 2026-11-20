@@ -132,6 +132,7 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
       .on("presence", { event: "join" }, ({ key: k }) => { if (k !== key) sendPos(); }) // 새로 온 사람에게 내 위치 알려 주기
       .on("broadcast", { event: "act" }, ({ payload }) => handleActRef.current(payload as Act))
       .on("broadcast", { event: "snowman" }, () => onSnowmanRef.current?.())
+      .on("broadcast", { event: "cat" }, ({ payload }) => { const p = payload as { id: number; kind: string }; onCatRef.current?.(p.id, p.kind); })
       .on("broadcast", { event: "bell" }, ({ payload }) => onBellRef.current?.((payload as { key: string }).key))
       .on("broadcast", { event: "smash" }, ({ payload }) => onSmashRef.current?.((payload as { id: string }).id))
       .on("broadcast", { event: "sled" }, ({ payload }) => {
@@ -269,6 +270,8 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
     sendPos();
     if (b.kind === "log") say("🔥 따뜻해~ 몸이 사르르 녹는다");
   };
+  const onCatRef = useRef<((id: number, kind: string) => void) | null>(null);
+  const announceCat = (id: number, kind: string) => chRef.current?.send({ type: "broadcast", event: "cat", payload: { id, kind } });
   const onBellRef = useRef<((key: string) => void) | null>(null);
   const announceBell = () => chRef.current?.send({ type: "broadcast", event: "bell", payload: { key: keyRef.current } });
   const announceSnowman = () => chRef.current?.send({ type: "broadcast", event: "snowman", payload: {} });
@@ -310,7 +313,7 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
   othersRef.current = others;
   // NPC끼리 장난: 모든 화면이 같은 시각에 같은 장난을 계산하므로 서버로 보내지 않고 각자 실행
   const localAct = (a: Act) => handleActRef.current(a);
-  return { stopRide, onBellRef, announceBell, mySledSeed, localAct, mySledKind, onSmashRef, announceSmash, onSnowmanRef, announceSnowman, showSay, showEmote, rideSled, endSled, mySled, sledding, sleds, sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
+  return { onCatRef, announceCat, stopRide, onBellRef, announceBell, mySledSeed, localAct, mySledKind, onSmashRef, announceSmash, onSnowmanRef, announceSnowman, showSay, showEmote, rideSled, endSled, mySled, sledding, sleds, sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
 }
 
 // 감정 표현: 3초 동안 머리 위에 띄우고, 그동안 캐릭터가 깡충 뜀

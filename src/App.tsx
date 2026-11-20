@@ -10,7 +10,7 @@ import RoomView, { Modal, ShareDialog } from "./RoomView";
 import { LOGIN_RE, MyRoom, copyText, createRoom, forgetMyRoom, getRoom, getRoomLogin, loadMyRoom, loginRoom, rpc, saveMyRoom, setRoomLogin, setRoomName } from "./rooms";
 import { MAX_FOOD, normDecor, setRoomDecor } from "./decor";
 import { BUNGEO_SRC, IconText } from "./FoodIcon";
-import Cats from "./Cats";
+import Cats, { CAT_CARE, CAT_NAMES, CatReact, catPos } from "./Cats";
 import { IGLOO_DOOR, IglooCamera, IglooScene, VillageIgloo, useIgloo } from "./Igloo";
 import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup, loadNickname } from "./Avatar";
@@ -186,6 +186,21 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     walk.rideSled(kind);
     setNotice("마을 한 바퀴 출발! 아무 곳이나 누르면 내려요 🛷");
   });
+  // 🐱 고양이 돌보기: 누르면 고양이한테 걸어가서 메뉴 (간식·쓰다듬기·놀아주기), 모두에게 보임
+  const [catMenu, setCatMenu] = useState<number | null>(null);
+  const [catReacts, setCatReacts] = useState<Record<number, CatReact>>({});
+  walk.onCatRef.current = (id, kind) => setCatReacts((r) => ({ ...r, [id]: { kind, t: Date.now() } }));
+  const tapCat = (id: number) => goThen(catPos[id].x, catPos[id].z, 0.9, () => setCatMenu(id));
+  const careCat = (id: number, kind: string) => {
+    setCatMenu(null);
+    const c = CAT_CARE.find((x) => x.kind === kind);
+    if (!c) return;
+    if (Math.hypot(walk.me.current.x - catPos[id].x, walk.me.current.z - catPos[id].z) > 2.2) { setNotice("고양이 가까이 가야 해요 🐾"); return; }
+    setCatReacts((r) => ({ ...r, [id]: { kind, t: Date.now() } }));
+    walk.announceCat(id, kind);
+    walk.emote(c.icon);
+    walk.say(c.say(CAT_NAMES[id]));
+  };
   const enterIgloo = () => goThen(IGLOO_DOOR.x, IGLOO_DOOR.z, 0.6, () => {
     setInIgloo(true);
     walk.say("❄️ 이글루에 들어갔어요");
@@ -423,7 +438,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           onBench={(i) => { walk.stopRide(); walk.sitAt(i); setNotice("벤치로 가서 앉아요 🪑 움직이면 일어나요"); }} />
         <TourStation onRide={rideTour} />
         <VillageIgloo count={igloo.count} onEnter={enterIgloo} />
-        <Cats me={() => walk.me.current} />
+        <Cats me={() => walk.me.current} onTap={tapCat} reacts={catReacts} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
         <Npcs walk={walk} onSelect={setActTarget} />
         <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} onSelect={setActTarget} />
@@ -542,6 +557,18 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
                 <span>{a.icon}</span>{a.label}
               </button>
             ))}
+          </div>
+        </Modal>
+      )}
+      {catMenu !== null && (
+        <Modal onClose={() => setCatMenu(null)}>
+          <div className="cat-menu">
+            <h2>🐱 {CAT_NAMES[catMenu]}</h2>
+            <p className="hint">{catMenu === 0 ? "삼색 아가씨 밤이에요. 뭘 해 줄까요?" : "고등어 태비 캔디예요. 뭘 해 줄까요?"}</p>
+            <div className="snack-grid">
+              {CAT_CARE.map((c) => <button key={c.kind} className="act-btn" onClick={() => careCat(catMenu, c.kind)}><span>{c.icon}</span>{c.label}</button>)}
+            </div>
+            <button className="btn ghost wide" onClick={() => setCatMenu(null)}>닫기</button>
           </div>
         </Modal>
       )}
