@@ -1,0 +1,34 @@
+# CLAUDE.md
+
+이 저장소를 관리하는 Claude를 위한 안내. 사용자는 한국어로 소통하며 개발 용어에 익숙하지 않으므로 쉬운 말로 설명할 것.
+
+## 프로젝트
+- **눈 내리는 마을**: 트리에 소원을 거는 3D 웹사이트. 목표는 neouijari.netlify.app ("트리에 소원을 걸고, 편지를 나누고, 서로의 방에 놀러 가요") 같은 사이트를 만드는 것. 그 사이트의 이름·디자인을 그대로 베끼지 말고 우리만의 사이트로 만들 것.
+- 기술: Vite + React + TypeScript + Three.js (@react-three/fiber, drei). 저장소 루트가 곧 이 사이트.
+- 이전에 있던 2Page 앱(Lovable로 만든 SNS)은 사용자 요청으로 삭제함. 필요하면 git 기록에서 복구 가능 (커밋 2c1819c 이전).
+
+## 명령
+- `npm install`, `npm run dev`, `npm run build` (npm만 사용)
+
+## 구성
+- 화면 전환: 주소 `?room=<id>` 이면 방, 없으면 마을 (`src/App.tsx`의 readRoute/go). 라우터 라이브러리 없음.
+- `src/Village.tsx` 마을 배경(집·가로등·소나무·달·별·트리 전구), `src/RoomView.tsx`·`src/RoomScene.tsx` 방 화면·편지, `src/rooms.ts` 방·편지 API와 '내 방' 정보(localStorage `3d_pj.myRoom`)
+- `src/Scene.tsx` 트리·눈·장식, `src/App.tsx` 화면·상태, `src/WishDialog.tsx` 소원 입력, `src/wishes.ts` 저장(Supabase 또는 localStorage), `src/EntryGate.tsx` 입장 코드
+- 입장 코드: 환경 변수 `ENTRY_CODE` (기본 1225). 빌드 시 SHA-256 해시만 번들에 들어감 (`vite.config.ts`). 클라이언트 검증이라 가벼운 접근 제한일 뿐임.
+
+## Supabase
+- 사용자 소유 프로젝트 **`2page_pj` (ref `iabzybciyltmydycynat`, 서울 리전)**. 연결 정보는 `.env` (공개용 publishable 키라 저장소에 포함).
+- `wishes` 테이블: SQL은 `supabase/wishes.sql`. 읽기·추가만 허용(RLS). DB 구조를 바꾸면 SQL 파일을 저장소에 남길 것.
+- DB에는 `wishes` 테이블만 있음 (2Page용 테이블·함수·트리거는 2026-11-20 삭제). `rls_auto_enable` 함수는 Supabase가 만든 것(새 테이블 RLS 자동 켜기)이니 지우지 말 것.
+- 방·편지: `supabase/rooms.sql`. 로그인 없는 '방 링크' 방식 — 방 만들 때 주인 열쇠(owner_key)를 발급하고 DB엔 SHA-256 해시만 저장. `rooms`·`letters` 테이블은 RLS 정책 없음(직접 접근 불가), `create_room`·`get_room`·`send_letter`(방당 1분 10통 제한)·`get_letters`·`delete_letter` 함수(security definer)로만 접근. 주인 링크 = `?room=<id>#key=<열쇠>` (# 뒤는 서버로 안 감, 열면 이 기기에 저장 후 주소에서 지움).
+- 관리 방법: 환경에 저장된 Supabase 개인 접근 토큰(api.supabase.com, 프록시가 자동 주입)으로 Management API 사용. SQL 실행은 `POST https://api.supabase.com/v1/projects/{ref}/database/query` 에 `{"query": "..."}`. 토큰 권한은 좁음(프로젝트 목록 조회 불가, ref 직접 지정), 2026-11-20 발급·7일 만료 — 만료되면 새 토큰 발급을 안내.
+
+## 배포
+- Netlify 예정. `netlify.toml` 준비됨 (Base directory 비움).
+
+## 남은 일
+- [ ] Netlify 배포
+- [x] 마을 꾸미기, 휴대폰 화면, 링크 미리보기 (og:image는 배포 주소가 정해지면 전체 주소로 바꿀 것)
+- [x] 방·편지 (방 링크 방식, 로그인 없음)
+- [ ] (선택) 카카오/구글 로그인으로 전환
+- [ ] 관리자 기능, 도배 방지

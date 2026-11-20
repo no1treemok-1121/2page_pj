@@ -1,73 +1,37 @@
-# Welcome to your Lovable project
+# 눈 내리는 마을
 
-## Project info
+트리에 소원을 거는 3D 웹사이트입니다.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+- 기술: Vite + React + TypeScript + Three.js (@react-three/fiber, drei)
 
-## How can I edit this code?
+## 실행
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 배포 (Netlify)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+저장소를 연결해 새 사이트를 만들면 `netlify.toml` 설정(빌드 `npm run build`, 배포 폴더 `dist`)이 자동으로 적용됩니다. Base directory 는 비워 둡니다.
 
-**Use GitHub Codespaces**
+## 입장 코드
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+처음 들어오면 입장 코드를 물어봅니다. 한 번 맞히면 그 브라우저에서는 다시 묻지 않습니다.
 
-## What technologies are used for this project?
+- 기본 코드: `1225`
+- 바꾸는 법: 환경 변수 `ENTRY_CODE` 를 설정한 뒤 다시 빌드
+  - 로컬: `.env.local` 파일에 `ENTRY_CODE=원하는코드`
+  - Netlify: Site configuration → Environment variables 에 `ENTRY_CODE` 추가 후 재배포
+- 코드를 바꾸면 기존에 입장했던 사람도 새 코드를 다시 입력해야 합니다.
+- 코드 원문은 사이트 파일에 들어가지 않고 해시값만 들어가지만, 서버 검증이 아니므로 가벼운 접근 제한 용도입니다.
 
-This project is built with:
+## 소원 함께 보기 (Supabase)
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+`.env` 의 `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` 가 있으면 소원이 Supabase에 저장되어 모든 방문자에게 보입니다. (Supabase 프로젝트 `2page_pj`)
 
-## How can I deploy this project?
+처음 한 번, Supabase 대시보드 → **SQL Editor** 에서 `supabase/wishes.sql` 내용을 실행해 `wishes` 테이블을 만들어야 합니다.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- 열려 있는 화면은 15초마다, 그리고 탭으로 돌아올 때 새 소원을 불러옵니다.
+- 소원은 누구나 볼 수 있고 새로 걸 수만 있습니다(수정·삭제 불가).
+- 두 환경 변수를 지우면 예전처럼 각자 브라우저에만 저장됩니다.
