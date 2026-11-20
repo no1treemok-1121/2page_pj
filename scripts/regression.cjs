@@ -106,6 +106,8 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   await A.keyboard.press('Escape');
   // 분식집: 메뉴에서 어묵 → 상대 화면에 호로록
   await A.waitForTimeout(4000);
+  // 앞 단계에서 실수로 열린 창(고양이 메뉴 등)이 있으면 닫기
+  for (let i = 0; i < 4 && (await A.$('.backdrop')); i++) { await A.keyboard.press('Escape'); await A.waitForTimeout(300); }
   await A.click('.menu-btn'); await A.click('.menu >> text=분식집');
   await A.waitForSelector('.snack-grid', { timeout: 15000 }).catch(() => null);
   check('분식집 메뉴 6가지', (await A.$$('.snack-grid .act-btn')).length === 6);
