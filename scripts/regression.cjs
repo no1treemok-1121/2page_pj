@@ -241,6 +241,13 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     await c.close();
   }
   // 🔑 내 방 열쇠: 방 만들 때 아이디·비밀번호 → 다른 기기(새 창)에서 '내 방 찾기'로 들어가기
+  // 🐱 광장 고양이 밤·캔디 + 고양이 집
+  {
+    const cats = await A.$$eval('.cat-tag', x => x.map(e => e.textContent));
+    check('고양이 밤·캔디 (머리 위 하트)', cats.some(t => t.includes('밤') && t.includes('💖')) && cats.some(t => t.includes('캔디')), cats.join(','));
+    const tg = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
+    check('고양이 집 표지', tg.some(t => t.includes('밤·캔디네 집')));
+  }
   // ❄️ 이글루: 걸어가서 들어가기, 두 명이 서로 보임, 소원 방명록(트리 소원과 같은 창), 나가기
   {
     const tagA = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));

@@ -10,6 +10,7 @@ import RoomView, { Modal, ShareDialog } from "./RoomView";
 import { LOGIN_RE, MyRoom, copyText, createRoom, forgetMyRoom, getRoom, getRoomLogin, loadMyRoom, loginRoom, rpc, saveMyRoom, setRoomLogin, setRoomName } from "./rooms";
 import { MAX_FOOD, normDecor, setRoomDecor } from "./decor";
 import { BUNGEO_SRC, IconText } from "./FoodIcon";
+import Cats from "./Cats";
 import { IGLOO_DOOR, IglooCamera, IglooScene, VillageIgloo, useIgloo } from "./Igloo";
 import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup, loadNickname } from "./Avatar";
@@ -422,6 +423,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           onBench={(i) => { walk.stopRide(); walk.sitAt(i); setNotice("벤치로 가서 앉아요 🪑 움직이면 일어나요"); }} />
         <TourStation onRide={rideTour} />
         <VillageIgloo count={igloo.count} onEnter={enterIgloo} />
+        <Cats me={() => walk.me.current} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
         <Npcs walk={walk} onSelect={setActTarget} />
         <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} onSelect={setActTarget} />

@@ -462,3 +462,9 @@ a.btn { display: inline-block; text-decoration: none; text-align: center; box-si
 .igloo-emotes button { width: 36px; height: 36px; border: none; background: none; font-size: 22px; cursor: pointer; }
 .igloo-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 @media (max-width: 520px) { .igloo-emotes button { width: 32px; height: 32px; font-size: 19px; } .igloo-actions .btn { padding: 8px 12px; font-size: 13px; } }
+
+/* 🐱 광장 고양이 */
+.cat-tag { display: flex; flex-direction: column; align-items: center; color: #fff; font-size: 12px; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,0.6); white-space: nowrap; pointer-events: none; user-select: none; }
+.cat-heart { font-size: 22px; animation: cat-heart 1.2s ease-in-out infinite; filter: drop-shadow(0 0 6px #ff7eb6); }
+@keyframes cat-heart { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.25); opacity: 1; filter: drop-shadow(0 0 12px #ffb3d6); } }
+.spot-tag.cat { background: #e07a9a; }
