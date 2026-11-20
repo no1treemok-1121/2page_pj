@@ -26,6 +26,11 @@ export const ACCESSORIES = [
   { id: "beanie", emoji: "🧶", name: "털모자" },
   { id: "glasses", emoji: "👓", name: "안경" },
   { id: "rudolph", emoji: "🦌", name: "루돌프 머리띠" },
+  { id: "wizard", emoji: "🧙", name: "마법사 모자" },
+  { id: "shades", emoji: "🕶️", name: "선글라스" },
+  { id: "cape", emoji: "🦸", name: "빨간 망토" },
+  { id: "flower", emoji: "🌼", name: "꽃 화관" },
+  { id: "starpin", emoji: "⭐", name: "별 머리핀" },
 ] as const;
 
 export type Avatar = { animal: string; color: string; acc: string };
