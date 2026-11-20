@@ -9,7 +9,7 @@ export const SLED_PARK = { x: 9.3, z: -3.1 }; // 언덕 발치에 세워 둔 썰
 const START = { x: HILL.x - 0.5, z: HILL.z + 0.3, y: HILL.h - 0.05 };
 export const SLED_MS = 2800;
 
-export const RINK = { x: -10, z: -2, r: 3.6 }; // 얼음 빙판
+export const RINK = { x: -7.2, z: -4.8, r: 3.2 }; // 얼음 빙판 (기본 화면 안에 보이게)
 export const ICE_MS = 5200;
 const ICE_END = { x: RINK.x + RINK.r + 0.6, z: RINK.z + 0.4 }; // 빙판 오른쪽 가장자리 (광장 쪽)
 

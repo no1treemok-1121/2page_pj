@@ -10,8 +10,12 @@ import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup } from "./Avatar";
 import RandomLetters, { useRandomInbox } from "./RandomLetters";
 import Fortune from "./Fortune";
+import { SNACKS, SnackMenu } from "./Snack";
+import { randomCatch } from "./Pond";
+import { BENCHES, POND } from "./benches";
 import { VillageEvent, currentEvent } from "./events";
-import { ACTIONS, EMOTES, MyWalker, OtherWalkers, Snowballs, clampSpot, useWalkers } from "./Walk";
+import { ACTIONS, EMOTES, MyWalker, NPCS, Npcs, OtherWalkers, Snowballs, clampSpot, useWalkers } from "./Walk";
+import { toStr as avatarStr } from "./avatar";
 import { Snowman, Snowmen, useSnowmen } from "./Snowmen";
 import { Avatar, loadMyAvatar, saveMyAvatar, toStr } from "./avatar";
 import { setRoomAvatar } from "./rooms";
@@ -46,6 +50,33 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const [walkTarget, setWalkTarget] = useState<[number, number] | null>(null);
   const [emoteOpen, setEmoteOpen] = useState(false);
   const [treeMenu, setTreeMenu] = useState(false);
+  const [snackOpen, setSnackOpen] = useState(action?.type === "snack");
+  // 분식 먹기: 들고(머리 위 음식) 소리 말풍선 3번 — 감정·말풍선 실시간 전송을 그대로 사용
+  // 낚시: 연못가로 걸어가서 던지고, 3초 뒤 결과
+  const goFish = () => {
+    const me = walk.me.current;
+    const dx = me.x - POND.x, dz = me.z - POND.z, d = Math.hypot(dx, dz) || 1;
+    const spot = clampSpot(POND.x + (dx / d) * (POND.r + 0.5), POND.z + (dz / d) * (POND.r * 0.8 + 0.5));
+    walk.standUp();
+    walk.goal.current = spot;
+    const walkMs = Math.min(5000, (Math.hypot(spot[0] - me.x, spot[1] - me.z) / 2.6) * 1000 + 150);
+    setTimeout(() => {
+      walk.emote("🎣");
+      walk.say("🎣 낚싯대를 휙~ 던졌다");
+      setTimeout(() => walk.say(randomCatch()), 3200);
+    }, walkMs);
+  };
+  // 모닥불: 그 불 옆 통나무 중 하나에 앉기 (앉으면 '따뜻해~')
+  const warmUp = (fire: number) => {
+    const logs = BENCHES.map((b, i) => ({ b, i })).filter(({ b }) => b.kind === "log");
+    const pick = logs[fire * 2 + Math.floor(Math.random() * 2)] ?? logs[0];
+    walk.sitAt(pick.i);
+  };
+  const eatSnack = (s: typeof SNACKS[number]) => {
+    setSnackOpen(false);
+    walk.emote(s.emoji);
+    s.sounds.forEach((t, i) => setTimeout(() => walk.say(`${s.emoji} ${t}`), 600 + i * 2200));
+  };
   const [actTarget, setActTarget] = useState<string | null>(null);
   const snowmen = useSnowmen();
   walk.onSnowmanRef.current = snowmen.load;
@@ -87,6 +118,9 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   buildSnowmanRef.current = buildSnowman;
   const [peopleOpen, setPeopleOpen] = useState(false);
   const othersCount = Object.keys(walk.others).length;
+  // 장난칠 수 있는 대상 = 다른 사람 + NPC
+  const targets: Record<string, { nick: string; avatar: string; npc?: boolean }> = { ...walk.others };
+  for (const n of NPCS) targets[n.id] = { nick: n.nick, avatar: avatarStr(n.avatar), npc: true };
   // 다른 사람이 처음 보이면 한 번만 장난치기 안내
   useEffect(() => {
     if (othersCount === 0) return;
@@ -123,6 +157,9 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     if (action.type === "fortune") setFortuneOpen(true);
     if (action.type === "sled") setTimeout(() => walk.rideSled("hill"), 300);
     if (action.type === "ice") setTimeout(() => walk.rideSled("ice"), 300);
+    if (action.type === "snack") setSnackOpen(true);
+    if (action.type === "fish") setTimeout(goFish, 300);
+    if (action.type === "fire") setTimeout(() => warmUp(0), 300);
     if (action.type === "snowman") setTimeout(() => buildSnowmanRef.current(), 300);
   }, [action?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -178,8 +215,12 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           onGround={(x, z) => setWalkTarget([x, z])}
           onSled={() => walk.rideSled("hill")}
           onIce={() => walk.rideSled("ice")}
+          onSnack={() => setSnackOpen(true)}
+          onFish={goFish}
+          onWarm={warmUp}
           onBench={(i) => { walk.sitAt(i); setNotice("벤치로 가서 앉아요 🪑 움직이면 일어나요"); }} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
+        <Npcs walk={walk} onSelect={setActTarget} />
         <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} onSelect={setActTarget} />
         <Snowballs shots={walk.shots} />
         <Snowmen list={snowmen.list} smashed={snowmen.smashed} onClick={setSnowmanInfo} />
@@ -194,7 +235,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
 
       {event && (
         <div className="event-banner" key={event}>
-          {event === "sparkle" ? "✨ 트리가 반짝반짝 빛나는 시간이에요!" : "🎆 불꽃놀이가 시작됐어요! 트리 뒤 하늘을 보세요"}
+          {event === "sparkle" ? "✨ 트리에 소원을 빌어요!" : "🎆 불꽃놀이가 시작됐어요!"}
         </div>
       )}
 
@@ -240,12 +281,12 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
       {peopleOpen && (
         <Modal onClose={() => setPeopleOpen(false)}>
           <h2>👊 누구에게 장난칠까요?</h2>
-          {othersCount === 0 ? <p className="hint">지금 광장에 다른 사람이 없어요.<br />친구가 들어오면 여기에 나타나요.</p> : (
+          {(
             <ul className="people-list">
-              {Object.entries(walk.others).map(([k, w]) => (
+              {Object.entries(targets).map(([k, w]) => (
                 <li key={k}>
                   <button onClick={() => { setPeopleOpen(false); setActTarget(k); }}>
-                    <AvatarBadge value={w.avatar} size={34} /><span>{w.nick}</span><small>장난치기 ›</small>
+                    <AvatarBadge value={w.avatar} size={34} /><span>{w.npc ? "🤖 " : ""}{w.nick}</span><small>{w.npc ? "NPC · " : ""}장난치기 ›</small>
                   </button>
                 </li>
               ))}
@@ -255,9 +296,9 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           <button className="btn ghost wide" onClick={() => setPeopleOpen(false)}>닫기</button>
         </Modal>
       )}
-      {actTarget && walk.others[actTarget] && (
+      {actTarget && targets[actTarget] && (
         <Modal onClose={() => setActTarget(null)}>
-          <div className="act-head"><AvatarBadge value={walk.others[actTarget].avatar} size={44} /><h2>{walk.others[actTarget].nick}</h2></div>
+          <div className="act-head"><AvatarBadge value={targets[actTarget].avatar} size={44} /><h2>{targets[actTarget].npc ? "🤖 " : ""}{targets[actTarget].nick}</h2></div>
           <p className="hint">어떤 장난을 쳐 볼까요?</p>
           <div className="act-grid">
             {ACTIONS.map((a) => (
@@ -268,6 +309,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           </div>
         </Modal>
       )}
+      {snackOpen && <SnackMenu onPick={eatSnack} onClose={() => setSnackOpen(false)} />}
       {treeMenu && (
         <Modal onClose={() => setTreeMenu(false)}>
           <h2>🎄 소원 트리</h2>
@@ -372,12 +414,12 @@ function CreateRoom({ onCreated, onClose }: { onCreated: (room: MyRoom) => void;
   );
 }
 
-type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman"; n: number } | null;
+type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire"; n: number } | null;
 const SETUP_KEY = "3d_pj.setupDone";
 
 // 오른쪽 위 ☰ 메뉴: 마을 소개와 바로가기
 function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
-  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
+  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -412,6 +454,15 @@ function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
           </button>
           <button className="intro-card" onClick={() => onAction("sled")}>
             <span>🛷</span><strong>썰매 타기</strong><small>언덕 꼭대기에서 광장까지 슝 미끄러져요 (오른쪽 언덕을 눌러도 돼요)</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("fish")}>
+            <span>🎣</span><strong>연못 낚시</strong><small>트리 뒤 연못에서 낚시해요. 너구리 할배도 낚시 중이에요</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("fire")}>
+            <span>🔥</span><strong>모닥불 쬐기</strong><small>연못가 통나무에 앉아 몸을 녹여요</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("snack")}>
+            <span>🍢</span><strong>분식집</strong><small>떡볶이·만두·어묵·순대·튀김을 먹어요 (오른쪽 뒤 가게를 눌러도 돼요)</small>
           </button>
           <button className="intro-card" onClick={() => onAction("ice")}>
             <span>⛸️</span><strong>빙판 썰매</strong><small>왼쪽 얼음 빙판을 씽씽 돌아요 (빙판을 눌러도 돼요)</small>
@@ -469,7 +520,7 @@ export default function App() {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [villageAction, setVillageAction] = useState<VillageAction>(null);
-  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman") => {
+  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire") => {
     setMenuOpen(false);
     setVillageAction({ type, n: Date.now() });
     if (roomId) go(null);

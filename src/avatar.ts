@@ -7,6 +7,14 @@ export const ANIMALS = [
   { id: "fox", emoji: "🦊", name: "여우", ears: "pointy" },
   { id: "penguin", emoji: "🐧", name: "펭귄", ears: "none" },
 ] as const;
+// NPC 전용 동물: 사용자가 고를 수 없어서 NPC인 걸 알아볼 수 있음
+export const NPC_ANIMALS = [
+  { id: "squirrel", emoji: "🐿️", name: "다람쥐", ears: "pointy" },
+  { id: "deer", emoji: "🦌", name: "사슴", ears: "pointy" },
+  { id: "hamster", emoji: "🐹", name: "햄스터", ears: "round" },
+  { id: "raccoon", emoji: "🦝", name: "너구리", ears: "round" },
+] as const;
+export const ALL_ANIMALS = [...ANIMALS, ...NPC_ANIMALS];
 export const COLORS = ["#f4a7b9", "#ffd36b", "#9ad0ec", "#b5e3a1", "#c9a7eb", "#f7f3ea", "#c8a27a", "#e8735a"];
 export const ACCESSORIES = [
   { id: "none", emoji: "", name: "없음" },
@@ -25,7 +33,7 @@ export const toStr = (a: Avatar) => `${a.animal}:${a.color}:${a.acc}`;
 export function parseAvatar(s?: string | null): Avatar | null {
   if (!s) return null;
   const [animal, color, acc] = s.split(":");
-  if (!ANIMALS.some((x) => x.id === animal) || !/^#[0-9a-f]{6}$/.test(color) || !ACCESSORIES.some((x) => x.id === acc)) return null;
+  if (!ALL_ANIMALS.some((x) => x.id === animal) || !/^#[0-9a-f]{6}$/.test(color) || !ACCESSORIES.some((x) => x.id === acc)) return null;
   return { animal, color, acc };
 }
 

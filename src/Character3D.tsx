@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { ANIMALS, Avatar } from "./avatar";
+import { ALL_ANIMALS, Avatar } from "./avatar";
 
 // 간단한 도형으로 만든 3D 캐릭터 (방에 서 있음, 살짝 숨쉬듯 움직임)
 export default function Character3D({ avatar, position = [0, 0, 0], walking }: { avatar: Avatar; position?: [number, number, number]; walking?: boolean }) {
@@ -14,7 +14,8 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
     if (walking === undefined) g.rotation.y = Math.sin(t * 0.6) * 0.35 + 0.4; // 방에서는 두리번, 마을에서는 걷는 방향을 바라봄
     else g.position.y = position[1] + (walking ? Math.abs(Math.sin(t * 9)) * 0.12 : Math.abs(Math.sin(t * 2)) * 0.04);
   });
-  const ears = ANIMALS.find((x) => x.id === avatar.animal)?.ears ?? "round";
+  const ears = ALL_ANIMALS.find((x) => x.id === avatar.animal)?.ears ?? "round";
+  const isDeer = avatar.animal === "deer";
   const c = avatar.color;
   const isPenguin = avatar.animal === "penguin";
   const dark = new THREE.Color(c).multiplyScalar(0.8).getStyle();
@@ -29,6 +30,32 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
         <sphereGeometry args={[0.18, 16, 16]} />
         <meshStandardMaterial color="#fffaf0" />
       </mesh>
+      {/* 다람쥐 꼬리: 크고 복슬복슬하게 위로 말림 (NPC) */}
+      {avatar.animal === "squirrel" && [0, 1, 2, 3].map((i) => (
+        <mesh key={i} position={[0, 0.35 + i * 0.22, -0.32 - Math.sin(i * 0.9) * 0.18]} scale={[0.9, 1.1, 0.9]}>
+          <sphereGeometry args={[0.2 - i * 0.015, 12, 12]} />
+          <meshStandardMaterial color={dark} roughness={1} />
+        </mesh>
+      ))}
+      {/* 사슴 뿔 (NPC) */}
+      {isDeer && [-1, 1].map((s) => (
+        <group key={s} position={[s * 0.14, 1.32, 0]} rotation={[0, 0, -s * 0.35]}>
+          <mesh position={[0, 0.16, 0]}><cylinderGeometry args={[0.025, 0.03, 0.34, 6]} /><meshStandardMaterial color="#8a5a35" /></mesh>
+          <mesh position={[s * 0.08, 0.22, 0]} rotation={[0, 0, -s * 0.9]}><cylinderGeometry args={[0.02, 0.025, 0.18, 6]} /><meshStandardMaterial color="#8a5a35" /></mesh>
+          <mesh position={[-s * 0.05, 0.3, 0]} rotation={[0, 0, s * 0.7]}><cylinderGeometry args={[0.02, 0.025, 0.14, 6]} /><meshStandardMaterial color="#8a5a35" /></mesh>
+        </group>
+      ))}
+      {/* 너구리: 줄무늬 꼬리 (NPC) */}
+      {avatar.animal === "raccoon" && [0, 1, 2, 3].map((i) => (
+        <mesh key={i} position={[0, 0.3 + i * 0.06, -0.32 - i * 0.1]} rotation={[0.9, 0, 0]}>
+          <cylinderGeometry args={[0.1 - i * 0.012, 0.11 - i * 0.012, 0.12, 10]} />
+          <meshStandardMaterial color={i % 2 ? "#2b2b30" : "#9a9aa2"} />
+        </mesh>
+      ))}
+      {/* 햄스터 볼 (NPC) */}
+      {avatar.animal === "hamster" && [-1, 1].map((s) => (
+        <mesh key={s} position={[s * 0.22, 0.95, 0.15]}><sphereGeometry args={[0.13, 12, 12]} /><meshStandardMaterial color="#fff1dc" /></mesh>
+      ))}
       {/* 토끼 꼬리: 하얗고 동글동글 */}
       {avatar.animal === "rabbit" && (
         <group position={[0, 0.3, -0.29]}>
@@ -56,6 +83,9 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
             <meshStandardMaterial color="#fffaf0" />
           </mesh>
         )}
+        {avatar.animal === "raccoon" && (
+          <mesh position={[0, 0.04, 0.2]} scale={[1.25, 0.45, 0.6]}><sphereGeometry args={[0.2, 14, 10]} /><meshStandardMaterial color="#2b2b30" /></mesh>
+        )}
         {/* 눈 (펭귄은 하얀 얼굴 위에 오도록 앞으로) + 반짝이는 눈동자 */}
         {[-0.11, 0.11].map((x) => (
           <group key={x} position={[x, 0.04, isPenguin ? 0.315 : 0.29]} scale={isPenguin ? [1, 1, 0.6] : 1}>
@@ -71,7 +101,7 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
         ))}
         <mesh position={[0, -0.06, isPenguin ? 0.345 : 0.31]}>
           {isPenguin ? <coneGeometry args={[0.05, 0.12, 8]} /> : <sphereGeometry args={[0.035, 8, 8]} />}
-          <meshStandardMaterial color={isPenguin ? "#ffb347" : "#3a2a24"} />
+          <meshStandardMaterial color={isPenguin ? "#ffb347" : isDeer ? "#e0322d" : "#3a2a24"} emissive={isDeer ? "#ff2a1a" : "#000000"} emissiveIntensity={isDeer ? 0.8 : 0} />
         </mesh>
         {/* 귀 */}
         {[-1, 1].map((s) => (

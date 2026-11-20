@@ -29,6 +29,12 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     if (!e) return null; const r = e.getBoundingClientRect(); return [Math.round(r.x + r.width / 2), Math.round(r.y + r.height)];
   }, [n, mine]);
   const bubbles = async (p) => p.$$eval('.say-bubble, .emote-bubble', x => x.map(e => e.textContent));
+  // 3D 화면이 느린 환경을 위해 최대 3초 동안 다시 확인
+  const seen = async (p, word, ms = 3000) => {
+    for (const end = Date.now() + ms; Date.now() < end; await p.waitForTimeout(200))
+      if ((await bubbles(p)).some(s => s.includes(word))) return true;
+    return false;
+  };
 
   // 화면 기본 요소 (FEATURES 1·8)
   for (const [label, sel] of [['왼쪽 👊', '[aria-label="장난치기"]'], ['왼쪽 ⛄', '[aria-label="눈사람 만들기"]'], ['왼쪽 🔮', '[aria-label="오늘의 운세"]'], ['왼쪽 😊', '[aria-label="감정 표현"]'], ['☰ 메뉴', '.menu-btn'], ['내 캐릭터 버튼', '.me-btn'], ['💬 광장 버튼', '.chat-btn']])
@@ -46,17 +52,17 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   await A.click('.act-btn:has-text("들이받기")'); await A.waitForTimeout(2600);
   const after = await tag(B, '[테스트]B', true);
   check('들이받기: 상대가 밀려남', !!(before && after && Math.abs(after[0] - before[0]) + Math.abs(after[1] - before[1]) > 20), `${before} → ${after}`);
-  check('들이받기: 아야 말풍선', (await bubbles(B)).some(s => s.includes('아야')));
+  check('들이받기: 아야 말풍선', await seen(B, '아야'));
   // 👊 버튼 → 사람 목록 → 눈덩이
   await A.waitForTimeout(3000);
   await A.click('[aria-label="장난치기"]'); await A.waitForTimeout(300);
   check('👊 버튼: 사람 목록', (await A.$$('.people-list li')).length > 0);
   await A.click('.people-list button:has-text("[테스트]B")'); await A.click('.act-btn:has-text("눈덩이")'); await A.waitForTimeout(1500);
-  check('눈덩이: 차가워 말풍선', (await bubbles(B)).some(s => s.includes('차가워')));
+  check('눈덩이: 차가워 말풍선', await seen(B, '차가워'));
   // 감정 표현
   await A.waitForTimeout(3000);
   await A.click('[aria-label="감정 표현"]'); await A.click('.emote-picker button[title="하트"]'); await A.waitForTimeout(800);
-  check('감정 표현이 상대에게 보임', (await bubbles(B)).includes('❤️'));
+  check('감정 표현이 상대에게 보임', await seen(B, '❤️'));
   // 운세
   await A.click('[aria-label="오늘의 운세"]'); await A.waitForTimeout(300);
   check('운세 창 열림', !!(await A.$('.fortune-grid, .fortune-result')));
@@ -68,21 +74,54 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   // ☰ 메뉴 항목
   await A.click('.menu-btn'); await A.waitForTimeout(300);
   const items = await A.$$eval('.menu .intro-card strong', x => x.map(e => e.textContent));
-  for (const need of ['소원 걸기', '소원함', '랜덤 편지', '마을 광장', '오늘의 운세', '썰매 타기', '빙판 썰매', '눈사람 만들기', '내 캐릭터'])
+  for (const need of ['소원 걸기', '소원함', '랜덤 편지', '마을 광장', '오늘의 운세', '썰매 타기', '빙판 썰매', '분식집', '연못 낚시', '모닥불 쬐기', '눈사람 만들기', '내 캐릭터'])
     check(`☰ 메뉴: ${need}`, items.some(i => i.includes(need)));
   // 썰매 (메뉴로)
   await A.click('.menu >> text=썰매 타기'); await A.waitForTimeout(1500);
   const sa = await bubbles(A), sb = await bubbles(B);
-  check('썰매: 내 화면 슝', sa.some(s => s.includes('슝')), sa.join(','));
-  check('썰매: 상대 화면 슝', sb.some(s => s.includes('슝')), sb.join(','));
+  check('썰매: 내 화면 슝', await seen(A, '슝'), sa.join(','));
+  check('썰매: 상대 화면 슝', await seen(B, '슝'), sb.join(','));
 
   // 빙판 썰매 (메뉴로)
-  await A.waitForTimeout(3500);
-  await A.click('.menu-btn'); await A.click('.menu >> text=빙판 썰매'); await A.waitForTimeout(1500);
+  await A.waitForTimeout(5000); // 언덕 썰매(2.8초)가 확실히 끝난 뒤
+  await A.click('.menu-btn'); await A.click('.menu >> text=빙판 썰매'); await A.waitForTimeout(1200);
   const ia = await bubbles(A), ib = await bubbles(B);
-  check('빙판 썰매: 내 화면 씽씽', ia.some(s => s.includes('씽씽')), ia.join(','));
-  check('빙판 썰매: 상대 화면 씽씽', ib.some(s => s.includes('씽씽')), ib.join(','));
+  check('빙판 썰매: 내 화면 씽씽', await seen(A, '씽씽'), ia.join(','));
+  check('빙판 썰매: 상대 화면 씽씽', await seen(B, '씽씽'), ib.join(','));
   check('빙판 표지 보임', (await A.$$eval('.spot-tag', x => x.map(e => e.textContent))).some(t => t.includes('빙판')));
+  // NPC (다람이·루루·햄찌): 보이고, 누르면 장난칠 수 있고, 들이받으면 아야
+  const npcTags = await A.$$eval('.npc-tag', x => x.map(e => e.textContent));
+  check('NPC 4마리 보임 (낚시꾼 포함)', npcTags.length === 4, npcTags.join(','));
+  await A.click('[aria-label="장난치기"]'); await A.waitForTimeout(300);
+  const plist = await A.$$eval('.people-list li', x => x.map(e => e.innerText));
+  check('👊 목록에 NPC 포함', plist.filter(t => t.includes('NPC')).length === 4);
+  await A.click('.people-list button:has-text("햄찌")'); await A.click('.act-btn:has-text("들이받기")'); await A.waitForTimeout(3000);
+  check('NPC 들이받기: 아야', await seen(A, '아야'));
+  for (let i = 0; i < 4 && !(await A.$('.act-btn')); i++) { // NPC가 걷는 중이면 빗나갈 수 있어 몇 번 시도
+    const nt = await A.$$eval('.npc-tag', x => { const e = x.find(el => el.textContent.includes('루루')); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height + 40]; });
+    if (nt) { await A.mouse.click(nt[0], nt[1]); await A.waitForTimeout(500); }
+    if (!(await A.$('.act-btn'))) { await A.keyboard.press('Escape'); await A.waitForTimeout(1500); }
+  }
+  check('NPC 캐릭터 누르면 액션 메뉴', (await A.$$('.act-btn')).length === 3);
+  await A.keyboard.press('Escape');
+  // 분식집: 메뉴에서 어묵 → 상대 화면에 호로록
+  await A.waitForTimeout(4000);
+  await A.click('.menu-btn'); await A.click('.menu >> text=분식집'); await A.waitForTimeout(300);
+  check('분식집 메뉴 6가지', (await A.$$('.snack-grid .act-btn')).length === 6);
+  await A.click('.snack-grid .act-btn:has-text("어묵")'); await A.waitForTimeout(1500);
+  const fa = await bubbles(A), fb = await bubbles(B);
+  check('분식: 내 화면 호로록', await seen(A, '호로록'), fa.join(','));
+  check('분식: 상대 화면 호로록', await seen(B, '호로록'), fb.join(','));
+  check('분식집 표지 보임', (await A.$$eval('.spot-tag', x => x.map(e => e.textContent))).some(t => t.includes('분식집')));
+  // 낚시·모닥불
+  await A.waitForTimeout(6000);
+  await A.click('.menu-btn'); await A.click('.menu >> text=연못 낚시');
+  check('낚시: 던졌다 말풍선', await seen(A, '던졌다', 9000));
+  check('연못 표지 보임', (await A.$$eval('.spot-tag', x => x.map(e => e.textContent))).some(t => t.includes('연못')));
+  check('낚시꾼 너구리 할배 말풍선', await seen(A, '', 100) && (await A.$$eval('.npc-tag', x => x.map(e => e.textContent))).some(t => t.includes('너구리')));
+  await A.waitForTimeout(4000);
+  await A.click('.menu-btn'); await A.click('.menu >> text=모닥불 쬐기');
+  check('모닥불: 따뜻해 말풍선', await seen(B, '따뜻해', 12000));
   check('화면 오류 없음', errs.length === 0, errs.join(' | '));
   await b.close();
   for (const [r, n, d] of results) console.log(`${r}  ${n}${d ? '  (' + d + ')' : ''}`);

@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { ACCESSORIES, ANIMALS, Avatar, COLORS, DEFAULT_AVATAR, parseAvatar } from "./avatar";
+import { ACCESSORIES, ALL_ANIMALS, ANIMALS, Avatar, COLORS, DEFAULT_AVATAR, parseAvatar } from "./avatar";
 import { Modal } from "./RoomView";
 
 // 동그란 2D 캐릭터 배지 (채팅·소원함·버튼에 사용)
 export function AvatarBadge({ value, size = 32 }: { value?: Avatar | string | null; size?: number }) {
   const a = typeof value === "string" || value == null ? parseAvatar(value as string | null) : value;
   if (!a) return <span className="avatar empty" style={{ width: size, height: size, fontSize: size * 0.5 }}>👤</span>;
-  const animal = ANIMALS.find((x) => x.id === a.animal)!;
+  const animal = ALL_ANIMALS.find((x) => x.id === a.animal)!;
   const acc = ACCESSORIES.find((x) => x.id === a.acc);
   return (
     <span className="avatar" style={{ width: size, height: size, background: a.color, fontSize: size * 0.6 }}>

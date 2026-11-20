@@ -5,7 +5,7 @@ import * as THREE from "three";
 import Character3D from "./Character3D";
 import { Avatar, DEFAULT_AVATAR, parseAvatar, toStr } from "./avatar";
 import { supabase } from "./supabase";
-import { BENCHES, SIT_Y } from "./benches";
+import { BENCHES, LOG_Y, POND, SIT_Y } from "./benches";
 import { RideKind, rideAt, rideEnd, rideMs, rideSay } from "./sled";
 import { SledMesh } from "./Village";
 import { CARDS, loadToday } from "./Fortune";
@@ -38,6 +38,47 @@ export function clampSpot(x: number, z: number): [number, number] {
   if (r < 0.001) { x = 0; z = TREE_R; r = TREE_R; }
   const nr = Math.min(MAX_R, Math.max(TREE_R, r));
   return [(x / r) * nr, (z / r) * nr];
+}
+
+// ---------------- NPC (다람이·루루·햄찌) ----------------
+// 시계를 기준으로 위치·행동을 계산 → 접속한 모든 사람에게 같은 모습. NPC는 사람에게 장난치지 않음.
+export const NPCS = [
+  { id: "npc:0", nick: "다람이", avatar: { animal: "squirrel", color: "#c47a3d", acc: "none" } },
+  { id: "npc:1", nick: "루루", avatar: { animal: "deer", color: "#b98a5e", acc: "scarf" } },
+  { id: "npc:2", nick: "햄찌", avatar: { animal: "hamster", color: "#f2c48d", acc: "ribbon" } },
+  // 연못가에서 계속 낚시하는 너구리 할배 (돌아다니지 않음)
+  { id: "npc:3", nick: "너구리 할배", avatar: { animal: "raccoon", color: "#8d8d95", acc: "santa" }, fisher: true },
+];
+const FISHER = { x: POND.x + 0.6, z: POND.z + POND.r * 0.8 + 0.5 }; // 연못 앞쪽 가장자리
+const NPC_STEP = 7000; // 7초마다 새 자리로 (4.5초 걷고 쉼)
+const hash = (a: number, b: number) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+function npcSpot(i: number, slot: number): [number, number] {
+  const ang = hash(i, slot) * Math.PI * 2, r = 3.4 + hash(i + 7, slot) * 6;
+  return [Math.cos(ang) * r, Math.sin(ang) * r];
+}
+const npcKnock: { current: Record<string, { t: number; dir: [number, number] }> } = { current: {} };
+export function npcPos(id: string, now = Date.now()) {
+  const i = Number(id.split(":")[1]);
+  if (i === 3) { // 낚시꾼: 제자리에서 연못을 바라봄 (들이받기 맞으면 잠깐 밀렸다 돌아옴)
+    const kn = npcKnock.current[id]; let x = FISHER.x, z = FISHER.z, spin = false;
+    if (kn) { const age = (now - kn.t) / 1000; const amt = age < 0.6 ? 2 * (age / 0.6) : Math.max(0, 2 * (1 - (age - 0.6) / 3)); x += kn.dir[0] * amt; z += kn.dir[1] * amt; spin = age < 0.9; }
+    return { x, z, ry: Math.atan2(POND.x - FISHER.x, POND.z - FISHER.z), walking: false, spin };
+  }
+  const t = now + i * 2300; // NPC마다 엇갈려 움직이게
+  const slot = Math.floor(t / NPC_STEP), phase = (t % NPC_STEP) / 4500;
+  const [ax, az] = npcSpot(i, slot - 1), [bx, bz] = npcSpot(i, slot);
+  const k = Math.min(1, phase), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+  let x = ax + (bx - ax) * e, z = az + (bz - az) * e;
+  // 들이받기 맞으면 0.6초 동안 날아갔다가 3초에 걸쳐 제자리로 돌아옴
+  const kn = npcKnock.current[id];
+  let spin = false;
+  if (kn) {
+    const age = (now - kn.t) / 1000;
+    const amt = age < 0.6 ? 2.4 * (age / 0.6) : Math.max(0, 2.4 * (1 - (age - 0.6) / 3));
+    x += kn.dir[0] * amt; z += kn.dir[1] * amt; spin = age < 0.9;
+  }
+  [x, z] = clampSpot(x, z);
+  return { x, z, ry: Math.atan2(bx - ax, bz - az), walking: k < 1, spin };
 }
 
 export function useWalkers(myAvatar: Avatar | null, nick: string) {
@@ -137,6 +178,7 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
   // ----- 액션 -----
   const posOf = (k: string): [number, number] | null => {
     if (k === keyRef.current) return [meRef.current.x, meRef.current.z];
+    if (k.startsWith("npc:")) { const p = npcPos(k); return [p.x, p.z]; }
     const w = othersRef.current[k];
     return w ? [w.x, w.z] : null;
   };
@@ -157,6 +199,7 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
     } else if (a.type === "bump") {
       showEmote(a.from, "💥");
       showSay(a.to, "💫 아야!");
+      if (a.to.startsWith("npc:")) npcKnock.current[a.to] = { t: Date.now(), dir: a.dir };
       if (a.to === me) {
         knock.current = Date.now() + 650;
         const m = meRef.current;
@@ -215,6 +258,7 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
     meRef.current = { ...meRef.current, x: b.x, z: b.z, ry: b.ry, sit: true };
     setSitting(true);
     sendPos();
+    if (b.kind === "log") say("🔥 따뜻해~ 몸이 사르르 녹는다");
   };
   const announceSnowman = () => chRef.current?.send({ type: "broadcast", event: "snowman", payload: {} });
   const onSmashRef = useRef<((id: string) => void) | null>(null);
@@ -239,7 +283,9 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
     sendPos();
   };
   othersRef.current = others;
-  return { mySledKind, onSmashRef, announceSmash, onSnowmanRef, announceSnowman, showSay, showEmote, rideSled, endSled, mySled, sledding, sleds, sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
+  // NPC끼리 장난: 모든 화면이 같은 시각에 같은 장난을 계산하므로 서버로 보내지 않고 각자 실행
+  const localAct = (a: Act) => handleActRef.current(a);
+  return { localAct, mySledKind, onSmashRef, announceSmash, onSnowmanRef, announceSnowman, showSay, showEmote, rideSled, endSled, mySled, sledding, sleds, sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
 }
 
 // 감정 표현: 3초 동안 머리 위에 띄우고, 그동안 캐릭터가 깡충 뜀
@@ -354,7 +400,7 @@ export function MyWalker({ walk, target, avatar }: {
   return (
     <group ref={g} position={[me.x, 0, me.z]} rotation={[0, me.ry, 0]}>
       {walk.sledding && <SledMesh />}
-      <group position={[0, walk.sitting ? SIT_Y : walk.sledding ? 0.12 : 0, 0]}>
+      <group position={[0, walk.sitting ? (walk.me.current.z < -7 ? LOG_Y : SIT_Y) : walk.sledding ? 0.12 : 0, 0]}>
         <group ref={hop}><Character3D avatar={avatar ?? DEFAULT_AVATAR} walking={moving} /></group>
       </group>
       <NameTag text={`${me.nick} (나)${fortuneIcon(me.fortune)}`} />
@@ -397,7 +443,7 @@ function OtherWalker({ w, emote, said, onSelect, sled }: { w: Walker; emote?: Em
   return (
     <group ref={g} position={[w.x, 0, w.z]} rotation={[0, w.ry, 0]}>
       {riding && <SledMesh />}
-      <group position={[0, w.sit ? SIT_Y : riding ? 0.12 : 0, 0]}>
+      <group position={[0, w.sit ? (w.z < -7 ? LOG_Y : SIT_Y) : riding ? 0.12 : 0, 0]}>
       <group ref={hop}
         onClick={(e) => { if (onSelect && e.delta < 6) { e.stopPropagation(); onSelect(); } }}
         onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
@@ -438,6 +484,82 @@ function Snowball({ s }: { s: Shot }) {
       <meshStandardMaterial color="#ffffff" emissive="#dfefff" emissiveIntensity={0.4} />
     </mesh>
   );
+}
+
+// 낚싯대 + 줄 + 찌 (찌가 둥실둥실)
+function FishingRod() {
+  const bob = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => { if (bob.current) bob.current.position.y = 0.05 + Math.abs(Math.sin(clock.elapsedTime * 2)) * 0.06; });
+  return (
+    <group position={[0.25, 0.75, 0.15]}>
+      <mesh rotation={[0.9, 0, 0]} position={[0, 0.35, 0.45]}><cylinderGeometry args={[0.015, 0.025, 1.3, 6]} /><meshStandardMaterial color="#6b4a2b" /></mesh>
+      <mesh position={[0, 0.2, 1.05]}><cylinderGeometry args={[0.004, 0.004, 1.2, 4]} /><meshBasicMaterial color="#ffffff" /></mesh>
+      <mesh ref={bob} position={[0, -0.7, 1.05]}><sphereGeometry args={[0.05, 8, 8]} /><meshStandardMaterial color="#e0322d" /></mesh>
+    </group>
+  );
+}
+
+function NpcWalker({ npc, emote, said, onSelect }: { npc: typeof NPCS[number]; emote?: Emote; said?: Emote; onSelect?: () => void }) {
+  const g = useRef<THREE.Group>(null);
+  const hop = useRef<THREE.Group>(null);
+  const show = useEmoteHop(emote, hop);
+  const sayShow = useTimed(said, SAY_MS);
+  const [walking, setWalking] = useState(false);
+  useFrame((_, dt) => {
+    const p = npcPos(npc.id);
+    if (!g.current) return;
+    g.current.position.set(p.x, 0, p.z);
+    g.current.rotation.y = p.spin ? g.current.rotation.y + dt * 22 : (p.walking || "fisher" in npc) ? p.ry : g.current.rotation.y;
+    if (p.walking !== walking) setWalking(p.walking);
+  });
+  return (
+    <group ref={g}>
+      <group ref={hop}
+        onClick={(e) => { if (onSelect && e.delta < 6) { e.stopPropagation(); onSelect(); } }}
+        onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
+        onPointerOut={() => { document.body.style.cursor = "auto"; }}>
+        <Character3D avatar={npc.avatar} walking={walking} />
+        {"fisher" in npc && <FishingRod />}
+        <mesh position={[0, 0.75, 0]}>
+          <cylinderGeometry args={[0.6, 0.6, 1.7, 12]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      </group>
+      <Html pointerEvents="none" position={[0, 1.75, 0]} center distanceFactor={9} zIndexRange={[5, 0]}><div className="name-tag npc-tag">🤖 {npc.nick}</div></Html>
+      {show && <EmoteBubble e={show.e} />}
+      {sayShow && <SayBubble text={sayShow.e} high={!!show} />}
+    </group>
+  );
+}
+
+// NPC 3마리: 돌아다니고, 12초마다 자기들끼리 장난(들이받기·눈덩이·안아주기·감정 표현)
+export function Npcs({ walk, onSelect }: { walk: ReturnType<typeof useWalkers>; onSelect?: (id: string) => void }) {
+  const last = useRef(-1);
+  const lastFish = useRef(-1);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = Date.now();
+      // 낚시꾼 너구리 할배: 9초마다 한마디 (가끔 '어이쿠 손이 미끄러졌네!')
+      const fs = Math.floor(now / 9000);
+      if (fs !== lastFish.current) {
+        lastFish.current = fs;
+        const lines = ["어이쿠 손이 미끄러졌네!", "🐟 오늘은 입질이 좋구먼", "어이쿠 손이 미끄러졌네!", "허허, 월척이야!", "…zzZ 깜빡 졸았네", "🎣 조용히 좀 해 주게~"];
+        walk.showSay("npc:3", lines[Math.floor(hash(fs, 9) * lines.length)]);
+      }
+      const slot = Math.floor(now / 12000);
+      if (slot === last.current || now % 12000 < 5200) return; // 걷기가 끝난 뒤(5.2초~)에 한 번
+      last.current = slot;
+      const a = Math.floor(hash(slot, 1) * 3), b = (a + 1 + Math.floor(hash(slot, 2) * 2)) % 3;
+      const from = NPCS[a].id, to = NPCS[b].id;
+      const kind = Math.floor(hash(slot, 3) * 4);
+      const pa = npcPos(from, now), pb = npcPos(to, now);
+      const dx = pb.x - pa.x, dz = pb.z - pa.z, d = Math.hypot(dx, dz) || 1;
+      if (kind === 3) { walk.showEmote(from, EMOTES[Math.floor(hash(slot, 4) * EMOTES.length)].e); return; }
+      walk.localAct({ type: (["bump", "snow", "hug"] as const)[kind], from, to, dir: [dx / d, dz / d] });
+    }, 400);
+    return () => clearInterval(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return <>{NPCS.map((n) => <NpcWalker key={n.id} npc={n} emote={walk.emotes[n.id]} said={walk.says[n.id]} onSelect={onSelect && (() => onSelect(n.id))} />)}</>;
 }
 
 export function Snowballs({ shots }: { shots: Shot[] }) {
