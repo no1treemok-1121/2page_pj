@@ -214,8 +214,8 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     }, 50);
   }));
   check('낚시: 그만하기 버튼', gotBusy);
-  const gA = await seen(A, '그만할래요', 1500);
-  check('낚시 그만하기: 그만할래요', await seen(B, '그만할래요'), 'A:' + gA + ' ' + (await bubbles(B)).join(','));
+  await A.waitForTimeout(300);
+  check('낚시 그만하기: 버튼 사라짐(말풍선 없이)', !(await A.$('.busy-off')));
   // 노점 간판·지붕 모형은 3D라 화면 오류 없음으로 확인
   // 지워진 '내 방'을 가진 기기: '내 방이 없어졌어요' → 새 방 만들기 창
   {

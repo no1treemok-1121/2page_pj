@@ -133,6 +133,7 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
       .on("presence", { event: "join" }, ({ key: k }) => { if (k !== key) sendPos(); }) // 새로 온 사람에게 내 위치 알려 주기
       .on("broadcast", { event: "act" }, ({ payload }) => handleActRef.current(payload as Act))
       .on("broadcast", { event: "snowman" }, () => onSnowmanRef.current?.())
+      .on("broadcast", { event: "fish" }, ({ payload }) => { const p = payload as { key: string; on: boolean }; setFishers((f) => ({ ...f, [p.key]: p.on })); })
       .on("broadcast", { event: "balloon" }, ({ payload }) => { const p = payload as Balloon & { key: string }; setBalloons((b) => ({ ...b, [p.key]: { shape: p.shape, color: p.color, rare: p.rare, t: Date.now() } })); })
       .on("broadcast", { event: "cat" }, ({ payload }) => { const p = payload as { id: number; kind: string }; onCatRef.current?.(p.id, p.kind); })
       .on("broadcast", { event: "bell" }, ({ payload }) => onBellRef.current?.((payload as { key: string }).key))
@@ -272,6 +273,15 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
     sendPos();
     if (b.kind === "log") say("🔥 따뜻해~ 몸이 사르르 녹는다");
   };
+  // 🎣 낚시하는 동안 손에 낚싯대 (모두에게 보임)
+  const [fishers, setFishers] = useState<Record<string, boolean>>({});
+  const [myFishing, setMyFishing] = useState(false);
+  const setFishing = (on: boolean) => {
+    setMyFishing((prev) => {
+      if (prev !== on) chRef.current?.send({ type: "broadcast", event: "fish", payload: { key: keyRef.current, on } });
+      return on;
+    });
+  };
   // 🎈 풍선: 1분 동안 머리 위에, 그다음 하늘로 날아감
   const [balloons, setBalloons] = useState<Record<string, Balloon>>({});
   const [myBalloon, setMyBalloon] = useState<Balloon | null>(null);
@@ -324,7 +334,7 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
   othersRef.current = others;
   // NPC끼리 장난: 모든 화면이 같은 시각에 같은 장난을 계산하므로 서버로 보내지 않고 각자 실행
   const localAct = (a: Act) => handleActRef.current(a);
-  return { balloons, myBalloon, buyBalloon, onCatRef, announceCat, stopRide, onBellRef, announceBell, mySledSeed, localAct, mySledKind, onSmashRef, announceSmash, onSnowmanRef, announceSnowman, showSay, showEmote, rideSled, endSled, mySled, sledding, sleds, sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
+  return { fishers, myFishing, setFishing, balloons, myBalloon, buyBalloon, onCatRef, announceCat, stopRide, onBellRef, announceBell, mySledSeed, localAct, mySledKind, onSmashRef, announceSmash, onSnowmanRef, announceSnowman, showSay, showEmote, rideSled, endSled, mySled, sledding, sleds, sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
 }
 
 // 감정 표현: 3초 동안 머리 위에 띄우고, 그동안 캐릭터가 깡충 뜀
@@ -472,6 +482,7 @@ export function MyWalker({ walk, target, avatar }: {
         <group ref={hop}><Character3D avatar={avatar ?? DEFAULT_AVATAR} walking={moving} /></group>
       </group>
       <MyMarker />
+      {walk.myFishing && <FishingRod />}
       {walk.myBalloon && <BalloonFloat b={walk.myBalloon} />}
       <NameTag mine text={`${me.nick} (나)${fortuneIcon(me.fortune)}`} />
       {myShow && <EmoteBubble e={myShow.e} />}
@@ -480,7 +491,7 @@ export function MyWalker({ walk, target, avatar }: {
   );
 }
 
-function OtherWalker({ w, emote, said, onSelect, sled, balloon }: { w: Walker; emote?: Emote; said?: Emote; onSelect?: () => void; sled?: { t: number; kind: RideKind; seed: number }; balloon?: Balloon }) {
+function OtherWalker({ w, emote, said, onSelect, sled, balloon, fishing }: { w: Walker; emote?: Emote; said?: Emote; onSelect?: () => void; sled?: { t: number; kind: RideKind; seed: number }; balloon?: Balloon; fishing?: boolean }) {
   const riding = sled !== undefined && Date.now() - sled.t < rideMs(sled.kind);
   const [, force] = useState(0);
   const g = useRef<THREE.Group>(null);
@@ -527,6 +538,7 @@ function OtherWalker({ w, emote, said, onSelect, sled, balloon }: { w: Walker; e
       </group>
       </group>
       {balloon && <BalloonFloat b={balloon} />}
+      {fishing && <FishingRod />}
       <NameTag text={`${w.nick}${fortuneIcon(w.fortune)}`} />
       {show && <EmoteBubble e={show.e} />}
       {sayShow && <SayBubble text={sayShow.e} high={!!show} />}
@@ -534,10 +546,10 @@ function OtherWalker({ w, emote, said, onSelect, sled, balloon }: { w: Walker; e
   );
 }
 
-export function OtherWalkers({ others, emotes, says, onSelect, sleds = {}, balloons = {} }: {
-  others: Record<string, Walker>; emotes: Record<string, Emote>; says: Record<string, Emote>; onSelect?: (key: string) => void; sleds?: Record<string, { t: number; kind: RideKind; seed: number }>; balloons?: Record<string, Balloon>;
+export function OtherWalkers({ others, emotes, says, onSelect, sleds = {}, balloons = {}, fishers = {} }: {
+  others: Record<string, Walker>; emotes: Record<string, Emote>; says: Record<string, Emote>; onSelect?: (key: string) => void; sleds?: Record<string, { t: number; kind: RideKind; seed: number }>; balloons?: Record<string, Balloon>; fishers?: Record<string, boolean>;
 }) {
-  return <>{Object.entries(others).map(([k, w]) => <OtherWalker key={k} w={w} emote={emotes[k]} said={says[k]} sled={sleds[k]} balloon={balloons[k]} onSelect={onSelect && (() => onSelect(k))} />)}</>;
+  return <>{Object.entries(others).map(([k, w]) => <OtherWalker key={k} w={w} emote={emotes[k]} said={says[k]} sled={sleds[k]} balloon={balloons[k]} fishing={fishers[k]} onSelect={onSelect && (() => onSelect(k))} />)}</>;
 }
 
 // 날아가는 눈덩이 (포물선)

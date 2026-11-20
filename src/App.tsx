@@ -159,7 +159,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     timers.current.forEach((t) => clearTimeout(t));
     timers.current = [];
     setBusy(null);
-    if (had) walk.say("✋ 그만할래요");
+    walk.setFishing(false);
     return had;
   };
   autoTick.current = () => {
@@ -247,10 +247,11 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     goThen(spot[0], spot[1], 0.2, () => {
       cancelBusy();
       setBusy("🎣 낚시하는 중");
+      walk.setFishing(true);
       walk.emote("🎣");
       walk.say("🎣 낚싯대를 휙~ 던졌다");
       later(2600, () => walk.say("🎣 찌가 움찔움찔… 조금만 더!"));
-      later(5200, () => walk.say(randomCatch()));
+      later(5200, () => { walk.say(randomCatch()); walk.setFishing(false); });
     });
   };
   // 🔔 종 울리기: 종이 흔들리고 딩동댕 (모두에게)
@@ -486,7 +487,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         <Cats me={() => walk.me.current} onTap={tapCat} reacts={catReacts} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
         <Npcs walk={walk} onSelect={setActTarget} />
-        <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} balloons={walk.balloons} onSelect={setActTarget} />
+        <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} balloons={walk.balloons} fishers={walk.fishers} onSelect={setActTarget} />
         <Snowballs shots={walk.shots} />
         <Snowmen list={snowmen.list} smashed={snowmen.smashed} onClick={setSnowmanInfo} />
         <CameraFollow follow={camFollow} snapAt={snapAt} />
@@ -976,6 +977,10 @@ export default function App() {
     setSetupDone(true);
   };
   const [askOwner, setAskOwner] = useState<MyRoom | null>(null);
+  useEffect(() => {
+    if (!myRoom || roomId === myRoom.roomId) return; // 내 방 화면이면 방 화면이 '내 방이 없어졌어요'로 안내
+    getRoom(myRoom.roomId).then((r) => { if (r === null) { forgetMyRoom(); setMyRoom(null); } }).catch(() => undefined);
+  }, [myRoom?.roomId]); // eslint-disable-line react-hooks/exhaustive-deps
   const leaveMyRoom = () => {
     forgetMyRoom();
     setMyRoom(null);

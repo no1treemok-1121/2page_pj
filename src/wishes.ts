@@ -104,11 +104,14 @@ export async function addWish(draft: Omit<Wish, "id" | "createdAt">): Promise<Wi
     return wish;
   }
   const [x, y, z] = draft.position;
-  const res = await fetch(`${URL_}/rest/v1/wishes`, {
+  const post = (roomId: string | null) => fetch(`${URL_}/rest/v1/wishes`, {
     method: "POST",
     headers: headers({ Prefer: "return=representation" }),
-    body: JSON.stringify({ text: draft.text, name: draft.name || null, avatar: draft.avatar || null, room_id: draft.roomId || null, color: draft.color, x, y, z }),
+    body: JSON.stringify({ text: draft.text, name: draft.name || null, avatar: draft.avatar || null, room_id: roomId, color: draft.color, x, y, z }),
   });
+  let res = await post(draft.roomId || null);
+  // 409: 이 기기에 남아 있던 '내 방'이 지워져서 연결할 수 없음 → 방 연결 없이 다시 저장
+  if (res.status === 409 && draft.roomId) res = await post(null);
   if (!res.ok) throw new Error(`소원을 걸지 못했어요 (${res.status})`);
   const [row] = (await res.json()) as Row[];
   return fromRow(row);
