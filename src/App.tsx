@@ -7,7 +7,7 @@ import { Wish, addWish, fetchWishes, isShared, newWishDraft } from "./wishes";
 import RoomView, { Modal, ShareDialog } from "./RoomView";
 import { MyRoom, copyText, createRoom, loadMyRoom, saveMyRoom } from "./rooms";
 import ChatPanel, { useVillageChat } from "./Chat";
-import { AvatarBadge, AvatarEditor } from "./Avatar";
+import { AvatarBadge, AvatarEditor, CharacterSetup } from "./Avatar";
 import { Avatar, loadMyAvatar, saveMyAvatar, toStr } from "./avatar";
 import { setRoomAvatar } from "./rooms";
 
@@ -19,9 +19,9 @@ const CAMERA = isPortrait
   ? { position: [0, 3.5, 14] as [number, number, number], fov: 62 }
   : { position: [0, 3, 10] as [number, number, number], fov: 50 };
 
-function VillageView({ onMyRoom, myRoom, notice, setNotice, initialAction, myAvatar }: {
+function VillageView({ onMyRoom, myRoom, notice, setNotice, action, myAvatar }: {
   myAvatar: Avatar | null;
-  initialAction: IntroAction;
+  action: VillageAction;
   onMyRoom: () => void;
   myRoom: MyRoom | null;
   notice: string | null;
@@ -31,9 +31,15 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice, initialAction, myAva
   const [writing, setWriting] = useState(false);
   const [viewing, setViewing] = useState<Wish | null>(null);
   const chat = useVillageChat();
-  const [chatOpen, setChatOpen] = useState(initialAction === "chat");
-  const [boxOpen, setBoxOpen] = useState(false);
-  useEffect(() => { if (initialAction === "wish") setWriting(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [chatOpen, setChatOpen] = useState(action?.type === "chat");
+  const [boxOpen, setBoxOpen] = useState(action?.type === "box");
+  // 메뉴에서 고른 동작 실행
+  useEffect(() => {
+    if (!action) return;
+    if (action.type === "wish") setWriting(true);
+    if (action.type === "chat") setChatOpen(true);
+    if (action.type === "box") setBoxOpen(true);
+  }, [action?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = useCallback(async () => {
     try {
@@ -179,29 +185,43 @@ function CreateRoom({ onCreated, onClose }: { onCreated: (room: MyRoom) => void;
   );
 }
 
-type IntroAction = "wish" | "chat" | null;
-const INTRO_KEY = "3d_pj.introSeen";
+type VillageAction = { type: "wish" | "chat" | "box"; n: number } | null;
+const SETUP_KEY = "3d_pj.setupDone";
 
-function Intro({ myRoom, onEnter, onMyRoom }: { myRoom: MyRoom | null; onEnter: (a: IntroAction) => void; onMyRoom: () => void }) {
+// 오른쪽 위 ☰ 메뉴: 마을 소개와 바로가기
+function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
+  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   return (
-    <div className="intro">
-      <div className="intro-inner">
+    <div className="menu-backdrop" onClick={onClose}>
+      <aside className="menu" onClick={(e) => e.stopPropagation()}>
+        <button className="icon menu-close" onClick={onClose} aria-label="닫기">✕</button>
         <div className="intro-star">✦</div>
-        <h1>눈 내리는 마을</h1>
+        <h2>눈 내리는 마을</h2>
         <p className="intro-lead">눈 내리는 마을에서 소원을 걸고,<br />소중한 사람과 편지를 나누고, 함께 이야기해요.</p>
         <div className="intro-cards">
-          <button className="intro-card" onClick={() => onEnter("wish")}>
+          <button className="intro-card" onClick={() => onAction("wish")}>
             <span>🎄</span><strong>소원 걸기</strong><small>트리에 올해의 소원을 걸어요</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("box")}>
+            <span>📜</span><strong>소원함</strong><small>마을 사람들이 건 소원을 읽어요</small>
           </button>
           <button className="intro-card" onClick={onMyRoom}>
             <span>🏠</span><strong>{myRoom ? "내 방 가기" : "내 방 만들기"}</strong><small>링크를 받은 친구가 편지를 남겨요. 편지는 나만 읽어요</small>
           </button>
-          <button className="intro-card" onClick={() => onEnter("chat")}>
+          <button className="intro-card" onClick={() => onAction("chat")}>
             <span>💬</span><strong>마을 광장</strong><small>지금 마을에 있는 사람들과 이야기해요</small>
           </button>
+          <button className="intro-card" onClick={onCharacter}>
+            <span>🐾</span><strong>내 캐릭터</strong><small>동물·색·장식을 바꿔요</small>
+          </button>
         </div>
-        <button className="btn intro-go" onClick={() => onEnter(null)}>마을 구경하기 →</button>
-      </div>
+      </aside>
     </div>
   );
 }
@@ -235,13 +255,22 @@ export default function App() {
     notify("캐릭터를 저장했어요");
     if (myRoom) setRoomAvatar(myRoom, toStr(a)).catch(() => notify("내 방 캐릭터를 바꾸지 못했어요"));
   };
-  // 소개 화면: 이번 방문(탭)에서 처음 마을에 올 때만 보여 줌
-  const [intro, setIntro] = useState<boolean>(() => { try { return !sessionStorage.getItem(INTRO_KEY); } catch { return true; } });
-  const [introAction, setIntroAction] = useState<IntroAction>(null);
-  const leaveIntro = (a: IntroAction) => {
-    try { sessionStorage.setItem(INTRO_KEY, "1"); } catch { /* 무시 */ }
-    setIntroAction(a);
-    setIntro(false);
+  // 입장 코드 다음에 캐릭터 고르기 (방문마다 한 번)
+  const [setupDone, setSetupDone] = useState<boolean>(() => { try { return !!sessionStorage.getItem(SETUP_KEY); } catch { return false; } });
+  const finishSetup = (a: Avatar) => {
+    try { sessionStorage.setItem(SETUP_KEY, "1"); } catch { /* 무시 */ }
+    const changed = !myAvatar || toStr(a) !== toStr(myAvatar);
+    saveMyAvatar(a);
+    setMyAvatar(a);
+    if (changed && myRoom) setRoomAvatar(myRoom, toStr(a)).catch(() => undefined);
+    setSetupDone(true);
+  };
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [villageAction, setVillageAction] = useState<VillageAction>(null);
+  const runAction = (type: "wish" | "chat" | "box") => {
+    setMenuOpen(false);
+    setVillageAction({ type, n: Date.now() });
+    if (roomId) go(null);
   };
   const [justCreated, setJustCreated] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -260,15 +289,16 @@ export default function App() {
 
   const go = (id: string | null) => {
     history.pushState(null, "", id ? `/?room=${id}` : "/");
-    if (!id) leaveIntro(null); // 방에서 '마을'을 누르면 소개 화면 없이 바로 마을로
     setRoomId(id);
   };
-  const goMyRoom = () => { leaveIntro(null); if (myRoom) go(myRoom.roomId); else setCreating(true); };
+  const goMyRoom = () => { setMenuOpen(false); if (myRoom) go(myRoom.roomId); else setCreating(true); };
   const notify = useCallback((m: string) => setNotice(m), []);
 
   return (
     <>
-      {roomId ? (
+      {!setupDone ? (
+        <CharacterSetup initial={myAvatar} onDone={finishSetup} />
+      ) : roomId ? (
         <RoomView key={roomId} roomId={roomId} myRoom={myRoom} onGoVillage={() => go(null)} onGoMyRoom={goMyRoom}
           notify={notify} myAvatar={myAvatar} onNickname={(nickname) => {
             if (myRoom?.roomId === roomId && myRoom.nickname !== nickname) {
@@ -277,18 +307,22 @@ export default function App() {
               setMyRoom(updated);
             }
           }} />
-      ) : intro ? (
-        <Intro myRoom={myRoom} onEnter={leaveIntro} onMyRoom={goMyRoom} />
       ) : (
-        <VillageView onMyRoom={goMyRoom} myRoom={myRoom} notice={notice} setNotice={setNotice} initialAction={introAction} myAvatar={myAvatar} />
+        <VillageView onMyRoom={goMyRoom} myRoom={myRoom} notice={notice} setNotice={setNotice} action={villageAction} myAvatar={myAvatar} />
       )}
 
-      {!intro || roomId ? (
-        <button className="me-btn" onClick={() => setEditingAvatar(true)} aria-label="내 캐릭터">
-          <AvatarBadge value={myAvatar} size={40} />
-          {!myAvatar && <span>캐릭터 만들기</span>}
-        </button>
-      ) : null}
+      {setupDone && (
+        <>
+          <button className="me-btn" onClick={() => setEditingAvatar(true)} aria-label="내 캐릭터">
+            <AvatarBadge value={myAvatar} size={40} />
+          </button>
+          <button className="menu-btn" onClick={() => setMenuOpen(true)} aria-label="메뉴">☰</button>
+        </>
+      )}
+      {menuOpen && (
+        <Menu myRoom={myRoom} onAction={runAction} onMyRoom={goMyRoom} onClose={() => setMenuOpen(false)}
+          onCharacter={() => { setMenuOpen(false); setEditingAvatar(true); }} />
+      )}
       {editingAvatar && <AvatarEditor initial={myAvatar} onSave={saveAvatar} onClose={() => setEditingAvatar(false)} />}
 
       {notice && <div className="toast" role="status">{notice}</div>}

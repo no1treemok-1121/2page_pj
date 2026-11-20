@@ -16,11 +16,9 @@ export function AvatarBadge({ value, size = 32 }: { value?: Avatar | string | nu
   );
 }
 
-export function AvatarEditor({ initial, onSave, onClose }: { initial: Avatar | null; onSave: (a: Avatar) => void; onClose: () => void }) {
-  const [a, setA] = useState<Avatar>(initial ?? DEFAULT_AVATAR);
+function Picker({ a, setA }: { a: Avatar; setA: (a: Avatar) => void }) {
   return (
-    <Modal onClose={onClose}>
-      <h2>내 캐릭터</h2>
+    <>
       <div className="avatar-preview"><AvatarBadge value={a} size={96} /></div>
       <p className="pick-label">동물</p>
       <div className="picks">
@@ -40,11 +38,37 @@ export function AvatarEditor({ initial, onSave, onClose }: { initial: Avatar | n
           <button key={x.id} className={`pick${a.acc === x.id ? " on" : ""}`} onClick={() => setA({ ...a, acc: x.id })} title={x.name}>{x.emoji || "✕"}</button>
         ))}
       </div>
+    </>
+  );
+}
+
+export function AvatarEditor({ initial, onSave, onClose }: { initial: Avatar | null; onSave: (a: Avatar) => void; onClose: () => void }) {
+  const [a, setA] = useState<Avatar>(initial ?? DEFAULT_AVATAR);
+  return (
+    <Modal onClose={onClose}>
+      <h2>내 캐릭터</h2>
+      <Picker a={a} setA={setA} />
       <p className="hint">채팅·소원·내 방에서 이 캐릭터가 보여요.</p>
       <div className="actions center">
         <button className="btn ghost" onClick={onClose}>취소</button>
         <button className="btn" onClick={() => onSave(a)}>저장</button>
       </div>
     </Modal>
+  );
+}
+
+// 입장 코드 다음 단계: 캐릭터를 고르고 마을(또는 방)로 들어감
+export function CharacterSetup({ initial, onDone }: { initial: Avatar | null; onDone: (a: Avatar) => void }) {
+  const [a, setA] = useState<Avatar>(initial ?? DEFAULT_AVATAR);
+  return (
+    <div className="intro">
+      <div className="intro-inner">
+        <div className="card setup-card">
+          <h2>{initial ? "오늘은 이 캐릭터로 갈까요?" : "마을에서 쓸 캐릭터를 골라 주세요"}</h2>
+          <Picker a={a} setA={setA} />
+          <button className="btn wide" onClick={() => onDone(a)}>이 캐릭터로 입장 →</button>
+        </div>
+      </div>
+    </div>
   );
 }
