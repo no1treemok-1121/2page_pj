@@ -205,9 +205,15 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   { const t = await A.textContent('.toast').catch(() => ''); check('언덕 썰매: 중간에 내림', t.includes('내렸어요') || !(await A.$('.ride-off')), t); }
   // 🎣 낚시 그만하기
   await A.click('.menu-btn'); await A.click('.menu >> text=연못 낚시');
-  for (let i = 0; i < 50 && !(await A.$('.busy-off')); i++) await A.waitForTimeout(300);
-  check('낚시: 그만하기 버튼', !!(await A.$('.busy-off')));
-  await A.$eval('.busy-off', b => b.click()).catch(() => null); await A.waitForTimeout(100);
+  // 느린 컴퓨터에서도 놓치지 않게: 화면 안에서 버튼이 뜨자마자 바로 누름
+  const gotBusy = await A.evaluate(() => new Promise(res => {
+    const end = Date.now() + 20000;
+    const t = setInterval(() => {
+      const b = document.querySelector('.busy-off');
+      if (b) { clearInterval(t); b.click(); res(true); } else if (Date.now() > end) { clearInterval(t); res(false); }
+    }, 50);
+  }));
+  check('낚시: 그만하기 버튼', gotBusy);
   const gA = await seen(A, '그만할래요', 1500);
   check('낚시 그만하기: 그만할래요', await seen(B, '그만할래요'), 'A:' + gA + ' ' + (await bubbles(B)).join(','));
   // 노점 간판·지붕 모형은 3D라 화면 오류 없음으로 확인
