@@ -56,13 +56,13 @@ export default function Fireworks() {
     if (flash.current) {
       flash.current.position.copy(at);
       flash.current.color.set(color);
-      flash.current.intensity = 60;
+      flash.current.intensity = 30; // 빛에 예민한 사람을 위해 번쩍임을 절반으로
     }
   };
 
   const spawn = () => {
     // 마을 둘레 360도 어디서든 터짐 (어느 방향에서 봐도 보이게)
-    const ang = Math.random() * Math.PI * 2, rad = 11 + Math.random() * 5;
+    const ang = Math.random() * Math.PI * 2, rad = 20 + Math.random() * 6; // 넓어진 마을 바깥 하늘
     const at = new THREE.Vector3(Math.cos(ang) * rad, 5.5 + Math.random() * 4, Math.sin(ang) * rad);
     const r = Math.random();
     if (r < 0.45) {
@@ -82,7 +82,7 @@ export default function Fireworks() {
       for (let i = 0; i < n; i++) spawn();
       nextAt.current = now + (finale ? 0.18 + Math.random() * 0.15 : 0.3 + Math.random() * 0.35);
     }
-    if (flash.current) flash.current.intensity = Math.max(0, flash.current.intensity - dt * 160);
+    if (flash.current) flash.current.intensity = Math.max(0, flash.current.intensity - dt * 80);
     for (const b of [...bursts.current]) {
       b.age += dt;
       const attr = b.points.geometry.getAttribute("position") as THREE.BufferAttribute;

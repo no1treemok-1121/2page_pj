@@ -6,7 +6,7 @@ import { currentEvent } from "./events";
 
 const WHITE = new THREE.Color("#ffffff");
 import { BENCHES } from "./benches";
-import { HILL, SLED_PARK } from "./sled";
+import { HILL, RINK, SLED_PARK } from "./sled";
 import { Html } from "@react-three/drei";
 
 // 매번 같은 마을 배치가 나오도록 고정된 난수
@@ -212,6 +212,31 @@ function SledHill({ onSled }: { onSled?: () => void }) {
   );
 }
 
+// 얼음 빙판: 누르면 썰매를 타고 빙판 위를 씽씽 돎
+function IceRink({ onIce }: { onIce?: () => void }) {
+  const shine = useRef<THREE.MeshStandardMaterial>(null);
+  useFrame(({ clock }) => { if (shine.current) shine.current.emissiveIntensity = 0.12 + Math.sin(clock.elapsedTime * 0.8) * 0.05; });
+  return (
+    <group position={[RINK.x, 0, RINK.z]}
+      onClick={(e) => { if (onIce && e.delta < 6) { e.stopPropagation(); onIce(); } }}
+      onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
+      onPointerOut={() => { document.body.style.cursor = "auto"; }}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <circleGeometry args={[RINK.r, 48]} />
+        <meshStandardMaterial ref={shine} color="#cfe9ff" emissive="#9fd3ff" emissiveIntensity={0.12} roughness={0.08} metalness={0.25} />
+      </mesh>
+      {/* 빙판 둘레에 쌓인 눈 */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]}>
+        <torusGeometry args={[RINK.r + 0.15, 0.18, 8, 48]} />
+        <meshStandardMaterial color="#f4f7fb" roughness={1} />
+      </mesh>
+      <Html pointerEvents="none" position={[0, 0.9, -RINK.r * 0.2]} center distanceFactor={11} zIndexRange={[4, 0]}>
+        <div className="spot-tag ice">⛸️ 빙판 썰매</div>
+      </Html>
+    </group>
+  );
+}
+
 // 눈 쌓인 나무 벤치 (누르면 앉기)
 function Bench({ x, z, ry, onClick }: { x: number; z: number; ry: number; onClick?: () => void }) {
   return (
@@ -267,12 +292,14 @@ export function TreeLights({ count = 46 }) {
       const mesh = child as THREE.Mesh;
       const m = mesh.material as THREE.MeshStandardMaterial;
       if (party) {
-        // 아래에서 위로 부드럽게 올라가는 금빛 물결 (따뜻한 금색 ↔ 하얀 빛)
-        const wave = (Math.sin(t * 4 - i * 0.45) + 1) / 2; // 0~1 부드럽게
-        m.emissiveIntensity = 0.8 + wave * 3.2;
-        tmp.set(i % 3 === 0 ? "#fff6e0" : "#ffcf6b").lerp(WHITE, wave * 0.5);
+        // 전구 하나하나가 제각각 반짝: 은은한 금빛 바탕 + 가끔 별처럼 짧게 번쩍 (+ 아주 약한 물결)
+        const sp = 1.3 + (i * 7919 % 13) / 6; // 전구마다 다른 빠르기
+        const twinkle = Math.pow(Math.max(0, Math.sin(t * sp + bulbs[i].phase * 3)), 14); // 짧고 날카로운 반짝
+        const wave = (Math.sin(t * 2 - i * 0.3) + 1) / 2;
+        m.emissiveIntensity = 1.1 + wave * 0.6 + twinkle * 6;
+        tmp.set(i % 4 === 0 ? "#fff8ea" : "#ffd27a").lerp(WHITE, twinkle * 0.8);
         m.emissive.copy(tmp); m.color.copy(tmp);
-        mesh.scale.setScalar(1 + wave * 0.35);
+        mesh.scale.setScalar(1 + twinkle * 0.9);
       } else {
         m.emissiveIntensity = 0.6 + (Math.sin(t * 2.2 + bulbs[i].phase) + 1) * 0.9;
         m.emissive.copy(base[i]); m.color.copy(base[i]);
@@ -293,13 +320,13 @@ export function TreeLights({ count = 46 }) {
   );
 }
 
-export default function Village({ onGround, onBench, onSled }: { onGround?: (x: number, z: number) => void; onBench?: (i: number) => void; onSled?: () => void }) {
+export default function Village({ onGround, onBench, onSled, onIce }: { onGround?: (x: number, z: number) => void; onBench?: (i: number) => void; onSled?: () => void; onIce?: () => void }) {
   const layout = useMemo(() => {
     const rand = seeded(7);
     // 트리를 둘러싼 집들 (카메라 정면 쪽은 비워 두어 트리가 잘 보이게)
     const houses = [-115, -75, -35, 5, 45, 85, 125].map((deg, i) => {
       const a = THREE.MathUtils.degToRad(deg - 90);
-      const r = 8 + rand() * 2;
+      const r = 15 + rand() * 2.5; // 마을이 넓어져 집을 바깥으로
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r;
       return {
@@ -312,11 +339,11 @@ export default function Village({ onGround, onBench, onSled }: { onGround?: (x: 
     // 가로등은 옆·뒤쪽에만 (카메라 앞에서 트리를 가리지 않게)
     const lamps = [-110, -35, 35, 110].map((deg) => {
       const a = THREE.MathUtils.degToRad(deg - 90);
-      return [Math.cos(a) * 5.2, 0, Math.sin(a) * 5.2] as [number, number, number];
+      return [Math.cos(a) * 7.5, 0, Math.sin(a) * 7.5] as [number, number, number];
     });
     const pines = Array.from({ length: 28 }, () => {
       const a = rand() * Math.PI * 2;
-      const r = 12 + rand() * 7;
+      const r = 20 + rand() * 9;
       return {
         position: [Math.cos(a) * r, 0, Math.sin(a) * r] as [number, number, number],
         scale: 1 + rand() * 1.4,
@@ -324,7 +351,7 @@ export default function Village({ onGround, onBench, onSled }: { onGround?: (x: 
     });
     const mounds = Array.from({ length: 10 }, () => {
       const a = rand() * Math.PI * 2;
-      const r = 4 + rand() * 12;
+      const r = 9 + rand() * 18;
       return {
         position: [Math.cos(a) * r, -0.15, Math.sin(a) * r] as [number, number, number],
         scale: [0.8 + rand() * 1.5, 0.35, 0.8 + rand() * 1.5] as [number, number, number],
@@ -346,7 +373,7 @@ export default function Village({ onGround, onBench, onSled }: { onGround?: (x: 
       {/* 눈 덮인 바닥과 언덕 */}
       <mesh rotation={[-Math.PI / 2, 0, 0]}
         onClick={(e) => { if (onGround && e.delta < 6) { e.stopPropagation(); onGround(e.point.x, e.point.z); } }}>
-        <circleGeometry args={[30, 64]} />
+        <circleGeometry args={[42, 72]} />
         <meshStandardMaterial color="#e8eef8" roughness={1} />
       </mesh>
       {layout.mounds.map((m, i) => (
@@ -363,6 +390,7 @@ export default function Village({ onGround, onBench, onSled }: { onGround?: (x: 
       ))}
       {BENCHES.map((b, i) => <Bench key={i} {...b} onClick={onBench && (() => onBench(i))} />)}
       <SledHill onSled={onSled} />
+      <IceRink onIce={onIce} />
       {layout.lamps.map((p, i) => (
         <Lamp key={i} position={p} />
       ))}

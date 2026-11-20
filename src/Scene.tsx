@@ -78,7 +78,7 @@ function Ornament({ wish, onClick, mine }: { wish: Wish; onClick: (w: Wish) => v
 
 // 꼭대기 별: 반짝임 이벤트 때 크게 빛나며 빙글빙글
 // 반짝임 이벤트 때: 무지개 조명 3개가 트리 주위를 돌고, 반짝이 가루가 나선으로 솟아오름
-const GLITTER = 220;
+const GLITTER = 70; // 사용자 요청: 트리를 감싸는 빛은 소량만
 function TreeParty() {
   const group = useRef<THREE.Group>(null);
   const lights = useRef<(THREE.PointLight | null)[]>([]);
@@ -118,7 +118,7 @@ function TreeParty() {
   });
   return (
     <group ref={group} visible={false}>
-      {[0, 1, 2].map((i) => <pointLight key={i} ref={(l) => { lights.current[i] = l; }} intensity={6} distance={5} />)}
+      {[0].map((i) => <pointLight key={i} ref={(l) => { lights.current[i] = l; }} intensity={6} distance={5} />)}
       <points ref={pts} geometry={geo} raycast={() => null}>
         <pointsMaterial vertexColors size={0.15} transparent blending={THREE.AdditiveBlending} depthWrite={false} />
       </points>
@@ -203,8 +203,8 @@ function SnowLayer({ count, size, speed }: { count: number; size: number; speed:
     const positions = new Float32Array(count * 3);
     const seeds = new Float32Array(count * 4); // 기준 x, 기준 z, 흔들림 위상, 속도 배율
     for (let i = 0; i < count; i++) {
-      seeds[i * 4] = (Math.random() - 0.5) * 34;
-      seeds[i * 4 + 1] = (Math.random() - 0.5) * 34;
+      seeds[i * 4] = (Math.random() - 0.5) * 50;
+      seeds[i * 4 + 1] = (Math.random() - 0.5) * 50;
       seeds[i * 4 + 2] = Math.random() * Math.PI * 2;
       seeds[i * 4 + 3] = 0.6 + Math.random() * 0.8;
       positions[i * 3] = seeds[i * 4];
@@ -225,8 +225,8 @@ function SnowLayer({ count, size, speed }: { count: number; size: number; speed:
       let y = pos.getY(i) - delta * speed * sp;
       if (y < 0) {
         y = 16;
-        seeds[i * 4] = (Math.random() - 0.5) * 34;
-        seeds[i * 4 + 1] = (Math.random() - 0.5) * 34;
+        seeds[i * 4] = (Math.random() - 0.5) * 50;
+        seeds[i * 4 + 1] = (Math.random() - 0.5) * 50;
       }
       const sway = Math.sin(t * (0.8 + sp * 0.6) + ph) * 0.35;
       const drift = (16 - y) * wind * 0.12;
@@ -261,15 +261,16 @@ type SceneProps = {
   onGround?: (x: number, z: number) => void;
   onBench?: (i: number) => void;
   onSled?: () => void;
+  onIce?: () => void;
   mineIds?: Set<string>;
 };
 
-export default function Scene({ wishes, onTreeClick, onWishClick, onGround, onBench, onSled, mineIds }: SceneProps) {
+export default function Scene({ wishes, onTreeClick, onWishClick, onGround, onBench, onSled, onIce, mineIds }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.35} color="#9fb4ff" />
       <directionalLight position={[5, 10, 5]} intensity={0.6} />
-      <Village onGround={onGround} onBench={onBench} onSled={onSled} />
+      <Village onGround={onGround} onBench={onBench} onSled={onSled} onIce={onIce} />
       <Tree onClick={onTreeClick} />
       <TreeLights />
       {wishes.map((w) => (

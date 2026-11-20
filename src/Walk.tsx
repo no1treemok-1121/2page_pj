@@ -6,7 +6,7 @@ import Character3D from "./Character3D";
 import { Avatar, DEFAULT_AVATAR, parseAvatar, toStr } from "./avatar";
 import { supabase } from "./supabase";
 import { BENCHES, SIT_Y } from "./benches";
-import { SLED_MS, SLED_SPOT, sledAt } from "./sled";
+import { RideKind, rideAt, rideEnd, rideMs, rideSay } from "./sled";
 import { SledMesh } from "./Village";
 import { CARDS, loadToday } from "./Fortune";
 
@@ -30,7 +30,7 @@ export const EMOTES = [
 const EMOTE_MS = 3000;
 
 const SPEED = 2.6;
-const MAX_R = 7.2; // 마을 광장 밖(집 쪽)으로 못 나가게
+const MAX_R = 13; // 마을이 넓어짐: 집(반경 15~17) 앞까지 걸어갈 수 있음
 const TREE_R = 2.5; // 트리 안으로 못 들어가게
 
 export function clampSpot(x: number, z: number): [number, number] {
@@ -54,9 +54,10 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
   const [sitting, setSitting] = useState(false);
   // 썰매: 탄 시각 (나 / 다른 사람)
   const mySled = useRef<number | null>(null);
+  const mySledKind = useRef<RideKind>("hill");
   const onSnowmanRef = useRef<(() => void) | null>(null); // 다른 사람이 눈사람을 만들면 다시 불러오기
   const [sledding, setSledding] = useState(false);
-  const [sleds, setSleds] = useState<Record<string, number>>({});
+  const [sleds, setSleds] = useState<Record<string, { t: number; kind: RideKind }>>({});
   const knock = useRef(0); // 이 시각까지 튕겨 나가는 중 (빠르게 + 빙글빙글)
   const [shots, setShots] = useState<Shot[]>([]);
   const othersRef = useRef<Record<string, Walker>>({});
@@ -88,9 +89,10 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
       .on("broadcast", { event: "snowman" }, () => onSnowmanRef.current?.())
       .on("broadcast", { event: "smash" }, ({ payload }) => onSmashRef.current?.((payload as { id: string }).id))
       .on("broadcast", { event: "sled" }, ({ payload }) => {
-        const p = payload as { key: string };
-        setSleds((prev) => ({ ...prev, [p.key]: Date.now() }));
-        setSays((prev) => ({ ...prev, [p.key]: { e: "🛷 슝~!", t: Date.now() } }));
+        const p = payload as { key: string; kind?: RideKind };
+        const kind = p.kind === "ice" ? "ice" : "hill";
+        setSleds((prev) => ({ ...prev, [p.key]: { t: Date.now(), kind } }));
+        setSays((prev) => ({ ...prev, [p.key]: { e: rideSay(kind), t: Date.now() } }));
       })
       .on("broadcast", { event: "say" }, ({ payload }) => {
         const p = payload as { key: string; text: string };
@@ -217,25 +219,27 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
   const announceSnowman = () => chRef.current?.send({ type: "broadcast", event: "snowman", payload: {} });
   const onSmashRef = useRef<((id: string) => void) | null>(null);
   const announceSmash = (id: string) => chRef.current?.send({ type: "broadcast", event: "smash", payload: { id } });
-  const rideSled = () => {
-    if (mySled.current && Date.now() - mySled.current < SLED_MS) return;
+  const rideSled = (kind: RideKind = "hill") => {
+    if (mySled.current && Date.now() - mySled.current < rideMs(mySledKind.current)) return;
+    mySledKind.current = kind;
     benchTo.current = null;
     goal.current = null;
     meRef.current = { ...meRef.current, sit: false };
     setSitting(false);
     mySled.current = Date.now();
     setSledding(true);
-    setMySay({ e: "🛷 슝~!", t: Date.now() });
-    chRef.current?.send({ type: "broadcast", event: "sled", payload: { key: keyRef.current } });
+    setMySay({ e: rideSay(kind), t: Date.now() });
+    chRef.current?.send({ type: "broadcast", event: "sled", payload: { key: keyRef.current, kind } });
   };
   const endSled = () => {
     mySled.current = null;
     setSledding(false);
-    meRef.current = { ...meRef.current, x: SLED_SPOT.x, z: SLED_SPOT.z };
+    const end = rideEnd(mySledKind.current);
+    meRef.current = { ...meRef.current, x: end.x, z: end.z };
     sendPos();
   };
   othersRef.current = others;
-  return { onSmashRef, announceSmash, onSnowmanRef, announceSnowman, showSay, showEmote, rideSled, endSled, mySled, sledding, sleds, sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
+  return { mySledKind, onSmashRef, announceSmash, onSnowmanRef, announceSnowman, showSay, showEmote, rideSled, endSled, mySled, sledding, sleds, sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
 }
 
 // 감정 표현: 3초 동안 머리 위에 띄우고, 그동안 캐릭터가 깡충 뜀
@@ -307,9 +311,10 @@ export function MyWalker({ walk, target, avatar }: {
     const me = walk.me.current;
     // 썰매 타는 중: 정해진 길로 미끄러져 내려옴
     if (walk.mySled.current !== null) {
-      const s = (Date.now() - walk.mySled.current) / SLED_MS;
-      if (s >= 1) { walk.endSled(); if (g.current) g.current.position.set(SLED_SPOT.x, 0, SLED_SPOT.z); return; }
-      const p = sledAt(s);
+      const kind = walk.mySledKind.current;
+      const s = (Date.now() - walk.mySled.current) / rideMs(kind);
+      if (s >= 1) { const end = rideEnd(kind); walk.endSled(); if (g.current) g.current.position.set(end.x, 0, end.z); return; }
+      const p = rideAt(kind, s);
       if (g.current) { g.current.position.set(p.x, p.y, p.z); g.current.rotation.y = p.ry; }
       return;
     }
@@ -359,8 +364,8 @@ export function MyWalker({ walk, target, avatar }: {
   );
 }
 
-function OtherWalker({ w, emote, said, onSelect, sledT }: { w: Walker; emote?: Emote; said?: Emote; onSelect?: () => void; sledT?: number }) {
-  const riding = sledT !== undefined && Date.now() - sledT < SLED_MS;
+function OtherWalker({ w, emote, said, onSelect, sled }: { w: Walker; emote?: Emote; said?: Emote; onSelect?: () => void; sled?: { t: number; kind: RideKind } }) {
+  const riding = sled !== undefined && Date.now() - sled.t < rideMs(sled.kind);
   const [, force] = useState(0);
   const g = useRef<THREE.Group>(null);
   const hop = useRef<THREE.Group>(null);
@@ -370,12 +375,12 @@ function OtherWalker({ w, emote, said, onSelect, sledT }: { w: Walker; emote?: E
   useFrame((_, dt) => {
     const o = g.current;
     if (!o) return;
-    if (sledT !== undefined && Date.now() - sledT < SLED_MS) {
-      const p = sledAt((Date.now() - sledT) / SLED_MS);
+    if (sled !== undefined && Date.now() - sled.t < rideMs(sled.kind)) {
+      const p = rideAt(sled.kind, (Date.now() - sled.t) / rideMs(sled.kind));
       o.position.set(p.x, p.y, p.z); o.rotation.y = p.ry;
       return;
     }
-    if (riding) { o.position.set(SLED_SPOT.x, 0, SLED_SPOT.z); force((n) => n + 1); }
+    if (riding && sled) { const end = rideEnd(sled.kind); o.position.set(end.x, 0, end.z); force((n) => n + 1); }
     if (o.position.y !== 0) o.position.y = 0;
     const dx = w.x - o.position.x, dz = w.z - o.position.z;
     const d = Math.hypot(dx, dz);
@@ -398,6 +403,11 @@ function OtherWalker({ w, emote, said, onSelect, sledT }: { w: Walker; emote?: E
         onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
         onPointerOut={() => { document.body.style.cursor = "auto"; }}>
         <Character3D avatar={parseAvatar(w.avatar) ?? DEFAULT_AVATAR} walking={moving} />
+        {/* 휴대폰에서도 누르기 쉽게: 캐릭터 둘레의 보이지 않는 넓은 터치 영역 (지우지 말 것 — FEATURES.md 8) */}
+        <mesh position={[0, 0.75, 0]}>
+          <cylinderGeometry args={[0.6, 0.6, 1.7, 12]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
       </group>
       </group>
       <NameTag text={`${w.nick}${fortuneIcon(w.fortune)}`} />
@@ -408,9 +418,9 @@ function OtherWalker({ w, emote, said, onSelect, sledT }: { w: Walker; emote?: E
 }
 
 export function OtherWalkers({ others, emotes, says, onSelect, sleds = {} }: {
-  others: Record<string, Walker>; emotes: Record<string, Emote>; says: Record<string, Emote>; onSelect?: (key: string) => void; sleds?: Record<string, number>;
+  others: Record<string, Walker>; emotes: Record<string, Emote>; says: Record<string, Emote>; onSelect?: (key: string) => void; sleds?: Record<string, { t: number; kind: RideKind }>;
 }) {
-  return <>{Object.entries(others).map(([k, w]) => <OtherWalker key={k} w={w} emote={emotes[k]} said={says[k]} sledT={sleds[k]} onSelect={onSelect && (() => onSelect(k))} />)}</>;
+  return <>{Object.entries(others).map(([k, w]) => <OtherWalker key={k} w={w} emote={emotes[k]} said={says[k]} sled={sleds[k]} onSelect={onSelect && (() => onSelect(k))} />)}</>;
 }
 
 // 날아가는 눈덩이 (포물선)

@@ -8,6 +8,7 @@
 - 이전에 있던 2Page 앱(Lovable로 만든 SNS)은 사용자 요청으로 삭제함. 필요하면 git 기록에서 복구 가능 (커밋 2c1819c 이전).
 
 ## ⚠️ 기능 목록 먼저 확인
+- **배포 전 회귀 테스트 필수:** `npm run build` → `npx vite preview --port 4173 --host 127.0.0.1` 띄우고 `node scripts/regression.cjs` → 전부 PASS여야 `main`에 반영. 새 기능을 만들면 스크립트에 확인 항목도 추가. (테스터가 '캐릭터 눌러 장난치기·들이받기 밀림이 사라졌다'고 함 — 실제로는 예전 Netlify 버전·작은 터치 영역 문제였지만, 이런 일을 막으려고 만듦)
 - **`FEATURES.md`에 지금까지 만든 모든 기능이 있음.** 무엇을 고치든 먼저 읽고, 고친 뒤 기존 기능이 그대로인지 확인하고, 같은 커밋에서 `FEATURES.md`도 갱신할 것. (사용자가 기능 누락을 걱정함)
 
 ## 명령
@@ -39,7 +40,7 @@
 - 친구 액션: 다른 캐릭터를 누르면 메뉴(💥 들이받기 / ❄️ 눈덩이 / 🤗 안아주기), broadcast `act`. 들이받기 맞은 사람은 자기 화면에서 빙글 돌며 2.4만큼 밀려나고 위치를 공유.
 - 벤치(`src/benches.ts`): 4개, 트리 가까이(휴대폰 세로 화면에서도 보이게), 모두 화면 쪽을 바라봄. 앉으면 presence/pos에 `sit` 전달.
 - 👊 장난치기 버튼: 광장 사람 목록 → 액션 메뉴. 이벤트는 각 30초.
-- 썰매(`src/sled.ts`): 언덕 (7.2,-3.6), 세워 둔 썰매 SLED_PARK (5.7,-0.5) — 벤치 앞에 두면 벤치가 대신 눌림(실제로 겪음). broadcast `sled`. 눈사람(`supabase/snowmen.sql`, `src/Snowmen.tsx`): 24시간, broadcast `snowman`으로 다른 사람이 즉시 다시 불러옴.
+- 마을 크기: 걷는 반경 13(`MAX_R`), 집 15~17, 소나무 20~29, 가로등 7.5, 땅 42, 안개 20~58, 카메라 최대 거리 26(세로 30). 썰매(`src/sled.ts`): 언덕 (11,-7), 세워 둔 썰매 SLED_PARK (9.3,-3.1), 빙판 RINK (-10,-2) r3.6 — 탈것은 `RideKind` hill/ice, broadcast `sled`에 kind 포함 — 벤치 앞에 두면 벤치가 대신 눌림(실제로 겪음). broadcast `sled`. 눈사람(`supabase/snowmen.sql`, `src/Snowmen.tsx`): 24시간, broadcast `snowman`으로 다른 사람이 즉시 다시 불러옴.
 - 관리 방법: 환경에 저장된 Supabase 개인 접근 토큰(api.supabase.com, 프록시가 자동 주입)으로 Management API 사용. SQL 실행은 `POST https://api.supabase.com/v1/projects/{ref}/database/query` 에 `{"query": "..."}`. 토큰 권한은 좁음(프로젝트 목록 조회 불가, ref 직접 지정), 2026-11-20 발급·7일 만료 — 만료되면 새 토큰 발급을 안내.
 
 ## 배포

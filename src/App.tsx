@@ -121,7 +121,8 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     if (action.type === "box") setBoxOpen(true);
     if (action.type === "letters") setLettersOpen(true);
     if (action.type === "fortune") setFortuneOpen(true);
-    if (action.type === "sled") setTimeout(() => walk.rideSled(), 300);
+    if (action.type === "sled") setTimeout(() => walk.rideSled("hill"), 300);
+    if (action.type === "ice") setTimeout(() => walk.rideSled("ice"), 300);
     if (action.type === "snowman") setTimeout(() => buildSnowmanRef.current(), 300);
   }, [action?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -172,10 +173,11 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     <>
       <Canvas camera={CAMERA} dpr={[1, 2]}>
         <color attach="background" args={["#0b1733"]} />
-        <fog attach="fog" args={["#0b1733", 14, 38]} />
+        <fog attach="fog" args={["#0b1733", 20, 58]} />
         <Scene wishes={wishes} mineIds={myWishIds} onTreeClick={() => setTreeMenu(true)} onWishClick={setViewing}
           onGround={(x, z) => setWalkTarget([x, z])}
-          onSled={() => walk.rideSled()}
+          onSled={() => walk.rideSled("hill")}
+          onIce={() => walk.rideSled("ice")}
           onBench={(i) => { walk.sitAt(i); setNotice("벤치로 가서 앉아요 🪑 움직이면 일어나요"); }} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
         <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} onSelect={setActTarget} />
@@ -184,7 +186,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         <OrbitControls
           enablePan={false}
           minDistance={6}
-          maxDistance={isPortrait ? 20 : 16}
+          maxDistance={isPortrait ? 30 : 26}
           maxPolarAngle={Math.PI / 2.1}
           target={[0, 2, 0]}
         />
@@ -370,12 +372,12 @@ function CreateRoom({ onCreated, onClose }: { onCreated: (room: MyRoom) => void;
   );
 }
 
-type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "snowman"; n: number } | null;
+type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman"; n: number } | null;
 const SETUP_KEY = "3d_pj.setupDone";
 
 // 오른쪽 위 ☰ 메뉴: 마을 소개와 바로가기
 function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
-  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "snowman") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
+  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -410,6 +412,9 @@ function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
           </button>
           <button className="intro-card" onClick={() => onAction("sled")}>
             <span>🛷</span><strong>썰매 타기</strong><small>언덕 꼭대기에서 광장까지 슝 미끄러져요 (오른쪽 언덕을 눌러도 돼요)</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("ice")}>
+            <span>⛸️</span><strong>빙판 썰매</strong><small>왼쪽 얼음 빙판을 씽씽 돌아요 (빙판을 눌러도 돼요)</small>
           </button>
           <button className="intro-card" onClick={() => onAction("snowman")}>
             <span>⛄</span><strong>눈사람 만들기</strong><small>내 앞에 눈사람을 만들어요. 24시간 동안 마을에 남아요</small>
@@ -464,7 +469,7 @@ export default function App() {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [villageAction, setVillageAction] = useState<VillageAction>(null);
-  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "snowman") => {
+  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman") => {
     setMenuOpen(false);
     setVillageAction({ type, n: Date.now() });
     if (roomId) go(null);
