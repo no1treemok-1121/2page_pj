@@ -49,6 +49,20 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const [actTarget, setActTarget] = useState<string | null>(null);
   const snowmen = useSnowmen();
   walk.onSnowmanRef.current = snowmen.load;
+  walk.onSmashRef.current = (id) => snowmen.smash(id, false);
+  // 눈사람 부수기: 달려가서 쿵 → 와장창
+  const smashSnowman = (s: Snowman) => {
+    setSnowmanInfo(null);
+    const me = walk.me.current;
+    const dx = s.x - me.x, dz = s.z - me.z, d = Math.hypot(dx, dz) || 1;
+    walk.goal.current = clampSpot(s.x - (dx / d) * 0.7, s.z - (dz / d) * 0.7);
+    setTimeout(() => {
+      walk.showEmote(walk.myKey, "💥");
+      walk.showSay(walk.myKey, "와장창!");
+      snowmen.smash(s.id, true);
+      walk.announceSmash(s.id);
+    }, Math.min(2000, (Math.max(0, d - 0.7) / 2.6) * 1000 + 100));
+  };
   const [snowmanInfo, setSnowmanInfo] = useState<Snowman | null>(null);
   // (buildSnowmanRef는 아래에서 채움: 메뉴에서 눈사람 만들기를 눌렀을 때 사용)
   const [building, setBuilding] = useState(false);
@@ -166,7 +180,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
         <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} onSelect={setActTarget} />
         <Snowballs shots={walk.shots} />
-        <Snowmen list={snowmen.list} onClick={setSnowmanInfo} />
+        <Snowmen list={snowmen.list} smashed={snowmen.smashed} onClick={setSnowmanInfo} />
         <OrbitControls
           enablePan={false}
           minDistance={6}
@@ -217,7 +231,8 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           <div style={{ fontSize: 46 }}>⛄</div>
           <h2>{snowmanInfo.name}의 눈사람</h2>
           <p className="hint">{new Date(snowmanInfo.created_at).toLocaleString("ko-KR")}에 만들었어요.<br />만든 지 24시간이 지나면 녹아 없어져요.</p>
-          <button className="btn wide" onClick={() => setSnowmanInfo(null)}>닫기</button>
+          <button className="btn wide" onClick={() => smashSnowman(snowmanInfo)}>💥 부수기</button>
+          <button className="btn ghost wide" onClick={() => setSnowmanInfo(null)}>닫기</button>
         </Modal>
       )}
       {peopleOpen && (

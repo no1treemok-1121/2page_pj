@@ -86,6 +86,7 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
       .on("presence", { event: "join" }, ({ key: k }) => { if (k !== key) sendPos(); }) // 새로 온 사람에게 내 위치 알려 주기
       .on("broadcast", { event: "act" }, ({ payload }) => handleActRef.current(payload as Act))
       .on("broadcast", { event: "snowman" }, () => onSnowmanRef.current?.())
+      .on("broadcast", { event: "smash" }, ({ payload }) => onSmashRef.current?.((payload as { id: string }).id))
       .on("broadcast", { event: "sled" }, ({ payload }) => {
         const p = payload as { key: string };
         setSleds((prev) => ({ ...prev, [p.key]: Date.now() }));
@@ -214,6 +215,8 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
     sendPos();
   };
   const announceSnowman = () => chRef.current?.send({ type: "broadcast", event: "snowman", payload: {} });
+  const onSmashRef = useRef<((id: string) => void) | null>(null);
+  const announceSmash = (id: string) => chRef.current?.send({ type: "broadcast", event: "smash", payload: { id } });
   const rideSled = () => {
     if (mySled.current && Date.now() - mySled.current < SLED_MS) return;
     benchTo.current = null;
@@ -232,7 +235,7 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
     sendPos();
   };
   othersRef.current = others;
-  return { onSnowmanRef, announceSnowman, showSay, showEmote, rideSled, endSled, mySled, sledding, sleds, sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
+  return { onSmashRef, announceSmash, onSnowmanRef, announceSnowman, showSay, showEmote, rideSled, endSled, mySled, sledding, sleds, sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
 }
 
 // 감정 표현: 3초 동안 머리 위에 띄우고, 그동안 캐릭터가 깡충 뜀
