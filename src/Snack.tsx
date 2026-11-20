@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
@@ -198,14 +198,19 @@ export function SnackStand({ stall, onOpen }: { stall: Stall; onOpen?: () => voi
   );
 }
 
-export function SnackMenu({ stall, onPick, onClose }: { stall: Stall; onPick: (s: Item) => void; onClose: () => void }) {
+export function SnackMenu({ stall, onPick, onClose, onTakeout }: { stall: Stall; onPick: (s: Item) => void; onClose: () => void; onTakeout?: (s: Item) => void }) {
+  const [takeout, setTakeout] = useState(false);
   return (
     <Modal onClose={onClose}>
       <h2>{stall.icon} 눈마을 {stall.title}</h2>
-      <p className="hint">먹고 싶은 걸 골라 보세요. 모두 무료예요!</p>
+      <div className="chips center take-mode">
+        <button className={!takeout ? "chip on" : "chip"} onClick={() => setTakeout(false)}>😋 여기서 먹기</button>
+        <button className={takeout ? "chip on" : "chip"} onClick={() => setTakeout(true)}>🏠 내 방에 사 가기</button>
+      </div>
+      <p className="hint">{takeout ? (onTakeout ? "고른 음식이 내 방 테이블에 놓여요 (최대 6개)" : "내 방이 있어야 사 갈 수 있어요. ☰ 메뉴에서 내 방을 만들거나 찾아 주세요") : "먹고 싶은 걸 골라 보세요. 모두 무료예요!"}</p>
       <div className="snack-grid">
         {stall.items.map((s) => (
-          <button key={s.id} className="act-btn" onClick={() => onPick(s)}><span>{s.emoji}</span>{s.name}</button>
+          <button key={s.id} className="act-btn" disabled={takeout && !onTakeout} onClick={() => (takeout ? onTakeout?.(s) : onPick(s))}><span>{s.emoji}</span>{s.name}</button>
         ))}
       </div>
       <button className="btn ghost wide" onClick={onClose}>닫기</button>

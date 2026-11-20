@@ -2,7 +2,7 @@
 const URL_ = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
 
-export type RoomInfo = { nickname: string; letterCount: number; avatar: string | null };
+export type RoomInfo = { nickname: string; letterCount: number; avatar: string | null; decor: unknown };
 export type Letter = { id: string; fromName: string; body: string; createdAt: number };
 export type MyRoom = { roomId: string; ownerKey: string; nickname: string };
 
@@ -38,8 +38,8 @@ export async function createRoom(nickname: string): Promise<MyRoom> {
 }
 
 export async function getRoom(roomId: string): Promise<RoomInfo | null> {
-  const rows = await rpc<{ nickname: string; letter_count: number; avatar: string | null }[]>("get_room", { p_room: roomId });
-  return rows[0] ? { nickname: rows[0].nickname, letterCount: rows[0].letter_count, avatar: rows[0].avatar } : null;
+  const rows = await rpc<{ nickname: string; letter_count: number; avatar: string | null; decor?: unknown }[]>("get_room", { p_room: roomId });
+  return rows[0] ? { nickname: rows[0].nickname, letterCount: rows[0].letter_count, avatar: rows[0].avatar, decor: rows[0].decor ?? {} } : null;
 }
 
 export function setRoomAvatar(room: MyRoom, avatar: string) {
@@ -87,6 +87,11 @@ export function loadMyRoom(): MyRoom | null {
   } catch {
     return null;
   }
+}
+
+// 🚪 이 기기에서 내 방 내려놓기 (로그아웃): 방은 그대로 있고, 아이디·비밀번호로 다시 찾을 수 있음
+export function forgetMyRoom() {
+  try { localStorage.removeItem(MY_ROOM_KEY); } catch { /* 무시 */ }
 }
 
 export function saveMyRoom(room: MyRoom) {
