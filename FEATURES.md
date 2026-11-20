@@ -4,7 +4,7 @@
 **기능을 고치거나 추가할 때마다 이 목록과 대조해서, 기존 기능이 사라지지 않았는지 확인하고 이 파일도 함께 고칩니다.**
 (최종 갱신: 2026-11-20, 썰매·눈사람·자연스러운 눈·360도 불꽃놀이 추가)
 
-사이트: https://2page-pj.netlify.app · 데이터: Supabase `2page_pj`(서울)
+사이트: https://2page-pj.no1treemok.workers.dev (Cloudflare, 2026-11-20 Netlify에서 이전) · 데이터: Supabase `2page_pj`(서울)
 
 ---
 
@@ -25,7 +25,7 @@
 | 트리 | 3단 트리, 꼭대기 별, 반짝이 전구 46개 | 마을 화면 | `src/Scene.tsx`, `src/Village.tsx` (`TreeLights`) |
 | 트리 누르기 | "✏️ 소원 쓰기 / 📜 소원함 보기" 선택 | 트리 누르기 | `src/App.tsx` (`treeMenu`) |
 | 벤치 4개 | 트리 앞 좌우·옆 좌우. 누르면 걸어가서 화면 쪽을 보고 앉음, 움직이면 일어남. 다른 사람에게도 보임 | 벤치 누르기 | `src/benches.ts`, `src/Village.tsx` (`Bench`), `src/Walk.tsx` |
-| 휴대폰 화면 | 세로 화면은 카메라를 넓게, 하단 버튼은 Netlify 배지(오른쪽 아래) 위로 76px | 휴대폰으로 열기 | `src/App.tsx`, `src/index.css` |
+| 휴대폰 화면 | 세로 화면은 카메라를 넓게, 하단 버튼은 화면 아래 20px (Netlify 배지 없어져 원위치) | 휴대폰으로 열기 | `src/App.tsx`, `src/index.css` |
 | 링크 미리보기 | 제목·설명·이미지(og-image.png, 전체 주소) | 카톡에 링크 보내기 | `index.html`, `public/og-image.png` |
 
 ## 3. 마을 이벤트 (2분마다, 서로 겹치지 않음)
@@ -85,7 +85,7 @@
 ## 9. 화면 공통
 - 팝업 창은 3D 이름표·말풍선보다 항상 위 (`.backdrop` z-index 50)
 - 안내 토스트는 하단 버튼 위
-- 팝업은 화면 안(위 16px ~ 아래 Netlify 배지 위 72px)에서만 보이고, 길면 팝업 안에서 스크롤
+- 팝업은 화면 안에서만 보이고, 길면 팝업 안에서 스크롤
 - 언덕·집이 카메라와 트리 사이를 가리면 반투명(`FadeWhenBlocking`, `src/Village.tsx`)
 - 3D 위에 뜨는 글자(이름표·말풍선·표지)는 모두 `pointerEvents="none"` — 뒤의 캐릭터·벤치·썰매를 누를 수 있게
 - 왼쪽 아래 버튼 순서(위→아래): 👊 장난치기, ⛄ 눈사람, 🔮 운세, 😊 감정 표현

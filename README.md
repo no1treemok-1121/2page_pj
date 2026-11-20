@@ -13,7 +13,7 @@ npm run dev
 
 ## 배포 (Netlify)
 
-저장소를 연결해 새 사이트를 만들면 `netlify.toml` 설정(빌드 `npm run build`, 배포 폴더 `dist`)이 자동으로 적용됩니다. Base directory 는 비워 둡니다.
+Cloudflare Workers(https://2page-pj.no1treemok.workers.dev)에 배포합니다. GitHub `main`에 반영되면 자동으로 빌드·배포되며, 설정은 `wrangler.jsonc`(빌드 결과 `dist`를 정적 사이트로)입니다. (이전 Netlify 사이트는 무료 크레딧 소진으로 배포가 멈춰 2026-11-20 이전함)
 
 ## 입장 코드
 
