@@ -281,6 +281,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     await A.click('.igloo-actions >> text=불멍 그만하기'); await A.waitForTimeout(300);
     await A.click('.igloo-actions >> text=마시멜로');
     check('이글루: 마시멜로 상대에게 보임', await seen(B, '마시멜로'));
+    check('이글루: 긴 말은 말풍선(세로로 안 깨짐)', await A.$$eval('.emote-bubble', x => x.every(e => [...e.textContent].length <= 2)));
     await A.click('.igloo-actions >> text=소원 쓰기'); await A.waitForTimeout(300);
     check('이글루: 소원 쓰기 창(트리와 같은 소원)', !!(await A.$('.backdrop .name-field')));
     await A.keyboard.press('Escape'); await A.waitForTimeout(200);
