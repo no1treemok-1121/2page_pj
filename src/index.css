@@ -377,3 +377,9 @@ html, body, #root {
 .people-list span { flex: 1; font-weight: 700; }
 .people-list small { color: #8a8478; }
 .emote-wrap .badge { top: -4px; right: -4px; }
+
+/* 마을 놀이 표지 (썰매 등) */
+.spot-tag { padding: 3px 9px; border-radius: 999px; background: #c0392b; color: #fff; font-size: 12px; font-weight: 700; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+
+.emote-btn:disabled { opacity: 0.5; }
+@media (max-width: 520px) { .emote-btn { width: 46px; height: 46px; font-size: 22px; } .emote-wrap { gap: 6px; } }

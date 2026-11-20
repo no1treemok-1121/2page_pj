@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import Scene from "./Scene";
@@ -11,7 +11,8 @@ import { AvatarBadge, AvatarEditor, CharacterSetup } from "./Avatar";
 import RandomLetters, { useRandomInbox } from "./RandomLetters";
 import Fortune from "./Fortune";
 import { VillageEvent, currentEvent } from "./events";
-import { ACTIONS, EMOTES, MyWalker, OtherWalkers, Snowballs, useWalkers } from "./Walk";
+import { ACTIONS, EMOTES, MyWalker, OtherWalkers, Snowballs, clampSpot, useWalkers } from "./Walk";
+import { Snowman, Snowmen, useSnowmen } from "./Snowmen";
 import { Avatar, loadMyAvatar, saveMyAvatar, toStr } from "./avatar";
 import { setRoomAvatar } from "./rooms";
 
@@ -46,6 +47,30 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const [emoteOpen, setEmoteOpen] = useState(false);
   const [treeMenu, setTreeMenu] = useState(false);
   const [actTarget, setActTarget] = useState<string | null>(null);
+  const snowmen = useSnowmen();
+  walk.onSnowmanRef.current = snowmen.load;
+  const [snowmanInfo, setSnowmanInfo] = useState<Snowman | null>(null);
+  // (buildSnowmanRef는 아래에서 채움: 메뉴에서 눈사람 만들기를 눌렀을 때 사용)
+  const [building, setBuilding] = useState(false);
+  // 눈사람 만들기: 내 캐릭터 바로 앞에 1.5초 동안 굴려서 완성
+  const buildSnowmanRef = useRef(() => {});
+  const buildSnowman = () => {
+    if (building) return;
+    const me = walk.me.current;
+    const [x, z] = clampSpot(me.x + Math.sin(me.ry) * 0.9, me.z + Math.cos(me.ry) * 0.9);
+    setBuilding(true);
+    walk.showSay(walk.myKey, "⛄ 눈 굴리는 중…");
+    setTimeout(async () => {
+      try {
+        await snowmen.build(x, z, me.ry + Math.PI, walkNick);
+        walk.announceSnowman();
+        walk.showEmote(walk.myKey, "⛄");
+        setNotice("눈사람을 만들었어요! 24시간 동안 마을에 남아요 ⛄");
+      } catch (e) { setNotice((e as Error).message); }
+      finally { setBuilding(false); }
+    }, 1500);
+  };
+  buildSnowmanRef.current = buildSnowman;
   const [peopleOpen, setPeopleOpen] = useState(false);
   const othersCount = Object.keys(walk.others).length;
   // 다른 사람이 처음 보이면 한 번만 장난치기 안내
@@ -82,6 +107,8 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     if (action.type === "box") setBoxOpen(true);
     if (action.type === "letters") setLettersOpen(true);
     if (action.type === "fortune") setFortuneOpen(true);
+    if (action.type === "sled") setTimeout(() => walk.rideSled(), 300);
+    if (action.type === "snowman") setTimeout(() => buildSnowmanRef.current(), 300);
   }, [action?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = useCallback(async () => {
@@ -134,10 +161,12 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         <fog attach="fog" args={["#0b1733", 14, 38]} />
         <Scene wishes={wishes} mineIds={myWishIds} onTreeClick={() => setTreeMenu(true)} onWishClick={setViewing}
           onGround={(x, z) => setWalkTarget([x, z])}
+          onSled={() => walk.rideSled()}
           onBench={(i) => { walk.sitAt(i); setNotice("벤치로 가서 앉아요 🪑 움직이면 일어나요"); }} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
-        <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} onSelect={setActTarget} />
+        <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} onSelect={setActTarget} />
         <Snowballs shots={walk.shots} />
+        <Snowmen list={snowmen.list} onClick={setSnowmanInfo} />
         <OrbitControls
           enablePan={false}
           minDistance={6}
@@ -174,6 +203,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         )}
         <button className="emote-btn" onClick={() => setEmoteOpen((v) => !v)} aria-label="감정 표현">😊</button>
         <button className="emote-btn" onClick={() => setFortuneOpen(true)} aria-label="오늘의 운세">🔮</button>
+        <button className="emote-btn" onClick={buildSnowman} aria-label="눈사람 만들기" disabled={building}>⛄</button>
         <button className="emote-btn chat-btn" onClick={() => setPeopleOpen(true)} aria-label="장난치기">
           👊{othersCount > 0 && <span className="badge">{othersCount}</span>}
         </button>
@@ -181,6 +211,14 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
       {fortuneOpen && (
         <Fortune onClose={() => setFortuneOpen(false)} onPicked={walk.setFortune}
           peers={Object.values(walk.others).filter((w) => w.fortune != null).map((w) => ({ nick: w.nick, avatar: w.avatar, card: w.fortune as number }))} />
+      )}
+      {snowmanInfo && (
+        <Modal onClose={() => setSnowmanInfo(null)}>
+          <div style={{ fontSize: 46 }}>⛄</div>
+          <h2>{snowmanInfo.name}의 눈사람</h2>
+          <p className="hint">{new Date(snowmanInfo.created_at).toLocaleString("ko-KR")}에 만들었어요.<br />만든 지 24시간이 지나면 녹아 없어져요.</p>
+          <button className="btn wide" onClick={() => setSnowmanInfo(null)}>닫기</button>
+        </Modal>
       )}
       {peopleOpen && (
         <Modal onClose={() => setPeopleOpen(false)}>
@@ -317,12 +355,12 @@ function CreateRoom({ onCreated, onClose }: { onCreated: (room: MyRoom) => void;
   );
 }
 
-type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune"; n: number } | null;
+type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "snowman"; n: number } | null;
 const SETUP_KEY = "3d_pj.setupDone";
 
 // 오른쪽 위 ☰ 메뉴: 마을 소개와 바로가기
 function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
-  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
+  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "snowman") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -354,6 +392,12 @@ function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
           </button>
           <button className="intro-card" onClick={() => onAction("fortune")}>
             <span>🔮</span><strong>오늘의 운세</strong><small>하루 한 장, 카드를 뽑아 오늘의 운세를 봐요</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("sled")}>
+            <span>🛷</span><strong>썰매 타기</strong><small>언덕 꼭대기에서 광장까지 슝 미끄러져요 (오른쪽 언덕을 눌러도 돼요)</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("snowman")}>
+            <span>⛄</span><strong>눈사람 만들기</strong><small>내 앞에 눈사람을 만들어요. 24시간 동안 마을에 남아요</small>
           </button>
           <button className="intro-card" onClick={onCharacter}>
             <span>🐾</span><strong>내 캐릭터</strong><small>동물·색·장식을 바꿔요</small>
@@ -405,7 +449,7 @@ export default function App() {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [villageAction, setVillageAction] = useState<VillageAction>(null);
-  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune") => {
+  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "snowman") => {
     setMenuOpen(false);
     setVillageAction({ type, n: Date.now() });
     if (roomId) go(null);

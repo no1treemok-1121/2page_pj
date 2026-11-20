@@ -6,6 +6,8 @@ import Character3D from "./Character3D";
 import { Avatar, DEFAULT_AVATAR, parseAvatar, toStr } from "./avatar";
 import { supabase } from "./supabase";
 import { BENCHES, SIT_Y } from "./benches";
+import { SLED_MS, SLED_SPOT, sledAt } from "./sled";
+import { SledMesh } from "./Village";
 import { CARDS, loadToday } from "./Fortune";
 
 // 마을을 걸어 다니는 캐릭터 + 다른 사람 캐릭터 실시간 표시 (Supabase Realtime presence)
@@ -50,6 +52,11 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
   const goal = useRef<[number, number] | null>(null);
   const benchTo = useRef<number | null>(null); // 이 벤치로 걸어가서 앉을 예정
   const [sitting, setSitting] = useState(false);
+  // 썰매: 탄 시각 (나 / 다른 사람)
+  const mySled = useRef<number | null>(null);
+  const onSnowmanRef = useRef<(() => void) | null>(null); // 다른 사람이 눈사람을 만들면 다시 불러오기
+  const [sledding, setSledding] = useState(false);
+  const [sleds, setSleds] = useState<Record<string, number>>({});
   const knock = useRef(0); // 이 시각까지 튕겨 나가는 중 (빠르게 + 빙글빙글)
   const [shots, setShots] = useState<Shot[]>([]);
   const othersRef = useRef<Record<string, Walker>>({});
@@ -78,6 +85,12 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
     })
       .on("presence", { event: "join" }, ({ key: k }) => { if (k !== key) sendPos(); }) // 새로 온 사람에게 내 위치 알려 주기
       .on("broadcast", { event: "act" }, ({ payload }) => handleActRef.current(payload as Act))
+      .on("broadcast", { event: "snowman" }, () => onSnowmanRef.current?.())
+      .on("broadcast", { event: "sled" }, ({ payload }) => {
+        const p = payload as { key: string };
+        setSleds((prev) => ({ ...prev, [p.key]: Date.now() }));
+        setSays((prev) => ({ ...prev, [p.key]: { e: "🛷 슝~!", t: Date.now() } }));
+      })
       .on("broadcast", { event: "say" }, ({ payload }) => {
         const p = payload as { key: string; text: string };
         setSays((prev) => ({ ...prev, [p.key]: { e: p.text, t: Date.now() } }));
@@ -200,8 +213,26 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
     setSitting(true);
     sendPos();
   };
+  const announceSnowman = () => chRef.current?.send({ type: "broadcast", event: "snowman", payload: {} });
+  const rideSled = () => {
+    if (mySled.current && Date.now() - mySled.current < SLED_MS) return;
+    benchTo.current = null;
+    goal.current = null;
+    meRef.current = { ...meRef.current, sit: false };
+    setSitting(false);
+    mySled.current = Date.now();
+    setSledding(true);
+    setMySay({ e: "🛷 슝~!", t: Date.now() });
+    chRef.current?.send({ type: "broadcast", event: "sled", payload: { key: keyRef.current } });
+  };
+  const endSled = () => {
+    mySled.current = null;
+    setSledding(false);
+    meRef.current = { ...meRef.current, x: SLED_SPOT.x, z: SLED_SPOT.z };
+    sendPos();
+  };
   othersRef.current = others;
-  return { sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
+  return { onSnowmanRef, announceSnowman, showSay, showEmote, rideSled, endSled, mySled, sledding, sleds, sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
 }
 
 // 감정 표현: 3초 동안 머리 위에 띄우고, 그동안 캐릭터가 깡충 뜀
@@ -234,17 +265,17 @@ function useTimed(v: Emote | null | undefined, ms: number) {
 }
 
 function SayBubble({ text, high }: { text: string; high?: boolean }) {
-  return <Html position={[0, high ? 2.95 : 2.3, 0]} center distanceFactor={9} zIndexRange={[7, 0]}><div className="say-bubble" key={text}>{text}</div></Html>;
+  return <Html pointerEvents="none" position={[0, high ? 2.95 : 2.3, 0]} center distanceFactor={9} zIndexRange={[7, 0]}><div className="say-bubble" key={text}>{text}</div></Html>;
 }
 
 function EmoteBubble({ e }: { e: string }) {
-  return <Html position={[0, 2.35, 0]} center distanceFactor={9} zIndexRange={[6, 0]}><div className="emote-bubble" key={e}>{e}</div></Html>;
+  return <Html pointerEvents="none" position={[0, 2.35, 0]} center distanceFactor={9} zIndexRange={[6, 0]}><div className="emote-bubble" key={e}>{e}</div></Html>;
 }
 
 const fortuneIcon = (c?: number | null) => (c != null && CARDS[c] ? ` ${CARDS[c].icon}` : "");
 
 function NameTag({ text }: { text: string }) {
-  return <Html position={[0, 1.75, 0]} center distanceFactor={9} zIndexRange={[5, 0]}><div className="name-tag">{text}</div></Html>;
+  return <Html pointerEvents="none" position={[0, 1.75, 0]} center distanceFactor={9} zIndexRange={[5, 0]}><div className="name-tag">{text}</div></Html>;
 }
 
 export function MyWalker({ walk, target, avatar }: {
@@ -271,6 +302,14 @@ export function MyWalker({ walk, target, avatar }: {
 
   useFrame((_, dt) => {
     const me = walk.me.current;
+    // 썰매 타는 중: 정해진 길로 미끄러져 내려옴
+    if (walk.mySled.current !== null) {
+      const s = (Date.now() - walk.mySled.current) / SLED_MS;
+      if (s >= 1) { walk.endSled(); if (g.current) g.current.position.set(SLED_SPOT.x, 0, SLED_SPOT.z); return; }
+      const p = sledAt(s);
+      if (g.current) { g.current.position.set(p.x, p.y, p.z); g.current.rotation.y = p.ry; }
+      return;
+    }
     const k = keys.current;
     let dx = (k["arrowright"] || k["d"] ? 1 : 0) - (k["arrowleft"] || k["a"] ? 1 : 0);
     let dz = (k["arrowdown"] || k["s"] ? 1 : 0) - (k["arrowup"] || k["w"] ? 1 : 0);
@@ -306,7 +345,8 @@ export function MyWalker({ walk, target, avatar }: {
   const me = walk.me.current;
   return (
     <group ref={g} position={[me.x, 0, me.z]} rotation={[0, me.ry, 0]}>
-      <group position={[0, walk.sitting ? SIT_Y : 0, 0]}>
+      {walk.sledding && <SledMesh />}
+      <group position={[0, walk.sitting ? SIT_Y : walk.sledding ? 0.12 : 0, 0]}>
         <group ref={hop}><Character3D avatar={avatar ?? DEFAULT_AVATAR} walking={moving} /></group>
       </group>
       <NameTag text={`${me.nick} (나)${fortuneIcon(me.fortune)}`} />
@@ -316,7 +356,9 @@ export function MyWalker({ walk, target, avatar }: {
   );
 }
 
-function OtherWalker({ w, emote, said, onSelect }: { w: Walker; emote?: Emote; said?: Emote; onSelect?: () => void }) {
+function OtherWalker({ w, emote, said, onSelect, sledT }: { w: Walker; emote?: Emote; said?: Emote; onSelect?: () => void; sledT?: number }) {
+  const riding = sledT !== undefined && Date.now() - sledT < SLED_MS;
+  const [, force] = useState(0);
   const g = useRef<THREE.Group>(null);
   const hop = useRef<THREE.Group>(null);
   const show = useEmoteHop(emote, hop);
@@ -325,6 +367,13 @@ function OtherWalker({ w, emote, said, onSelect }: { w: Walker; emote?: Emote; s
   useFrame((_, dt) => {
     const o = g.current;
     if (!o) return;
+    if (sledT !== undefined && Date.now() - sledT < SLED_MS) {
+      const p = sledAt((Date.now() - sledT) / SLED_MS);
+      o.position.set(p.x, p.y, p.z); o.rotation.y = p.ry;
+      return;
+    }
+    if (riding) { o.position.set(SLED_SPOT.x, 0, SLED_SPOT.z); force((n) => n + 1); }
+    if (o.position.y !== 0) o.position.y = 0;
     const dx = w.x - o.position.x, dz = w.z - o.position.z;
     const d = Math.hypot(dx, dz);
     const isMoving = d > 0.05;
@@ -339,7 +388,8 @@ function OtherWalker({ w, emote, said, onSelect }: { w: Walker; emote?: Emote; s
   });
   return (
     <group ref={g} position={[w.x, 0, w.z]} rotation={[0, w.ry, 0]}>
-      <group position={[0, w.sit ? SIT_Y : 0, 0]}>
+      {riding && <SledMesh />}
+      <group position={[0, w.sit ? SIT_Y : riding ? 0.12 : 0, 0]}>
       <group ref={hop}
         onClick={(e) => { if (onSelect && e.delta < 6) { e.stopPropagation(); onSelect(); } }}
         onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
@@ -354,10 +404,10 @@ function OtherWalker({ w, emote, said, onSelect }: { w: Walker; emote?: Emote; s
   );
 }
 
-export function OtherWalkers({ others, emotes, says, onSelect }: {
-  others: Record<string, Walker>; emotes: Record<string, Emote>; says: Record<string, Emote>; onSelect?: (key: string) => void;
+export function OtherWalkers({ others, emotes, says, onSelect, sleds = {} }: {
+  others: Record<string, Walker>; emotes: Record<string, Emote>; says: Record<string, Emote>; onSelect?: (key: string) => void; sleds?: Record<string, number>;
 }) {
-  return <>{Object.entries(others).map(([k, w]) => <OtherWalker key={k} w={w} emote={emotes[k]} said={says[k]} onSelect={onSelect && (() => onSelect(k))} />)}</>;
+  return <>{Object.entries(others).map(([k, w]) => <OtherWalker key={k} w={w} emote={emotes[k]} said={says[k]} sledT={sleds[k]} onSelect={onSelect && (() => onSelect(k))} />)}</>;
 }
 
 // 날아가는 눈덩이 (포물선)

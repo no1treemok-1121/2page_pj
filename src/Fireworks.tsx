@@ -61,7 +61,9 @@ export default function Fireworks() {
   };
 
   const spawn = () => {
-    const at = new THREE.Vector3((Math.random() - 0.5) * 20, 5.5 + Math.random() * 3.5, -9 - Math.random() * 5);
+    // 마을 둘레 360도 어디서든 터짐 (어느 방향에서 봐도 보이게)
+    const ang = Math.random() * Math.PI * 2, rad = 11 + Math.random() * 5;
+    const at = new THREE.Vector3(Math.cos(ang) * rad, 5.5 + Math.random() * 4, Math.sin(ang) * rad);
     const r = Math.random();
     if (r < 0.3) {
       burst(at, pick(), "ring", 4.6, 0.36);
