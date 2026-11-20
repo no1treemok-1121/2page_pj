@@ -115,7 +115,7 @@ html, body, #root {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 84px;
+  bottom: calc(140px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   z-index: 20;
   max-width: calc(100% - 32px);
@@ -137,14 +137,15 @@ html, body, #root {
   .title p { font-size: 12.5px; line-height: 1.5; }
   .title .sep { display: none; }
   .br-mobile { display: inline; }
-  .toast { bottom: 80px; border-radius: 14px; }
+  .toast { border-radius: 14px; }
 }
 
 .bottom-bar {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: max(20px, env(safe-area-inset-bottom));
+  /* Netlify가 오른쪽 아래에 붙이는 배지에 가리지 않도록 위로 띄움 */
+  bottom: calc(76px + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
   gap: 8px;
