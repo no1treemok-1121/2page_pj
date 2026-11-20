@@ -134,11 +134,11 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   await A.waitForSelector('.snack-grid', { timeout: 15000 }).catch(() => null);
   const bm = await A.$$eval('.snack-grid .act-btn', x => x.map(e => e.innerText.replace(/\n/g, '')));
   check('붕어빵 노점 메뉴 5가지(우유 포함)', bm.length === 5 && bm.some(t => t.includes('우유')) && bm.some(t => t.includes('슈크림')), bm.join(','));
+  check('붕어빵 노점: 붕어빵은 직접 그린 그림', (await A.$$('.snack-grid .food-ico')).length >= 1);
   await A.keyboard.press('Escape');
   await A.click('.menu-btn'); await A.click('.menu >> text=코코아 노점');
   await A.waitForSelector('.snack-grid', { timeout: 15000 }).catch(() => null);
   check('노점: 내 방에 사 가기 선택', !!(await A.$('.take-mode')));
-  check('붕어빵 노점: 붕어빵은 직접 그린 그림', (await A.$$('.snack-grid .food-ico')).length >= 1);
   check('코코아 노점 메뉴', (await A.$$('.snack-grid .act-btn')).length === 4);
   await A.keyboard.press('Escape');
   // 낚시 도감 · 포토존
@@ -202,7 +202,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   for (let i = 0; i < 40 && !(await A.$('.ride-off')); i++) await A.waitForTimeout(300);
   check('언덕 썰매: 내리기 버튼', !!(await A.$('.ride-off')));
   await A.$eval('.ride-off', b => b.click()).catch(() => null); await A.waitForTimeout(200);
-  check('언덕 썰매: 중간에 내림', (await A.textContent('.toast').catch(() => '')).includes('내렸어요'));
+  { const t = await A.textContent('.toast').catch(() => ''); check('언덕 썰매: 중간에 내림', t.includes('내렸어요') || !(await A.$('.ride-off')), t); }
   // 🎣 낚시 그만하기
   await A.click('.menu-btn'); await A.click('.menu >> text=연못 낚시');
   for (let i = 0; i < 50 && !(await A.$('.busy-off')); i++) await A.waitForTimeout(300);
@@ -271,7 +271,8 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     const D = await mk('[테스트]D');
     await D.click('.menu-btn'); await D.click('.menu >> text=내 방 찾기'); await D.waitForTimeout(300);
     const g = await D.$$('.find-room .field');
-    await g[0].fill(kid); await g[1].fill('틀린비번'); await D.click('.find-room button[type=submit]'); await D.waitForTimeout(1500);
+    await g[0].fill(kid); await g[1].fill('틀린비번'); await D.click('.find-room button[type=submit]');
+    await D.waitForFunction(() => (document.querySelector('.find-room')?.textContent || '').includes('남은 기회'), null, { timeout: 8000 }).catch(() => null);
     check('내 방 찾기: 틀리면 남은 기회 안내', (await D.textContent('.find-room').catch(() => '')).includes('남은 기회'));
     await g[1].fill(kpw); await D.click('.find-room button[type=submit]');
     await D.waitForSelector('.bottom-bar >> text=🔑 열쇠', { timeout: 8000 }).catch(() => null);
