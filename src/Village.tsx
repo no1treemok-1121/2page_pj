@@ -7,6 +7,8 @@ import { currentEvent } from "./events";
 const WHITE = new THREE.Color("#ffffff");
 import { BENCHES } from "./benches";
 import { HILL, RINK, SLED_PARK } from "./sled";
+import { SnackStand } from "./Snack";
+import PondArea from "./Pond";
 import { Html } from "@react-three/drei";
 
 // 매번 같은 마을 배치가 나오도록 고정된 난수
@@ -320,7 +322,7 @@ export function TreeLights({ count = 46 }) {
   );
 }
 
-export default function Village({ onGround, onBench, onSled, onIce }: { onGround?: (x: number, z: number) => void; onBench?: (i: number) => void; onSled?: () => void; onIce?: () => void }) {
+export default function Village({ onGround, onBench, onSled, onIce, onSnack, onFish, onWarm }: { onGround?: (x: number, z: number) => void; onBench?: (i: number) => void; onSled?: () => void; onIce?: () => void; onSnack?: () => void; onFish?: () => void; onWarm?: (i: number) => void }) {
   const layout = useMemo(() => {
     const rand = seeded(7);
     // 트리를 둘러싼 집들 (카메라 정면 쪽은 비워 두어 트리가 잘 보이게)
@@ -337,7 +339,7 @@ export default function Village({ onGround, onBench, onSled, onIce }: { onGround
       };
     });
     // 가로등은 옆·뒤쪽에만 (카메라 앞에서 트리를 가리지 않게)
-    const lamps = [-110, -35, 35, 110].map((deg) => {
+    const lamps = [-110, -20, 20, 110].map((deg) => { // 빙판과 겹치지 않게
       const a = THREE.MathUtils.degToRad(deg - 90);
       return [Math.cos(a) * 7.5, 0, Math.sin(a) * 7.5] as [number, number, number];
     });
@@ -388,9 +390,11 @@ export default function Village({ onGround, onBench, onSled, onIce }: { onGround
           <House {...h} />
         </FadeWhenBlocking>
       ))}
-      {BENCHES.map((b, i) => <Bench key={i} {...b} onClick={onBench && (() => onBench(i))} />)}
+      {BENCHES.map((b, i) => b.kind === "bench" && <Bench key={i} {...b} onClick={onBench && (() => onBench(i))} />)}
+      <PondArea onFish={onFish} onSeat={onBench} onWarm={onWarm} />
       <SledHill onSled={onSled} />
       <IceRink onIce={onIce} />
+      <SnackStand onOpen={onSnack} />
       {layout.lamps.map((p, i) => (
         <Lamp key={i} position={p} />
       ))}

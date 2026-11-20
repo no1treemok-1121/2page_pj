@@ -262,15 +262,18 @@ type SceneProps = {
   onBench?: (i: number) => void;
   onSled?: () => void;
   onIce?: () => void;
+  onSnack?: () => void;
+  onFish?: () => void;
+  onWarm?: (i: number) => void;
   mineIds?: Set<string>;
 };
 
-export default function Scene({ wishes, onTreeClick, onWishClick, onGround, onBench, onSled, onIce, mineIds }: SceneProps) {
+export default function Scene({ wishes, onTreeClick, onWishClick, onGround, onBench, onSled, onIce, onSnack, onFish, onWarm, mineIds }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.35} color="#9fb4ff" />
       <directionalLight position={[5, 10, 5]} intensity={0.6} />
-      <Village onGround={onGround} onBench={onBench} onSled={onSled} onIce={onIce} />
+      <Village onGround={onGround} onBench={onBench} onSled={onSled} onIce={onIce} onSnack={onSnack} onFish={onFish} onWarm={onWarm} />
       <Tree onClick={onTreeClick} />
       <TreeLights />
       {wishes.map((w) => (

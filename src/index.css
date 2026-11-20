@@ -387,3 +387,11 @@ html, body, #root {
 .backdrop > .card { max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
 .spot-tag.ice { background: #3b8ed6; }
+
+/* NPC 이름표: 초록색 + 🤖 로 사람과 구분 */
+.npc-tag { background: rgba(31, 122, 76, 0.85); }
+
+.spot-tag.snack { background: #e07a1f; }
+.snack-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 6px 0 4px; }
+
+.spot-tag.pond { background: #2d6fa8; }
