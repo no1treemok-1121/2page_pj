@@ -24,7 +24,8 @@
 - 관리 방법: 환경에 저장된 Supabase 개인 접근 토큰(api.supabase.com, 프록시가 자동 주입)으로 Management API 사용. SQL 실행은 `POST https://api.supabase.com/v1/projects/{ref}/database/query` 에 `{"query": "..."}`. 토큰 권한은 좁음(프로젝트 목록 조회 불가, ref 직접 지정), 2026-11-20 발급·7일 만료 — 만료되면 새 토큰 발급을 안내.
 
 ## 배포
-- Netlify: **https://2page-pj.netlify.app** — `main` 브랜치에 반영되면 자동 배포. 입장 코드는 Netlify 환경 변수 `ENTRY_CODE`.
+- Netlify: **https://2page-pj.netlify.app** — `main` 브랜치에 반영되면 자동 배포. 입장 코드는 Netlify 환경 변수 `ENTRY_CODE` — 값을 바꾼 뒤에는 재배포해야 반영됨(Netlify의 Manage → Deploys → Trigger deploy, 또는 main에 새 커밋이 합쳐질 때 자동). 사용자는 Netlify 새 화면(Apps 목록, ⋯ 메뉴: Open app / Versions / Share / Manage)을 씀.
+- 오른쪽 아래에 Netlify가 "Powered by Netlify" 배지를 붙이므로 화면 하단 버튼은 76px 위로 띄워 둠(`.bottom-bar`).
 
 ## 남은 일
 - [x] Netlify 배포 (2page-pj.netlify.app)
