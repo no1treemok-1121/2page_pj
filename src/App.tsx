@@ -7,6 +7,9 @@ import { Wish, addWish, fetchWishes, isShared, newWishDraft } from "./wishes";
 import RoomView, { Modal, ShareDialog } from "./RoomView";
 import { MyRoom, copyText, createRoom, loadMyRoom, saveMyRoom } from "./rooms";
 import ChatPanel, { useVillageChat } from "./Chat";
+import { AvatarBadge, AvatarEditor } from "./Avatar";
+import { Avatar, loadMyAvatar, saveMyAvatar, toStr } from "./avatar";
+import { setRoomAvatar } from "./rooms";
 
 const REFRESH_MS = 15000;
 
@@ -16,7 +19,8 @@ const CAMERA = isPortrait
   ? { position: [0, 3.5, 14] as [number, number, number], fov: 62 }
   : { position: [0, 3, 10] as [number, number, number], fov: 50 };
 
-function VillageView({ onMyRoom, myRoom, notice, setNotice, initialAction }: {
+function VillageView({ onMyRoom, myRoom, notice, setNotice, initialAction, myAvatar }: {
+  myAvatar: Avatar | null;
   initialAction: IntroAction;
   onMyRoom: () => void;
   myRoom: MyRoom | null;
@@ -59,7 +63,7 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice, initialAction }: {
 
   const hangWish = async (text: string, name: string) => {
     setWriting(false);
-    const draft = newWishDraft(text, name);
+    const draft = newWishDraft(text, name, myAvatar ? toStr(myAvatar) : null);
     const tempId = `pending-${Date.now()}`;
     // 바로 트리에 보이게 먼저 걸고, 저장되면 실제 값으로 교체
     setWishes((prev) => [...prev, { ...draft, id: tempId, createdAt: Date.now() }]);
@@ -106,7 +110,7 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice, initialAction }: {
         </button>
       </div>
 
-      {chatOpen && <ChatPanel chat={chat} defaultNick={myRoom?.nickname ?? ""} onClose={() => setChatOpen(false)} />}
+      {chatOpen && <ChatPanel chat={chat} avatar={myAvatar ? toStr(myAvatar) : null} defaultNick={myRoom?.nickname ?? ""} onClose={() => setChatOpen(false)} />}
 
       {boxOpen && (
         <Modal onClose={() => setBoxOpen(false)}>
@@ -116,7 +120,7 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice, initialAction }: {
             <ul className="wish-list">
               {[...wishes].reverse().map((w) => (
                 <li key={w.id}>
-                  <span className="dot small" style={{ background: w.color }} />
+                  <AvatarBadge value={w.avatar} size={30} />
                   <div>
                     <p>{w.text}</p>
                     <small>{w.name || "익명"} · {new Date(w.createdAt).toLocaleDateString("ko-KR")}</small>
@@ -222,6 +226,15 @@ export default function App() {
     return loadMyRoom();
   });
   const [creating, setCreating] = useState(false);
+  const [myAvatar, setMyAvatar] = useState<Avatar | null>(() => loadMyAvatar());
+  const [editingAvatar, setEditingAvatar] = useState(false);
+  const saveAvatar = async (a: Avatar) => {
+    saveMyAvatar(a);
+    setMyAvatar(a);
+    setEditingAvatar(false);
+    notify("캐릭터를 저장했어요");
+    if (myRoom) setRoomAvatar(myRoom, toStr(a)).catch(() => notify("내 방 캐릭터를 바꾸지 못했어요"));
+  };
   // 소개 화면: 이번 방문(탭)에서 처음 마을에 올 때만 보여 줌
   const [intro, setIntro] = useState<boolean>(() => { try { return !sessionStorage.getItem(INTRO_KEY); } catch { return true; } });
   const [introAction, setIntroAction] = useState<IntroAction>(null);
@@ -247,6 +260,7 @@ export default function App() {
 
   const go = (id: string | null) => {
     history.pushState(null, "", id ? `/?room=${id}` : "/");
+    if (!id) leaveIntro(null); // 방에서 '마을'을 누르면 소개 화면 없이 바로 마을로
     setRoomId(id);
   };
   const goMyRoom = () => { leaveIntro(null); if (myRoom) go(myRoom.roomId); else setCreating(true); };
@@ -256,7 +270,7 @@ export default function App() {
     <>
       {roomId ? (
         <RoomView key={roomId} roomId={roomId} myRoom={myRoom} onGoVillage={() => go(null)} onGoMyRoom={goMyRoom}
-          notify={notify} onNickname={(nickname) => {
+          notify={notify} myAvatar={myAvatar} onNickname={(nickname) => {
             if (myRoom?.roomId === roomId && myRoom.nickname !== nickname) {
               const updated = { ...myRoom, nickname };
               saveMyRoom(updated);
@@ -266,13 +280,22 @@ export default function App() {
       ) : intro ? (
         <Intro myRoom={myRoom} onEnter={leaveIntro} onMyRoom={goMyRoom} />
       ) : (
-        <VillageView onMyRoom={goMyRoom} myRoom={myRoom} notice={notice} setNotice={setNotice} initialAction={introAction} />
+        <VillageView onMyRoom={goMyRoom} myRoom={myRoom} notice={notice} setNotice={setNotice} initialAction={introAction} myAvatar={myAvatar} />
       )}
+
+      {!intro || roomId ? (
+        <button className="me-btn" onClick={() => setEditingAvatar(true)} aria-label="내 캐릭터">
+          <AvatarBadge value={myAvatar} size={40} />
+          {!myAvatar && <span>캐릭터 만들기</span>}
+        </button>
+      ) : null}
+      {editingAvatar && <AvatarEditor initial={myAvatar} onSave={saveAvatar} onClose={() => setEditingAvatar(false)} />}
 
       {notice && <div className="toast" role="status">{notice}</div>}
 
       {creating && (
         <CreateRoom onClose={() => setCreating(false)} onCreated={(room) => {
+          if (myAvatar) setRoomAvatar(room, toStr(myAvatar)).catch(() => undefined);
           setMyRoom(room);
           setCreating(false);
           setJustCreated(true);

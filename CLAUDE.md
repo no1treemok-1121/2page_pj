@@ -22,6 +22,7 @@
 - DB에는 `wishes` 테이블만 있음 (2Page용 테이블·함수·트리거는 2026-11-20 삭제). `rls_auto_enable` 함수는 Supabase가 만든 것(새 테이블 RLS 자동 켜기)이니 지우지 말 것.
 - 방·편지: `supabase/rooms.sql`. 로그인 없는 '방 링크' 방식 — 방 만들 때 주인 열쇠(owner_key)를 발급하고 DB엔 SHA-256 해시만 저장. `rooms`·`letters` 테이블은 RLS 정책 없음(직접 접근 불가), `create_room`·`get_room`·`send_letter`(방당 1분 10통 제한)·`get_letters`·`delete_letter` 함수(security definer)로만 접근. 주인 링크 = `?room=<id>#key=<열쇠>` (# 뒤는 서버로 안 감, 열면 이 기기에 저장 후 주소에서 지움).
 - 마을 광장 채팅: `supabase/chat.sql` (`chat_messages`, Realtime publication 등록). 최근 10분만 읽기 가능(RLS), 새 메시지 insert 때 트리거가 10분 지난 것 삭제, 화면에서도 15초마다 정리 (사용자 요청으로 24시간→10분, `KEEP_MINUTES`). 도배 방지·금칙어는 사용자 결정으로 넣지 않음(300자 제한만). 프론트 `src/Chat.tsx`(supabase-js Realtime: postgres_changes + presence로 접속자 수), `src/supabase.ts`.
+- 캐릭터: `supabase/avatar.sql` — wishes·chat_messages·rooms에 `avatar` 문자열("동물:#색:장식", 정규식 검사). `get_room`이 avatar 반환, `set_room_avatar`(주인 열쇠)로 변경. 프론트: `src/avatar.ts`(목록·저장, localStorage `3d_pj.avatar`), `src/Avatar.tsx`(2D 배지·편집기, 왼쪽 위 버튼), `src/Character3D.tsx`(방의 3D 캐릭터).
 - 관리 방법: 환경에 저장된 Supabase 개인 접근 토큰(api.supabase.com, 프록시가 자동 주입)으로 Management API 사용. SQL 실행은 `POST https://api.supabase.com/v1/projects/{ref}/database/query` 에 `{"query": "..."}`. 토큰 권한은 좁음(프로젝트 목록 조회 불가, ref 직접 지정), 2026-11-20 발급·7일 만료 — 만료되면 새 토큰 발급을 안내.
 
 ## 배포
@@ -36,4 +37,6 @@
 - [x] 마을 광장 실시간 채팅
 - [x] 소개 화면(탭마다 첫 방문 시, sessionStorage `3d_pj.introSeen`), 소원 이름(선택, `wishes.name`), 소원함(목록), 익명 편지(`send_letter`가 빈 이름을 '익명의 누군가'로)
 - [ ] 참고 사이트 대비 누락: 소원 공개여부·삭제, 랜덤 편지+답장+신고, 친구 맺기(로그인 필요), 편지지 꾸미기, 개인정보 처리방침
+- [x] 캐릭터 A(2D 프로필)·B(방 3D 캐릭터)
+- [ ] (보류) 캐릭터 C: 마을을 걸어 다니는 실시간 캐릭터 — 토큰 많이 듦
 - [ ] 관리자 기능
