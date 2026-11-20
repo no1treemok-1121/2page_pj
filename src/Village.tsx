@@ -6,7 +6,7 @@ import { currentEvent } from "./events";
 
 const WHITE = new THREE.Color("#ffffff");
 import { BENCHES } from "./benches";
-import { HILL, RINK, SLED_PARK } from "./sled";
+import { HILLS, RINK } from "./sled";
 import { STALLS, SnackStand } from "./Snack";
 import PondArea from "./Pond";
 import Bell from "./Bell";
@@ -194,12 +194,12 @@ function FadeWhenBlocking({ center, radius, children }: { center: [number, numbe
 }
 
 // 썰매 (마을에 세워 둔 것 / 타고 내려올 때 공용)
-export function SledMesh() {
+export function SledMesh({ color = "#c0392b" }: { color?: string }) {
   return (
     <group>
       <mesh position={[0, 0.16, 0]}>
         <boxGeometry args={[0.55, 0.06, 1.0]} />
-        <meshStandardMaterial color="#c0392b" />
+        <meshStandardMaterial color={color} />
       </mesh>
       {[-0.24, 0.24].map((x) => (
         <group key={x}>
@@ -223,29 +223,74 @@ export function SledMesh() {
   );
 }
 
-function SledHill({ onSled }: { onSled?: () => void }) {
-  const click = (e: { delta: number; stopPropagation: () => void }) => { if (onSled && e.delta < 6) { e.stopPropagation(); onSled(); } };
+// 자연스러운 눈 언덕: 둥근 반구를 울퉁불퉁하게 다듬고, 바위·작은 소나무·눈 더미를 얹음
+function hillGeometry(seed: number) {
+  const g = new THREE.SphereGeometry(1, 48, 20, 0, Math.PI * 2, 0, Math.PI / 2);
+  const p = g.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const a = Math.atan2(z, x);
+    const wob = 1 + 0.09 * Math.sin(a * 3 + seed) + 0.05 * Math.sin(a * 7 + seed * 2) + 0.04 * Math.sin(a * 11 + seed * 3);
+    const yy = Math.pow(Math.max(0, y), 1.25) * (1 + 0.06 * Math.sin(a * 5 + seed)); // 꼭대기는 완만하게, 옆은 비스듬히
+    p.setXYZ(i, x * wob * (1 + 0.25 * (1 - y)), yy, z * wob * (1 + 0.25 * (1 - y)));
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+function SledHill({ index, onSled }: { index: number; onSled?: (i: number) => void }) {
+  const hill = HILLS[index];
+  const geo = useMemo(() => hillGeometry(index * 2.3 + 1), [index]);
+  const click = (e: { delta: number; stopPropagation: () => void }) => { if (onSled && e.delta < 6) { e.stopPropagation(); onSled(index); } };
   const hover = {
     onPointerOver: (e: { stopPropagation: () => void }) => { e.stopPropagation(); document.body.style.cursor = "pointer"; },
     onPointerOut: () => { document.body.style.cursor = "auto"; },
   };
+  const toEnd = Math.atan2(hill.end.x - hill.x, hill.end.z - hill.z);
   return (
     <group>
-      <FadeWhenBlocking center={[HILL.x, HILL.h / 2, HILL.z]} radius={HILL.r}>
-        <mesh position={[HILL.x, -0.2, HILL.z]} scale={[HILL.r, HILL.h + 0.2, HILL.r]} onClick={click} {...hover}>
-          <sphereGeometry args={[1, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
-          <meshStandardMaterial color="#f2f6fc" roughness={1} />
-        </mesh>
+      <FadeWhenBlocking center={[hill.x, hill.h / 2, hill.z]} radius={hill.r}>
+        <group position={[hill.x, -0.15, hill.z]}>
+          <mesh geometry={geo} scale={[hill.r, hill.h + 0.15, hill.r]} onClick={click} {...hover}>
+            <meshStandardMaterial color="#f2f6fc" roughness={1} />
+          </mesh>
+          {/* 썰매 길 (반짝이는 얼음 자국) */}
+          <mesh rotation={[-Math.PI / 2 + 0.55, 0, -toEnd]} position={[Math.sin(toEnd) * hill.r * 0.55, hill.h * 0.55, Math.cos(toEnd) * hill.r * 0.55]}>
+            <planeGeometry args={[0.7, hill.r * 1.1]} /><meshStandardMaterial color="#dff0ff" emissive="#bfe0ff" emissiveIntensity={0.25} transparent opacity={0.7} />
+          </mesh>
+          {/* 바위·작은 소나무·눈 더미 (썰매 길 반대쪽) */}
+          {[[1.6, 0.25, 0.5], [2.2, 0.15, -0.6], [0.9, 0.6, 1.4]].map(([a, h, sc], k) => {
+            const ang = toEnd + Math.PI + (k - 1) * 0.9;
+            const rr = hill.r * (0.55 + k * 0.12);
+            return <mesh key={k} position={[Math.sin(ang) * rr, h, Math.cos(ang) * rr]} rotation={[a, k, 0]} scale={0.25 + Math.abs(sc) * 0.12}><dodecahedronGeometry args={[1, 0]} /><meshStandardMaterial color="#7d828c" roughness={1} flatShading /></mesh>;
+          })}
+          {[0, 1, 2].map((k) => {
+            const ang = toEnd + Math.PI * 0.55 + k * 0.8;
+            const rr = hill.r * (0.75 + (k % 2) * 0.15);
+            const y = hill.h * 0.35 - k * 0.25;
+            return (
+              <group key={`t${k}`} position={[Math.sin(ang) * rr, Math.max(0.05, y), Math.cos(ang) * rr]} scale={0.55 + k * 0.1}>
+                <mesh position={[0, 0.6, 0]}><coneGeometry args={[0.45, 1.1, 8]} /><meshStandardMaterial color="#2f6b4a" /></mesh>
+                <mesh position={[0, 1.05, 0]}><coneGeometry args={[0.32, 0.6, 8]} /><meshStandardMaterial color="#f4f7fb" /></mesh>
+                <mesh position={[0, 0.1, 0]}><cylinderGeometry args={[0.08, 0.1, 0.25, 6]} /><meshStandardMaterial color="#6b4423" /></mesh>
+              </group>
+            );
+          })}
+          {[0, 1, 2, 3].map((k) => {
+            const ang = k * 1.6 + index;
+            return <mesh key={`m${k}`} position={[Math.sin(ang) * hill.r * 1.15, 0.05, Math.cos(ang) * hill.r * 1.15]} scale={[0.6, 0.25, 0.5]}><sphereGeometry args={[1, 12, 8]} /><meshStandardMaterial color="#f4f7fb" roughness={1} /></mesh>;
+          })}
+        </group>
       </FadeWhenBlocking>
-      <group position={[SLED_PARK.x, 0, SLED_PARK.z]} rotation={[0, -0.6, 0]} onClick={click} {...hover}>
-        <SledMesh />
+      <group position={[hill.park.x, 0, hill.park.z]} rotation={[0, hill.parkRy, 0]} onClick={click} {...hover}>
+        <SledMesh color={hill.color} />
         {/* 누르기 쉽게 썰매 주변을 넓게 감싼 투명 영역 */}
         <mesh position={[0, 0.5, 0]}>
           <boxGeometry args={[1.6, 1.2, 1.8]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
         <Html pointerEvents="none" position={[0, 0.75, 0]} center distanceFactor={9} zIndexRange={[4, 0]}>
-          <div className="spot-tag">🛷 썰매 타기</div>
+          <div className="spot-tag">🛷 썰매 타기{index ? " 2" : ""}</div>
         </Html>
       </group>
     </group>
@@ -360,7 +405,7 @@ export function TreeLights({ count = 46 }) {
   );
 }
 
-export default function Village({ onGround, onBench, onSled, onIce, onSnack, onFish, onWarm, onBell, bellAt }: { onBell?: () => void; bellAt?: number; onGround?: (x: number, z: number) => void; onBench?: (i: number) => void; onSled?: () => void; onIce?: () => void; onSnack?: (stall: string) => void; onFish?: () => void; onWarm?: (i: number) => void }) {
+export default function Village({ onGround, onBench, onSled, onIce, onSnack, onFish, onWarm, onBell, bellAt }: { onBell?: () => void; bellAt?: number; onGround?: (x: number, z: number) => void; onBench?: (i: number) => void; onSled?: (i: number) => void; onIce?: () => void; onSnack?: (stall: string) => void; onFish?: () => void; onWarm?: (i: number) => void }) {
   const layout = useMemo(() => {
     const rand = seeded(7);
     // 트리를 둘러싼 집들 (카메라 정면 쪽은 비워 두어 트리가 잘 보이게)
@@ -430,7 +475,7 @@ export default function Village({ onGround, onBench, onSled, onIce, onSnack, onF
       ))}
       {BENCHES.map((b, i) => b.kind === "bench" && <Bench key={i} {...b} onClick={onBench && (() => onBench(i))} />)}
       <PondArea onFish={onFish} onSeat={onBench} onWarm={onWarm} />
-      <SledHill onSled={onSled} />
+      {HILLS.map((_, i) => <SledHill key={i} index={i} onSled={onSled} />)}
       <Bell ringAt={bellAt ?? 0} onRing={onBell} />
       <IceRink onIce={onIce} />
       {STALLS.map((st) => <SnackStand key={st.id} stall={st} onOpen={onSnack && (() => onSnack(st.id))} />)}

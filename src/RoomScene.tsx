@@ -181,6 +181,34 @@ function SnowmanDoll() {
   );
 }
 
+// 늘 있는 기본 장식: 천장 펜던트 등, 알록달록 가랜드 깃발, 반짝이는 별 스티커
+function BaseDecor() {
+  const stars = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    stars.current?.children.forEach((c, i) => { ((c as THREE.Mesh).material as THREE.MeshStandardMaterial).emissiveIntensity = 0.6 + Math.sin(clock.elapsedTime * 2 + i) * 0.5; });
+  });
+  const flagColors = ["#ff7eb6", "#ffd84d", "#7fd0ff", "#7dff9a", "#b07aff", "#ff9f43"];
+  return (
+    <>
+      {/* 천장 펜던트 등 */}
+      <mesh position={[0, 3.35, 0.2]}><cylinderGeometry args={[0.01, 0.01, 0.5, 4]} /><meshStandardMaterial color="#8a5a3c" /></mesh>
+      <mesh position={[0, 3.05, 0.2]}><sphereGeometry args={[0.22, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color="#ffd6e4" side={THREE.DoubleSide} /></mesh>
+      <mesh position={[0, 3.0, 0.2]}><sphereGeometry args={[0.1, 12, 10]} /><meshStandardMaterial color="#fff3c4" emissive="#ffe08a" emissiveIntensity={2} /></mesh>
+      {/* 가랜드 깃발 (방을 가로질러) */}
+      {[[-2.8, -2.4, 2.8, 2.8], [-2.8, 2.8, 2.8, -2.4]].map(([x1, z1, x2, z2], line) => Array.from({ length: 11 }, (_, k) => {
+        const t = (k + 0.5) / 11, x = x1 + (x2 - x1) * t, z = z1 + (z2 - z1) * t, y = 3.2 - Math.sin(t * Math.PI) * 0.45;
+        return <mesh key={`${line}${k}`} position={[x, y - 0.1, z]} rotation={[0, Math.atan2(x2 - x1, z2 - z1) + Math.PI / 2, Math.PI]}><circleGeometry args={[0.13, 3]} /><meshStandardMaterial color={flagColors[(k + line) % flagColors.length]} side={THREE.DoubleSide} /></mesh>;
+      }))}
+      {/* 반짝이 별 스티커 (뒤 벽·왼쪽 벽) */}
+      <group ref={stars}>
+        {[[-2.3, 2.9, -2.48, 0], [0.4, 3.1, -2.48, 0], [2.4, 2.7, -2.48, 0], [-2.88, 2.8, -1.2, 1], [-2.88, 3.0, 0.6, 1], [-2.88, 2.6, 2.2, 1]].map(([x, y, z, side], i) => (
+          <mesh key={i} position={[x, y, z]} rotation={[0, side ? Math.PI / 2 : 0, i]}><circleGeometry args={[0.09, 5]} /><meshStandardMaterial color="#ffe08a" emissive="#ffcf40" emissiveIntensity={1} /></mesh>
+        ))}
+      </group>
+    </>
+  );
+}
+
 // 카메라가 벽 바깥쪽에 있으면 그 벽(과 벽에 붙은 것)을 숨김
 function Wall({ nx, nz, at, children }: { nx: number; nz: number; at: [number, number]; children: React.ReactNode }) {
   const g = useRef<THREE.Group>(null);
@@ -233,8 +261,11 @@ export default function RoomScene({ letterCount, onMailbox, avatar, alert, decor
   const side = new THREE.Color(decor.wall).multiplyScalar(0.93).getStyle();
   return (
     <>
-      <ambientLight intensity={0.45} color="#ffe6c7" />
-      <directionalLight position={[3, 5, 4]} intensity={0.4} />
+      <ambientLight intensity={0.85} color="#fff1e0" />
+      <hemisphereLight args={["#fff6e8", "#f2c9d4", 0.45]} />
+      <directionalLight position={[3, 5, 4]} intensity={0.7} />
+      <pointLight position={[0, 3.1, 0.2]} color="#ffe2b8" intensity={6} distance={9} />
+      <BaseDecor />
       {/* 바닥 */}
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[6, 6]} />
@@ -247,11 +278,15 @@ export default function RoomScene({ letterCount, onMailbox, avatar, alert, decor
       {/* 벽 4개: 카메라와 사이에 있는 벽은 숨겨서 360도 어디서든 방 안이 보임 (인형집처럼) */}
       <Wall nx={0} nz={-1} at={[0, -2.6]}>
         <mesh position={[0, 1.75, -2.6]}><boxGeometry args={[6, 3.5, 0.2]} /><meshStandardMaterial color={decor.wall} /></mesh>
+        <mesh position={[0, 0.5, -2.48]}><boxGeometry args={[6, 1.0, 0.04]} /><meshStandardMaterial color="#ffffff" /></mesh>
+        <mesh position={[0, 1.02, -2.46]}><boxGeometry args={[6, 0.06, 0.06]} /><meshStandardMaterial color="#e8b4c4" /></mesh>
         <Window x={1.2} z={-2.48} ry={0} />
         <Frame x={-0.3} y={2.4} z={-2.48} ry={0} color="#f2c14e" kind="heart" />
           </Wall>
       <Wall nx={-1} nz={0} at={[-3, 0]}>
         <mesh position={[-3, 1.75, 0]}><boxGeometry args={[0.2, 3.5, 6]} /><meshStandardMaterial color={side} /></mesh>
+        <mesh position={[-2.88, 0.5, 0]}><boxGeometry args={[0.04, 1.0, 6]} /><meshStandardMaterial color="#ffffff" /></mesh>
+        <mesh position={[-2.86, 1.02, 0]}><boxGeometry args={[0.06, 0.06, 6]} /><meshStandardMaterial color="#e8b4c4" /></mesh>
         <Frame x={-2.88} y={2.2} z={1.4} ry={Math.PI / 2} color="#8a5cc2" kind="star" />
       </Wall>
       <Wall nx={1} nz={0} at={[3, 0]}>

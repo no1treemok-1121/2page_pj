@@ -12,7 +12,7 @@ import { IconText } from "./FoodIcon";
 // - 캔디: 고등어 태비(갈색 줄무늬)에 주황이 살짝, 흰 코·가슴·발
 // 하는 일은 시계로 정해서(12초마다 바뀜) 모든 사람에게 거의 같게 보임. '사람에게 다가오기'만 내 화면에서 나에게 옴.
 
-export const CAT_HOUSE = { x: 4.4, z: 5.2 };
+export const CAT_HOUSE = { x: 2.5, z: 6.4 }; // 노점 골목이 오른쪽으로 모여서 조금 옮김
 export const CAT_NAMES = ["밤", "캔디"];
 // 지금 고양이 위치 (다가가서 돌보기용)
 export const catPos = [{ x: -2.8, z: 5.4 }, { x: 2.8, z: 5.8 }];
@@ -40,7 +40,8 @@ function plan(cat: number, slot: number): Plan {
   const act = pickAct(cat, slot);
   const h = hash(cat + 11, slot), h2 = hash(cat + 23, slot);
   if (act === "snack") {
-    const st = STALLS[Math.floor(h * STALLS.length)];
+    const food = STALLS.filter((x) => x.id !== "balloon");
+    const st = food[Math.floor(h * food.length)];
     const d = Math.hypot(st.spot.x, st.spot.z);
     const [x, z] = clampSpot(st.spot.x - (st.spot.x / d) * 1.5 + (cat ? 0.4 : -0.4), st.spot.z - (st.spot.z / d) * 1.5);
     return { act, x, z, y: 0, say: st.id === "bungeo" ? "냠냠 [붕어빵]" : st.id === "cocoa" ? "할짝할짝 🥛" : "냠냠 🍢" };

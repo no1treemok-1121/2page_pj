@@ -74,7 +74,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   // ☰ 메뉴 항목
   await A.click('.menu-btn'); await A.waitForTimeout(300);
   const items = await A.$$eval('.menu .intro-card strong', x => x.map(e => e.textContent));
-  for (const need of ['소원 걸기', '소원함', '랜덤 편지', '마을 광장', '오늘의 운세', '썰매 타기', '빙판 썰매', '분식집', '붕어빵 노점', '코코아 노점', '낚시 도감', '포토존', '종 울리기', '이글루', '개썰매 한 바퀴', '사슴썰매 한 바퀴', '연못 낚시', '모닥불 쬐기', '눈사람 만들기', '내 캐릭터'])
+  for (const need of ['소원 걸기', '소원함', '랜덤 편지', '마을 광장', '오늘의 운세', '썰매 타기', '빙판 썰매', '분식집', '붕어빵 노점', '코코아 노점', '낚시 도감', '포토존', '종 울리기', '이글루', '풍선 가게', '개썰매 한 바퀴', '사슴썰매 한 바퀴', '연못 낚시', '모닥불 쬐기', '눈사람 만들기', '내 캐릭터'])
     check(`☰ 메뉴: ${need}`, items.some(i => i.includes(need)));
   // 썰매 (메뉴로)
   await A.click('.menu >> text=썰매 타기'); await A.waitForTimeout(1500);
@@ -139,7 +139,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   await A.click('.menu-btn'); await A.click('.menu >> text=코코아 노점');
   await A.waitForSelector('.snack-grid', { timeout: 15000 }).catch(() => null);
   check('노점: 내 방에 사 가기 선택', !!(await A.$('.take-mode')));
-  check('코코아 노점 메뉴', (await A.$$('.snack-grid .act-btn')).length === 4);
+  check('코코아 노점 메뉴(커피 포함 7가지)', (await A.$$('.snack-grid .act-btn')).length === 7 && !!(await A.$('.snack-grid >> text=카페라떼')));
   await A.keyboard.press('Escape');
   // 낚시 도감 · 포토존
   await A.click('.menu-btn'); await A.click('.menu >> text=낚시 도감'); await A.waitForTimeout(300);
@@ -261,6 +261,13 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     check('고양이 누르면 다가가서 돌보기 메뉴(간식·쓰다듬기·놀아주기)', catOk && (await A.$$('.cat-menu .act-btn')).length === 3);
     if (catOk) { await A.click('.cat-menu .act-btn >> nth=0'); check('고양이 간식 주기: 상대 화면 말풍선', await seen(B, '간식 먹자')); }
   }
+  // 🎈 풍선 가게: 걸어가서 하트 풍선 사기 → 상대 화면 말풍선
+  await A.click('.menu-btn'); await A.click('.menu >> text=풍선 가게');
+  await A.waitForSelector('.snack-grid', { timeout: 20000 }).catch(() => null);
+  check('풍선 가게 메뉴 4가지', (await A.$$('.snack-grid .act-btn')).length === 4);
+  if (await A.$('.snack-grid')) await A.click('.snack-grid >> text=하트 풍선');
+  check('풍선: 상대 화면 말풍선', await seen(B, '풍선'));
+  { const tg = await A.$$eval('.spot-tag', x => x.map(e => e.textContent)); check('썰매 언덕 2곳', tg.filter(t => t.includes('썰매 타기')).length === 2, tg.join(',')); }
   // ❄️ 이글루: 걸어가서 들어가기, 두 명이 서로 보임, 소원 방명록(트리 소원과 같은 창), 나가기
   {
     const tagA = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
@@ -280,6 +287,8 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     check('이글루: 불멍하기', !!(await A.$('.igloo-actions >> text=불멍 그만하기')));
     check('이글루: 불멍 상대에게 보임', await seen(B, '불멍'));
     await A.click('.igloo-actions >> text=불멍 그만하기'); await A.waitForTimeout(300);
+    await A.click('.igloo-actions >> text=마시멜로');
+    check('이글루: 마시멜로 상대에게 보임', await seen(B, '마시멜로'));
     await A.click('.igloo-actions >> text=소원 쓰기'); await A.waitForTimeout(300);
     check('이글루: 소원 쓰기 창(트리와 같은 소원)', !!(await A.$('.backdrop .name-field')));
     await A.keyboard.press('Escape'); await A.waitForTimeout(200);
