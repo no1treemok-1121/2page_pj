@@ -84,6 +84,15 @@ export async function fetchWishes(): Promise<Wish[]> {
   return ((await res.json()) as Row[]).map(fromRow);
 }
 
+const MINE_KEY = "3d_pj.myWishes";
+export function loadMyWishIds(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(MINE_KEY) || "[]")); } catch { return new Set(); }
+}
+export function rememberMyWish(id: string) {
+  const s = loadMyWishIds(); s.add(id);
+  try { localStorage.setItem(MINE_KEY, JSON.stringify([...s].slice(-200))); } catch { /* 무시 */ }
+}
+
 export async function addWish(draft: Omit<Wish, "id" | "createdAt">): Promise<Wish> {
   if (!isShared) {
     const wish: Wish = {

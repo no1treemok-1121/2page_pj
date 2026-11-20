@@ -29,6 +29,21 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
         <sphereGeometry args={[0.18, 16, 16]} />
         <meshStandardMaterial color="#fffaf0" />
       </mesh>
+      {/* 토끼 꼬리: 하얗고 동글동글 */}
+      {avatar.animal === "rabbit" && (
+        <group position={[0, 0.3, -0.29]}>
+          <mesh>
+            <sphereGeometry args={[0.11, 16, 16]} />
+            <meshStandardMaterial color="#ffffff" roughness={1} />
+          </mesh>
+          {[[-0.05, 0.05, -0.03], [0.06, 0.03, -0.02], [0, -0.06, -0.03]].map((p, i) => (
+            <mesh key={i} position={p as [number, number, number]}>
+              <sphereGeometry args={[0.065, 10, 10]} />
+              <meshStandardMaterial color="#ffffff" roughness={1} />
+            </mesh>
+          ))}
+        </group>
+      )}
       {/* 머리 */}
       <group position={[0, 1.02, 0]}>
         <mesh>
@@ -36,18 +51,25 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
           <meshStandardMaterial color={isPenguin ? "#2b2f3a" : c} />
         </mesh>
         {isPenguin && (
-          <mesh position={[0, -0.03, 0.12]} scale={[1, 0.9, 0.8]}>
+          <mesh position={[0, -0.03, 0.15]} scale={[0.95, 0.9, 0.8]}>
             <sphereGeometry args={[0.24, 16, 16]} />
             <meshStandardMaterial color="#fffaf0" />
           </mesh>
         )}
+        {/* 눈 (펭귄은 하얀 얼굴 위에 오도록 앞으로) + 반짝이는 눈동자 */}
         {[-0.11, 0.11].map((x) => (
-          <mesh key={x} position={[x, 0.04, 0.29]}>
-            <sphereGeometry args={[0.04, 8, 8]} />
-            <meshStandardMaterial color="#1b1b22" />
-          </mesh>
+          <group key={x} position={[x, 0.04, isPenguin ? 0.36 : 0.29]}>
+            <mesh>
+              <sphereGeometry args={[0.045, 10, 10]} />
+              <meshStandardMaterial color="#1b1b22" />
+            </mesh>
+            <mesh position={[0.015, 0.018, 0.035]}>
+              <sphereGeometry args={[0.014, 6, 6]} />
+              <meshBasicMaterial color="#ffffff" />
+            </mesh>
+          </group>
         ))}
-        <mesh position={[0, -0.06, 0.31]}>
+        <mesh position={[0, -0.06, isPenguin ? 0.38 : 0.31]}>
           {isPenguin ? <coneGeometry args={[0.05, 0.12, 8]} /> : <sphereGeometry args={[0.035, 8, 8]} />}
           <meshStandardMaterial color={isPenguin ? "#ffb347" : "#3a2a24"} />
         </mesh>

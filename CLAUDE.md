@@ -26,6 +26,10 @@
 - 랜덤 편지·답장: `supabase/random_letters.sql` — 브라우저마다 visitor key(localStorage `3d_pj.visitor`, 서버엔 해시) 사용. 편지는 마을에 들어온 다른 사람 최대 10명에게 전달(`receive_random_letters`가 입장 때 최대 3통씩 배달), 받은 사람은 한 번 답장(`reply_random_letter`), 쓴 사람은 `my_random_letters`로 답장 확인. 테이블 직접 접근 불가. 프론트 `src/randomLetters.ts`, `src/RandomLetters.tsx`(마을 하단 ✉️ 편지 버튼, ☰ 메뉴).
 - 걸어 다니는 캐릭터(C): `src/Walk.tsx` — Realtime 채널 `village-walk`. presence에는 캐릭터·이름·처음 위치만 track(자주 바꾸면 Supabase가 끊어 버림, 실제로 확인함), 걷는 위치는 broadcast `pos` 이벤트로 0.2초에 한 번. 새 사람이 join하면 각자 위치를 한 번 보냄. 이동: 땅 클릭(`Village` onGround) 또는 방향키/WASD, 반경 2.5~7.2로 제한. 이름표는 drei `Html`. 감정 표현 8가지(`EMOTES`, 왼쪽 아래 😊 버튼): broadcast `emote` 이벤트, 머리 위 말풍선 3초 + 깡충 뛰기 (참고 사이트의 '감정 표현' 벤치마킹).
 - 소원→방: `wishes.room_id`(방 있는 사람이 소원 걸 때 연결). 소원함·소원 카드에 '🏠 방 놀러 가기'. 방문자가 편지함을 누르면 '편지 쓰기 / 내가 보낸 편지' 메뉴 — 보낸 편지 기록은 이 기기 localStorage `3d_pj.sentLetters`. 주인 방은 안 읽은 편지(`3d_pj.seenLetters.<roomId>`보다 많으면) 편지함 위 깜박이는 화살표(`RoomScene` Arrow).
+- 오늘의 운세: `src/Fortune.tsx` — 서버 없음. 카드 12장(문구는 직접 작성, 참고 사이트 복사 아님), 하루 한 장(localStorage `3d_pj.fortune`, 기기 날짜 기준), 날마다 배치 섞임. 마을 왼쪽 아래 🔮, ☰ 메뉴.
+- 트리 누르면 '소원 쓰기 / 소원함 보기' 선택. 내가 건 소원은 이 기기에서만 크게 반짝이고 '✨ 내 소원' 표시(localStorage `3d_pj.myWishes`).
+- 닉네임: 왼쪽 위 캐릭터 편집기에서도 변경(채팅과 같은 localStorage `3d_pj.chatNick`, 걸어 다니는 캐릭터 이름표에도 사용).
+- 실제 방문자가 쓰고 있음 — 테스트 데이터는 '[테스트]'로 시작하게 넣고 반드시 지울 것.
 - 관리 방법: 환경에 저장된 Supabase 개인 접근 토큰(api.supabase.com, 프록시가 자동 주입)으로 Management API 사용. SQL 실행은 `POST https://api.supabase.com/v1/projects/{ref}/database/query` 에 `{"query": "..."}`. 토큰 권한은 좁음(프로젝트 목록 조회 불가, ref 직접 지정), 2026-11-20 발급·7일 만료 — 만료되면 새 토큰 발급을 안내.
 
 ## 배포

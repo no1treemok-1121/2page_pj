@@ -309,3 +309,20 @@ html, body, #root {
 .emote-picker button { width: 44px; height: 44px; border: none; border-radius: 12px; background: #f1ebde; font-size: 24px; cursor: pointer; }
 .emote-bubble { font-size: 34px; line-height: 1; padding: 6px 8px; border-radius: 16px; background: #fff; box-shadow: 0 4px 14px rgba(0,0,0,0.3); animation: emote-pop 0.35s cubic-bezier(.2,1.6,.4,1); pointer-events: none; }
 @keyframes emote-pop { from { transform: scale(0.2) translateY(20px); opacity: 0; } }
+
+/* 오늘의 운세 */
+.fortune-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0; perspective: 600px; }
+.fortune-card { aspect-ratio: 2 / 3; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.fortune-card.back { border: 2px solid #ffd36b; background: repeating-linear-gradient(45deg, #1f3570 0 6px, #0b1733 6px 12px); color: #ffd36b; font-size: 20px; cursor: pointer; transition: transform 0.15s; }
+.fortune-card.back:hover { transform: translateY(-4px); }
+.fortune-card.flip { animation: card-flip 0.65s ease forwards; }
+@keyframes card-flip { 50% { transform: rotateY(90deg) scale(1.1); } 100% { transform: rotateY(180deg) scale(1.15); opacity: 0.4; } }
+.fortune-result { animation: pop 0.3s ease; }
+.fortune-card.big { width: 110px; margin: 6px auto 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.25); font-size: 54px; }
+.fortune-name { margin: 0 0 6px; font-size: 18px; font-weight: 700; }
+.fortune-text { margin: 0 0 10px; font-size: 15.5px; line-height: 1.7; }
+.fortune-lucky { margin: 0; padding: 8px; border-radius: 10px; background: #f1ebde; font-size: 14px; }
+
+/* 트리에 걸린 내 소원 표시 */
+.my-wish-tag { padding: 2px 8px; border-radius: 999px; background: #ffd36b; color: #3a2a00; font-size: 12px; font-weight: 700; white-space: nowrap; pointer-events: none; box-shadow: 0 0 12px rgba(255, 211, 107, 0.9); animation: tag-blink 1s ease-in-out infinite; }
+@keyframes tag-blink { 50% { opacity: 0.55; transform: scale(0.94); } }
