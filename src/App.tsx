@@ -12,6 +12,8 @@ import RandomLetters, { useRandomInbox } from "./RandomLetters";
 import Fortune from "./Fortune";
 import { STALLS, SnackMenu } from "./Snack";
 import { CATCHES, loadDex, randomCatch } from "./Pond";
+import { BELL_SPOT, playChime } from "./Bell";
+import { RINK, SLED_PARK } from "./sled";
 import { BENCHES, POND } from "./benches";
 import { VillageEvent, currentEvent } from "./events";
 import { ACTIONS, EMOTES, MyWalker, NPCS, Npcs, OtherWalkers, Snowballs, clampSpot, useWalkers } from "./Walk";
@@ -50,7 +52,34 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const [walkTarget, setWalkTarget] = useState<[number, number] | null>(null);
   const [emoteOpen, setEmoteOpen] = useState(false);
   const [treeMenu, setTreeMenu] = useState(false);
-  const [snackOpen, setSnackOpen] = useState<string | null>(action?.type === "snack" ? "bunsik" : null);
+  const [snackOpen, setSnackOpen] = useState<string | null>(null);
+  // 장소 범위 규칙: 장소 기능은 그 장소에 가까이 있어야 함 → 멀면 먼저 걸어가고, 도착하면 실행
+  const pending = useRef<number | null>(null);
+  const goThen = (x: number, z: number, near: number, fn: () => void) => {
+    if (pending.current) clearInterval(pending.current);
+    const me = walk.me.current;
+    const d = Math.hypot(me.x - x, me.z - z);
+    if (d <= near + 0.6) { fn(); return; }
+    walk.standUp();
+    const [tx, tz] = clampSpot(x + ((me.x - x) / d) * near, z + ((me.z - z) / d) * near);
+    walk.goal.current = [tx, tz];
+    setNotice("걸어가는 중… 도착하면 시작해요 🚶");
+    const until = Date.now() + 15000;
+    pending.current = window.setInterval(() => {
+      const m = walk.me.current;
+      const arrived = Math.hypot(m.x - tx, m.z - tz) < 0.35;
+      const cancelled = walk.goal.current === null && !arrived; // 다른 곳을 누르면 취소
+      if (arrived || cancelled || Date.now() > until) {
+        clearInterval(pending.current!); pending.current = null;
+        if (arrived) fn();
+      }
+    }, 200);
+  };
+  const isNear = (x: number, z: number, near: number) => Math.hypot(walk.me.current.x - x, walk.me.current.z - z) <= near + 1;
+  const stallOf = (id: string) => STALLS.find((s) => s.id === id) ?? STALLS[0];
+  const openStall = (id: string) => { const st = stallOf(id).spot; goThen(st.x, st.z, 1.8, () => setSnackOpen(id)); };
+  const rideHill = () => goThen(SLED_PARK.x, SLED_PARK.z, 1.2, () => walk.rideSled("hill"));
+  const rideIce = () => goThen(RINK.x, RINK.z, RINK.r + 0.6, () => walk.rideSled("ice"));
   const [dexOpen, setDexOpen] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
   // 분식 먹기: 들고(머리 위 음식) 소리 말풍선 3번 — 감정·말풍선 실시간 전송을 그대로 사용
@@ -67,6 +96,17 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
       walk.say("🎣 낚싯대를 휙~ 던졌다");
       setTimeout(() => walk.say(randomCatch()), 3200);
     }, walkMs);
+  };
+  // 🔔 종 울리기: 종이 흔들리고 딩동댕 (모두에게)
+  const [bellAt, setBellAt] = useState(0);
+  walk.onBellRef.current = () => { setBellAt(Date.now()); playChime(); };
+  const ringBell = () => goThen(BELL_SPOT.x, BELL_SPOT.z + 0.2, 1.0, ringBellNow);
+  const ringBellNow = () => {
+    if (Date.now() - bellAt < 2400) return; // 흔들리는 중에는 한 번만
+    setBellAt(Date.now());
+    playChime();
+    walk.announceBell();
+    walk.say("🔔 딩동댕~ 종을 울렸어요");
   };
   // 포토존: 지금 화면을 사진으로
   const takePhoto = () => {
@@ -87,7 +127,9 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     walk.sitAt(pick.i);
   };
   const eatSnack = (s: { emoji: string; sounds: string[] }) => {
+    const st = stallOf(snackOpen ?? "bunsik").spot;
     setSnackOpen(null);
+    if (!isNear(st.x, st.z, 1.8)) { setNotice("가게 가까이 가야 주문할 수 있어요 🏪"); return; }
     walk.emote(s.emoji);
     s.sounds.forEach((t, i) => setTimeout(() => walk.say(`${s.emoji} ${t}`), 600 + i * 2200));
   };
@@ -169,13 +211,14 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     if (action.type === "box") setBoxOpen(true);
     if (action.type === "letters") setLettersOpen(true);
     if (action.type === "fortune") setFortuneOpen(true);
-    if (action.type === "sled") setTimeout(() => walk.rideSled("hill"), 300);
-    if (action.type === "ice") setTimeout(() => walk.rideSled("ice"), 300);
-    if (action.type === "snack") setSnackOpen("bunsik");
-    if (action.type === "bungeo") setSnackOpen("bungeo");
-    if (action.type === "cocoa") setSnackOpen("cocoa");
+    if (action.type === "sled") setTimeout(rideHill, 300);
+    if (action.type === "ice") setTimeout(rideIce, 300);
+    if (action.type === "snack") setTimeout(() => openStall("bunsik"), 300);
+    if (action.type === "bungeo") setTimeout(() => openStall("bungeo"), 300);
+    if (action.type === "cocoa") setTimeout(() => openStall("cocoa"), 300);
     if (action.type === "dex") setDexOpen(true);
     if (action.type === "photo") setTimeout(takePhoto, 400);
+    if (action.type === "bell") setTimeout(ringBell, 300);
     if (action.type === "fish") setTimeout(goFish, 300);
     if (action.type === "fire") setTimeout(() => warmUp(0), 300);
     if (action.type === "snowman") setTimeout(() => buildSnowmanRef.current(), 300);
@@ -231,10 +274,12 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         <fog attach="fog" args={["#0b1733", 20, 58]} />
         <Scene wishes={wishes} mineIds={myWishIds} onTreeClick={() => setTreeMenu(true)} onWishClick={setViewing}
           onGround={(x, z) => setWalkTarget([x, z])}
-          onSled={() => walk.rideSled("hill")}
-          onIce={() => walk.rideSled("ice")}
-          onSnack={(id) => setSnackOpen(id)}
+          onSled={rideHill}
+          onIce={rideIce}
+          onSnack={openStall}
           onFish={goFish}
+          onBell={ringBell}
+          bellAt={bellAt}
           onWarm={warmUp}
           onBench={(i) => { walk.sitAt(i); setNotice("벤치로 가서 앉아요 🪑 움직이면 일어나요"); }} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
@@ -457,12 +502,12 @@ function CreateRoom({ onCreated, onClose }: { onCreated: (room: MyRoom) => void;
   );
 }
 
-type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo"; n: number } | null;
+type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell"; n: number } | null;
 const SETUP_KEY = "3d_pj.setupDone";
 
 // 오른쪽 위 ☰ 메뉴: 마을 소개와 바로가기
 function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
-  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
+  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -512,6 +557,9 @@ function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
           </button>
           <button className="intro-card" onClick={() => onAction("dex")}>
             <span>📖</span><strong>낚시 도감</strong><small>연못에서 낚은 것들을 모아 봐요</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("bell")}>
+            <span>🔔</span><strong>종 울리기</strong><small>트리 앞 금빛 종을 딩동댕~ 마을 모두에게 들려요</small>
           </button>
           <button className="intro-card" onClick={() => onAction("photo")}>
             <span>📸</span><strong>포토존 (사진 찍기)</strong><small>지금 화면을 사진으로 저장해요</small>
@@ -575,7 +623,7 @@ export default function App() {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [villageAction, setVillageAction] = useState<VillageAction>(null);
-  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo") => {
+  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell") => {
     setMenuOpen(false);
     setVillageAction({ type, n: Date.now() });
     if (roomId) go(null);

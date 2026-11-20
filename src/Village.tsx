@@ -9,6 +9,7 @@ import { BENCHES } from "./benches";
 import { HILL, RINK, SLED_PARK } from "./sled";
 import { STALLS, SnackStand } from "./Snack";
 import PondArea from "./Pond";
+import Bell from "./Bell";
 import { Html } from "@react-three/drei";
 
 // 매번 같은 마을 배치가 나오도록 고정된 난수
@@ -359,7 +360,7 @@ export function TreeLights({ count = 46 }) {
   );
 }
 
-export default function Village({ onGround, onBench, onSled, onIce, onSnack, onFish, onWarm }: { onGround?: (x: number, z: number) => void; onBench?: (i: number) => void; onSled?: () => void; onIce?: () => void; onSnack?: (stall: string) => void; onFish?: () => void; onWarm?: (i: number) => void }) {
+export default function Village({ onGround, onBench, onSled, onIce, onSnack, onFish, onWarm, onBell, bellAt }: { onBell?: () => void; bellAt?: number; onGround?: (x: number, z: number) => void; onBench?: (i: number) => void; onSled?: () => void; onIce?: () => void; onSnack?: (stall: string) => void; onFish?: () => void; onWarm?: (i: number) => void }) {
   const layout = useMemo(() => {
     const rand = seeded(7);
     // 트리를 둘러싼 집들 (카메라 정면 쪽은 비워 두어 트리가 잘 보이게)
@@ -430,6 +431,7 @@ export default function Village({ onGround, onBench, onSled, onIce, onSnack, onF
       {BENCHES.map((b, i) => b.kind === "bench" && <Bench key={i} {...b} onClick={onBench && (() => onBench(i))} />)}
       <PondArea onFish={onFish} onSeat={onBench} onWarm={onWarm} />
       <SledHill onSled={onSled} />
+      <Bell ringAt={bellAt ?? 0} onRing={onBell} />
       <IceRink onIce={onIce} />
       {STALLS.map((st) => <SnackStand key={st.id} stall={st} onOpen={onSnack && (() => onSnack(st.id))} />)}
       {layout.lamps.map((p, i) => (

@@ -177,6 +177,22 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
           {[-0.11, 0.11].map((x) => <mesh key={x} position={[x, 0.04, 0.33]}><torusGeometry args={[0.07, 0.013, 6, 16]} /><meshStandardMaterial color="#2b2b30" /></mesh>)}
           <mesh position={[0, 0.04, 0.33]}><boxGeometry args={[0.08, 0.012, 0.012]} /><meshStandardMaterial color="#2b2b30" /></mesh>
         </>}
+        {avatar.acc === "wizard" && <>
+          <mesh position={[0, 0.5, 0]} rotation={[0, 0, -0.15]}><coneGeometry args={[0.24, 0.6, 16]} /><meshStandardMaterial color="#5b3fa8" /></mesh>
+          <mesh position={[0, 0.22, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.3, 0.06, 8, 24]} /><meshStandardMaterial color="#5b3fa8" /></mesh>
+          <mesh position={[0.06, 0.45, 0.16]}><octahedronGeometry args={[0.05]} /><meshStandardMaterial color="#ffd36b" emissive="#ffb300" emissiveIntensity={1} /></mesh>
+        </>}
+        {avatar.acc === "shades" && <>
+          {[-0.11, 0.11].map((x) => <mesh key={x} position={[x, 0.04, 0.32]} scale={[1, 0.75, 0.3]}><sphereGeometry args={[0.085, 12, 10]} /><meshStandardMaterial color="#14141a" metalness={0.6} roughness={0.2} /></mesh>)}
+          <mesh position={[0, 0.06, 0.33]}><boxGeometry args={[0.08, 0.015, 0.015]} /><meshStandardMaterial color="#14141a" /></mesh>
+        </>}
+        {avatar.acc === "flower" && Array.from({ length: 7 }, (_, i) => {
+          const a = (i / 7) * Math.PI * 2;
+          return <mesh key={i} position={[Math.cos(a) * 0.27, 0.22, Math.sin(a) * 0.27]}><sphereGeometry args={[0.06, 8, 8]} /><meshStandardMaterial color={["#ffd36b", "#ff9ff3", "#ffffff"][i % 3]} /></mesh>;
+        })}
+        {avatar.acc === "starpin" && (
+          <mesh position={[0.2, 0.22, 0.12]} rotation={[0, 0, 0.3]}><octahedronGeometry args={[0.09]} /><meshStandardMaterial color="#ffd36b" emissive="#ffb300" emissiveIntensity={0.9} /></mesh>
+        )}
         {avatar.acc === "rudolph" && [-1, 1].map((s) => (
           <group key={s} position={[s * 0.16, 0.3, 0]} rotation={[0, 0, -s * 0.35]}>
             <mesh position={[0, 0.12, 0]}><cylinderGeometry args={[0.022, 0.028, 0.26, 6]} /><meshStandardMaterial color="#8a5a35" /></mesh>
@@ -184,6 +200,12 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
           </group>
         ))}
       </group>
+      {avatar.acc === "cape" && (
+        <mesh position={[0, 0.5, -0.24]} rotation={[0.12, 0, 0]}>
+          <cylinderGeometry args={[0.22, 0.4, 0.62, 16, 1, true, Math.PI * 0.6, Math.PI * 0.8]} />
+          <meshStandardMaterial color="#c8102e" side={THREE.DoubleSide} />
+        </mesh>
+      )}
       {avatar.acc === "scarf" && (
         <mesh position={[0, 0.74, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.24, 0.07, 10, 24]} />
