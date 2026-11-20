@@ -9,12 +9,12 @@ export type Decor = {
 };
 export const MAX_FOOD = 6;
 export const DEFAULT_DECOR: Decor = {
-  wall: "#efe0c9", floor: "#9c6b4a", rug: "#b8405e",
-  tree: true, lights: "none", gift: false, stocking: false, candle: false, snowman: false, table: true, food: [],
+  wall: "#fbe3ea", floor: "#d9a877", rug: "#fff6fb",
+  tree: true, lights: "rainbow", gift: true, stocking: true, candle: true, snowman: false, table: true, food: [],
 };
-export const WALLS = ["#efe0c9", "#f6d6dc", "#d7e8f7", "#dcefd8", "#e9dcf5", "#fff3c4", "#3b3f63", "#7a3b3b"];
-export const FLOORS = ["#9c6b4a", "#c49a6c", "#6b4a35", "#d9d4cc", "#8a8f99", "#5b6e4f"];
-export const RUGS = ["#b8405e", "#2f7a4b", "#3d6fb6", "#f2c14e", "#ffffff", "#8a5cc2"];
+export const WALLS = ["#fbe3ea", "#efe0c9", "#f6d6dc", "#d7e8f7", "#dcefd8", "#e9dcf5", "#fff3c4", "#3b3f63", "#7a3b3b"];
+export const FLOORS = ["#d9a877", "#9c6b4a", "#c49a6c", "#6b4a35", "#d9d4cc", "#8a8f99", "#5b6e4f"];
+export const RUGS = ["#fff6fb", "#b8405e", "#2f7a4b", "#3d6fb6", "#f2c14e", "#ffffff", "#8a5cc2"];
 export const PROPS: { key: "tree" | "gift" | "stocking" | "candle" | "snowman" | "table"; emoji: string; name: string }[] = [
   { key: "tree", emoji: "🎄", name: "트리" }, { key: "table", emoji: "🍽️", name: "테이블" }, { key: "gift", emoji: "🎁", name: "선물 상자" },
   { key: "stocking", emoji: "🧦", name: "양말" }, { key: "candle", emoji: "🕯️", name: "촛불" }, { key: "snowman", emoji: "⛄", name: "눈사람 인형" },

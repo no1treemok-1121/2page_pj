@@ -10,6 +10,7 @@ import RoomView, { Modal, ShareDialog } from "./RoomView";
 import { LOGIN_RE, MyRoom, copyText, createRoom, forgetMyRoom, getRoom, getRoomLogin, loadMyRoom, loginRoom, rpc, saveMyRoom, setRoomLogin, setRoomName } from "./rooms";
 import { MAX_FOOD, normDecor, setRoomDecor } from "./decor";
 import { BUNGEO_SRC, IconText } from "./FoodIcon";
+import Cats, { CAT_CARE, CAT_NAMES, CatReact, catPos } from "./Cats";
 import { IGLOO_DOOR, IglooCamera, IglooScene, VillageIgloo, useIgloo } from "./Igloo";
 import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup, loadNickname } from "./Avatar";
@@ -18,7 +19,7 @@ import Fortune from "./Fortune";
 import { STALLS, SnackMenu } from "./Snack";
 import { CATCHES, loadDex, randomCatch } from "./Pond";
 import { BELL_SPOT, playChime } from "./Bell";
-import { RINK, SLED_PARK, TOUR_STATION } from "./sled";
+import { HILLS, RINK, TOUR_STATION } from "./sled";
 import { TourStation } from "./Tour";
 import { BENCHES, POND } from "./benches";
 import { VillageEvent, currentEvent } from "./events";
@@ -180,11 +181,56 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const isNear = (x: number, z: number, near: number) => Math.hypot(walk.me.current.x - x, walk.me.current.z - z) <= near + 1;
   const stallOf = (id: string) => STALLS.find((s) => s.id === id) ?? STALLS[0];
   const openStall = (id: string) => { const st = stallOf(id).spot; goThen(st.x, st.z, 1.8, () => setSnackOpen(id)); };
-  const rideHill = () => goThen(SLED_PARK.x, SLED_PARK.z, 1.2, () => walk.rideSled("hill"));
+  // 썰매 언덕 2개: 누른 언덕(메뉴에서는 가까운 언덕)으로 걸어가서 탐
+  const rideHill = (i?: number) => {
+    const me = walk.me.current;
+    const k = typeof i === "number" ? i : HILLS.reduce((b, h, j) => (Math.hypot(h.park.x - me.x, h.park.z - me.z) < Math.hypot(HILLS[b].park.x - me.x, HILLS[b].park.z - me.z) ? j : b), 0);
+    const h = HILLS[k];
+    goThen(h.park.x, h.park.z, 1.2, () => walk.rideSled(k ? "hill2" : "hill"));
+  };
   const rideTour = (kind: "dog" | "deer") => goThen(TOUR_STATION.x, TOUR_STATION.z, 1.6, () => {
     walk.rideSled(kind);
     setNotice("마을 한 바퀴 출발! 아무 곳이나 누르면 내려요 🛷");
   });
+  // 🐱 고양이 돌보기: 누르면 고양이한테 걸어가서 메뉴 (간식·쓰다듬기·놀아주기), 모두에게 보임
+  const [catMenu, setCatMenu] = useState<number | null>(null);
+  const [catReacts, setCatReacts] = useState<Record<number, CatReact>>({});
+  walk.onCatRef.current = (id, kind) => setCatReacts((r) => ({ ...r, [id]: { kind, t: Date.now() } }));
+  const tapCat = (id: number) => goThen(catPos[id].x, catPos[id].z, 0.9, () => setCatMenu(id));
+  const careCat = (id: number, kind: string) => {
+    setCatMenu(null);
+    const c = CAT_CARE.find((x) => x.kind === kind);
+    if (!c) return;
+    if (Math.hypot(walk.me.current.x - catPos[id].x, walk.me.current.z - catPos[id].z) > 2.2) { setNotice("고양이 가까이 가야 해요 🐾"); return; }
+    setCatReacts((r) => ({ ...r, [id]: { kind, t: Date.now() } }));
+    walk.announceCat(id, kind);
+    walk.emote(c.icon);
+    walk.say(c.say(CAT_NAMES[id]));
+  };
+  // 🔥 불멍: 방석에 앉아(빈자리로) 불을 바라봄, 가끔 혼잣말
+  const toggleGaze = () => {
+    if (igloo.mine.gaze) { igloo.setGaze(false); return; }
+    if (igloo.mine.seat === null) {
+      let free = 0; while (free < 10 && igloo.seatTaken(free)) free++;
+      if (free >= 10 || !igloo.sit(free)) { setNotice("빈 방석이 없어요"); return; }
+    }
+    setTimeout(() => igloo.setGaze(true), 50);
+    igloo.emote("🔥 불멍…");
+  };
+  useEffect(() => {
+    if (!inIgloo || !igloo.mine.gaze) return;
+    const lines = ["타닥타닥… 🔥", "따뜻하다…", "멍…", "불꽃 예쁘다 ✨", "마음이 편안해져요 ☺️"];
+    let k = 0;
+    const id = window.setInterval(() => igloo.emote(lines[k++ % lines.length]), 4500);
+    return () => clearInterval(id);
+  }, [inIgloo, igloo.mine.gaze]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 🍡 이글루 화로에 마시멜로 굽기 (안에 있는 사람들에게 보임)
+  const iglooMallow = () => {
+    if (igloo.mine.seat === null) { let f = 0; while (f < 10 && igloo.seatTaken(f)) f++; if (f < 10) igloo.sit(f); }
+    igloo.emote("🍡 마시멜로를 불에 살살~");
+    const results = ["노릇노릇 완벽해! 😋", "앗, 새까맣게 탔다! 🔥😂", "말랑말랑 반쯤 익었어 ☁️", "겉바속촉 대성공! ✨"];
+    window.setTimeout(() => igloo.emote(`🍡 ${results[Math.floor(Math.random() * results.length)]}`), 2600);
+  };
   const enterIgloo = () => goThen(IGLOO_DOOR.x, IGLOO_DOOR.z, 0.6, () => {
     setInIgloo(true);
     walk.say("❄️ 이글루에 들어갔어요");
@@ -252,6 +298,17 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
       walk.say(`🛍️ ${s.emoji} ${s.name} 포장해 갈게요!`);
       setNotice(`🏠 내 방 테이블에 ${s.emoji} ${s.name}을(를) 놓았어요`);
     } catch (e) { setNotice((e as Error).message); }
+  };
+  // 🎈 풍선 사기
+  const buyBalloon = (s: { id: string }) => {
+    const st = stallOf("balloon").spot;
+    setSnackOpen(null);
+    if (!isNear(st.x, st.z, 1.8)) { setNotice("가게 가까이 가야 살 수 있어요 🏪"); return; }
+    const shapes = ["star", "heart", "moon"] as const;
+    const shape = s.id === "b_star" ? "star" : s.id === "b_heart" ? "heart" : s.id === "b_moon" ? "moon" : shapes[Math.floor(Math.random() * 3)];
+    const b = walk.buyBalloon(shape);
+    walk.say(b.rare ? "🌈 레어 무지개 풍선이다!!" : `🎈 ${shape === "star" ? "별" : shape === "heart" ? "하트" : "달"} 풍선 샀다!`);
+    setNotice(b.rare ? "🌈 와! 무지개빛 레어 풍선이에요! (1분 뒤 하늘로 날아가요)" : "🎈 풍선이 1분 동안 머리 위에 떠 있다가 하늘로 날아가요");
   };
   const eatSnack = (s: { emoji: string; sounds: string[] }) => {
     const st = stallOf(snackOpen ?? "bunsik").spot;
@@ -340,11 +397,13 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     if (action.type === "box") setBoxOpen(true);
     if (action.type === "letters") setLettersOpen(true);
     if (action.type === "fortune") setFortuneOpen(true);
-    if (action.type === "sled") setTimeout(rideHill, 300);
+    if (action.type === "sled") setTimeout(() => rideHill(), 300);
     if (action.type === "ice") setTimeout(rideIce, 300);
     if (action.type === "snack") setTimeout(() => openStall("bunsik"), 300);
     if (action.type === "bungeo") setTimeout(() => openStall("bungeo"), 300);
     if (action.type === "cocoa") setTimeout(() => openStall("cocoa"), 300);
+    if (action.type === "balloon") setTimeout(() => openStall("balloon"), 300);
+    if (action.type === "cats") setTimeout(() => { const m = walk.me.current; tapCat(Math.hypot(catPos[0].x - m.x, catPos[0].z - m.z) <= Math.hypot(catPos[1].x - m.x, catPos[1].z - m.z) ? 0 : 1); }, 300);
     if (action.type === "dex") setDexOpen(true);
     if (action.type === "photo") setTimeout(takePhoto, 400);
     if (action.type === "bell") setTimeout(ringBell, 300);
@@ -402,8 +461,10 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     <>
       {inIgloo ? (
         <Canvas camera={{ position: [0, isPortrait ? 5.2 : 4.2, isPortrait ? 7.2 : 6.2], fov: isPortrait ? 62 : 52 }} dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
-          <IglooScene people={igloo.people} myKey={walk.myKey} emotes={igloo.emotes} wishCount={wishes.length} onBoard={() => setTreeMenu(true)} />
-          <IglooCamera portrait={isPortrait} />
+          <IglooScene people={igloo.people} myKey={walk.myKey} emotes={igloo.emotes} wishCount={wishes.length} onBoard={() => setTreeMenu(true)}
+            onSeat={(i) => { if (!igloo.sit(i)) setNotice("다른 사람이 앉아 있는 자리예요 🙂"); }}
+            onFloor={(x, z) => igloo.walkTo(x, z)} />
+          <IglooCamera portrait={isPortrait} gaze={igloo.mine.gaze} seat={igloo.mine.seat} />
           <OrbitControls makeDefault enablePan={false} target={[0, 1, -0.6]} minDistance={3} maxDistance={isPortrait ? 9.5 : 8} maxPolarAngle={Math.PI / 2.1} />
         </Canvas>
       ) : (
@@ -422,9 +483,10 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           onBench={(i) => { walk.stopRide(); walk.sitAt(i); setNotice("벤치로 가서 앉아요 🪑 움직이면 일어나요"); }} />
         <TourStation onRide={rideTour} />
         <VillageIgloo count={igloo.count} onEnter={enterIgloo} />
+        <Cats me={() => walk.me.current} onTap={tapCat} reacts={catReacts} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
         <Npcs walk={walk} onSelect={setActTarget} />
-        <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} onSelect={setActTarget} />
+        <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} balloons={walk.balloons} onSelect={setActTarget} />
         <Snowballs shots={walk.shots} />
         <Snowmen list={snowmen.list} smashed={snowmen.smashed} onClick={setSnowmanInfo} />
         <CameraFollow follow={camFollow} snapAt={snapAt} />
@@ -486,13 +548,15 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
       {inIgloo && <>
         <div className="title igloo-title">
           <h1>❄️ 이글루</h1>
-          <p>지금 {igloo.people.length}명이 둘러앉아 있어요 · 📖 소원 방명록을 눌러 소원을 남겨요</p>
+          <p>지금 {igloo.people.length}명 · 방석을 누르면 앉고, 바닥을 누르면 걸어가요 · 📖 방명록에 소원을 남겨요</p>
         </div>
         <div className="igloo-bar">
           <div className="igloo-emotes">
             {EMOTES.map((x) => <button key={x.e} title={x.label} onClick={() => igloo.emote(x.e)}>{x.e}</button>)}
           </div>
           <div className="igloo-actions">
+            <button className={igloo.mine.gaze ? "btn gaze-on" : "btn"} onClick={toggleGaze}>{igloo.mine.gaze ? "🔥 불멍 그만하기" : "🔥 불멍하기"}</button>
+            <button className="btn" onClick={iglooMallow}>🍡 마시멜로</button>
             <button className="btn ghost light" onClick={() => setInIgloo(false)}>← 마을로 나가기</button>
             <button className="btn" onClick={() => setWriting(true)}>✏️ 소원 쓰기</button>
             <button className="btn" onClick={() => setBoxOpen(true)}>📜 방명록</button>
@@ -543,8 +607,20 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           </div>
         </Modal>
       )}
-      {snackOpen && <SnackMenu stall={STALLS.find((s) => s.id === snackOpen) ?? STALLS[0]} onPick={eatSnack} onClose={() => setSnackOpen(null)}
-        onTakeout={myRoom ? takeoutSnack : undefined} />}
+      {catMenu !== null && (
+        <Modal onClose={() => setCatMenu(null)}>
+          <div className="cat-menu">
+            <h2>🐱 {CAT_NAMES[catMenu]}</h2>
+            <p className="hint">{catMenu === 0 ? "삼색 아가씨 밤이에요. 뭘 해 줄까요?" : "고등어 태비 캔디예요. 뭘 해 줄까요?"}</p>
+            <div className="snack-grid">
+              {CAT_CARE.map((c) => <button key={c.kind} className="act-btn" onClick={() => careCat(catMenu, c.kind)}><span>{c.icon}</span>{c.label}</button>)}
+            </div>
+            <button className="btn ghost wide" onClick={() => setCatMenu(null)}>닫기</button>
+          </div>
+        </Modal>
+      )}
+      {snackOpen && <SnackMenu stall={STALLS.find((s) => s.id === snackOpen) ?? STALLS[0]} onPick={snackOpen === "balloon" ? buyBalloon : eatSnack} onClose={() => setSnackOpen(null)}
+        onTakeout={myRoom && snackOpen !== "balloon" ? takeoutSnack : undefined} />}
       {dexOpen && (
         <Modal onClose={() => setDexOpen(false)}>
           <h2>📖 낚시 도감</h2>
@@ -742,13 +818,13 @@ function FindRoom({ onFound, onClose }: { onFound: (room: MyRoom) => void; onClo
   );
 }
 
-type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo"; n: number } | null;
+type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo" | "balloon" | "cats"; n: number } | null;
 const SETUP_KEY = "3d_pj.setupDone";
 
 // 오른쪽 위 ☰ 메뉴: 마을 소개와 바로가기
 function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose, onFindRoom }: {
   onFindRoom: () => void;
-  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
+  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo" | "balloon" | "cats") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -801,6 +877,12 @@ function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose, onFindRoom }: 
           </button>
           <button className="intro-card" onClick={() => onAction("dex")}>
             <span>📖</span><strong>낚시 도감</strong><small>연못에서 낚은 것들을 모아 봐요</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("cats")}>
+            <span>🐱</span><strong>고양이 찾아가기</strong><small>가까운 고양이(밤·캔디)한테 가서 간식 주기·쓰다듬기·놀아주기</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("balloon")}>
+            <span>🎈</span><strong>풍선 가게</strong><small>별·하트·달 풍선을 머리 위에 동동! 가끔 무지개 레어 풍선</small>
           </button>
           <button className="intro-card" onClick={() => onAction("igloo")}>
             <span>❄️</span><strong>이글루</strong><small>누구나 들어가는 반짝반짝 이글루! 둘러앉아 소원 방명록을 써요</small>
@@ -903,7 +985,7 @@ export default function App() {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [villageAction, setVillageAction] = useState<VillageAction>(null);
-  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo") => {
+  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo" | "balloon" | "cats") => {
     setMenuOpen(false);
     setVillageAction({ type, n: Date.now() });
     if (roomId) go(null);

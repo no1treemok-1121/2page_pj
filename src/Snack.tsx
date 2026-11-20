@@ -12,7 +12,7 @@ export type Stall = { id: string; title: string; icon: string; spot: { x: number
 
 export const STALLS: Stall[] = [
   {
-    id: "bunsik", title: "분식집", icon: "🍢", spot: { x: 8.5, z: -11 }, stripe: "#e0322d", body: "#f3e2c6", tag: "#e07a1f",
+    id: "bunsik", title: "분식집", icon: "🍢", spot: { x: 9.31, z: -2.32 }, stripe: "#e0322d", body: "#f3e2c6", tag: "#e07a1f",
     items: [
       { id: "tteok", emoji: "🌶️", name: "떡볶이", sounds: ["쫀득쫀득~", "앗 매워! 🔥", "그래도 맛있어 😋"] },
       { id: "mandu", emoji: "🥟", name: "만두", sounds: ["호호 뜨거워~", "냠냠 😋", "육즙 팡!"] },
@@ -23,7 +23,7 @@ export const STALLS: Stall[] = [
     ],
   },
   {
-    id: "bungeo", title: "붕어빵 노점", icon: BUNGEO, spot: { x: 10.5, z: 1.5 }, stripe: "#2f6fd6", body: "#fff4dc", tag: "#2f6fd6",
+    id: "bungeo", title: "붕어빵 노점", icon: BUNGEO, spot: { x: 9.55, z: 1.0 }, stripe: "#2f6fd6", body: "#fff4dc", tag: "#2f6fd6",
     items: [
       { id: "cream", emoji: BUNGEO, name: "슈크림붕어빵", sounds: ["말랑~ 슈크림이 쭉!", "달콤해 😍", "하나 더 먹을래"] },
       { id: "pizza", emoji: BUNGEO, name: "피자붕어빵", sounds: ["치즈가 쭈욱~ 🧀", "짭짤 고소해!", "이건 반칙이야 😋"] },
@@ -33,12 +33,25 @@ export const STALLS: Stall[] = [
     ],
   },
   {
-    id: "cocoa", title: "코코아 노점", icon: "☕", spot: { x: -10.5, z: 1.5 }, stripe: "#7a4a2b", body: "#f6e7d6", tag: "#8b5a3c",
+    id: "cocoa", title: "코코아 노점", icon: "☕", spot: { x: 8.63, z: 4.21 }, stripe: "#7a4a2b", body: "#f6e7d6", tag: "#8b5a3c",
     items: [
       { id: "cocoa", emoji: "☕", name: "핫코코아", sounds: ["후~ 후~", "달달 따뜻해 😌", "손이 녹는다~"] },
       { id: "mallow", emoji: "🍫", name: "마시멜로 코코아", sounds: ["마시멜로 둥실둥실~", "쫀득 달콤 😍", "입가에 거품 묻었다 😆"] },
       { id: "yuja", emoji: "🍋", name: "유자차", sounds: ["상큼 따뜻~", "목이 편안해 🍋", "후르륵 😌"] },
       { id: "warmmilk", emoji: "🥛", name: "따뜻한 우유", sounds: ["포근포근~", "졸음이 솔솔 😪", "꿀꺽"] },
+      { id: "americano", emoji: "♨️", name: "아메리카노(HOT)", sounds: ["후~ 향이 좋다", "쌉싸름~ ☕", "정신이 번쩍! 😎"] },
+      { id: "iceamericano", emoji: "🧊", name: "아이스 아메리카노", sounds: ["얼음 달그락~", "겨울에도 아아지 😎", "시원~ 🧊"] },
+      { id: "latte", emoji: "☕", name: "카페라떼", sounds: ["우유 거품 폭신~", "부드러워 😌", "라떼는 말이야~ 😆"] },
+    ],
+  },
+  {
+    // 🎈 풍선 가게: 사면 머리 위에 1분 동안 동동 떠 있다가 하늘로 날아감 (먹는 메뉴 아님)
+    id: "balloon", title: "풍선 가게", icon: "🎈", spot: { x: 6.67, z: 6.91 }, stripe: "#ff7eb6", body: "#fff0f6", tag: "#e05a9a",
+    items: [
+      { id: "b_star", emoji: "⭐", name: "별 풍선", sounds: [] },
+      { id: "b_heart", emoji: "💖", name: "하트 풍선", sounds: [] },
+      { id: "b_moon", emoji: "🌙", name: "달 풍선", sounds: [] },
+      { id: "b_random", emoji: "🎁", name: "아무거나 (랜덤)", sounds: [] },
     ],
   },
 ];
@@ -112,6 +125,12 @@ function RoofModel({ id }: { id: string }) {
           ))}
         </group>
       </>}
+      {id === "balloon" && [["#ff5a8a", -0.35, 0.1], ["#ffd84d", 0, 0.35], ["#7fd0ff", 0.35, 0.05], ["#b07aff", 0.15, -0.25]].map(([c, x, y], k) => (
+        <group key={k} position={[x as number, (y as number) + 0.3, 0]}>
+          <mesh scale={[1, 1.2, 1]}><sphereGeometry args={[0.24, 16, 12]} /><meshStandardMaterial color={c as string} roughness={0.25} /></mesh>
+          <mesh position={[0, -0.45, 0]}><cylinderGeometry args={[0.006, 0.006, 0.6, 4]} /><meshStandardMaterial color="#ffffff" /></mesh>
+        </group>
+      ))}
       {id === "cocoa" && <>
         <mesh><cylinderGeometry args={[0.38, 0.33, 0.62, 20]} /><meshStandardMaterial color="#c8102e" /></mesh>
         <mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.385, 0.37, 0.12, 20]} /><meshStandardMaterial color="#ffffff" /></mesh>
@@ -212,11 +231,13 @@ export function SnackMenu({ stall, onPick, onClose, onTakeout }: { stall: Stall;
   return (
     <Modal onClose={onClose}>
       <h2><IconText text={stall.icon} /> 눈마을 {stall.title}</h2>
+      {stall.id === "balloon" ? <p className="hint">고른 풍선이 머리 위에 1분 동안 동동 떠 있다가 하늘로 날아가요. 색은 랜덤, 가끔 🌈 무지개 레어 풍선!</p> : <>
       <div className="chips center take-mode">
         <button className={!takeout ? "chip on" : "chip"} onClick={() => setTakeout(false)}>😋 여기서 먹기</button>
         <button className={takeout ? "chip on" : "chip"} onClick={() => setTakeout(true)}>🏠 내 방에 사 가기</button>
       </div>
       <p className="hint">{takeout ? (onTakeout ? "고른 음식이 내 방 테이블에 놓여요 (최대 6개)" : "내 방이 있어야 사 갈 수 있어요. ☰ 메뉴에서 내 방을 만들거나 찾아 주세요") : "먹고 싶은 걸 골라 보세요. 모두 무료예요!"}</p>
+      </>}
       <div className="snack-grid">
         {stall.items.map((s) => (
           <button key={s.id} className="act-btn" disabled={takeout && !onTakeout} onClick={() => (takeout ? onTakeout?.(s) : onPick(s))}><span><IconText text={s.emoji} /></span>{s.name}</button>

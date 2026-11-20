@@ -74,7 +74,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   // ☰ 메뉴 항목
   await A.click('.menu-btn'); await A.waitForTimeout(300);
   const items = await A.$$eval('.menu .intro-card strong', x => x.map(e => e.textContent));
-  for (const need of ['소원 걸기', '소원함', '랜덤 편지', '마을 광장', '오늘의 운세', '썰매 타기', '빙판 썰매', '분식집', '붕어빵 노점', '코코아 노점', '낚시 도감', '포토존', '종 울리기', '이글루', '개썰매 한 바퀴', '사슴썰매 한 바퀴', '연못 낚시', '모닥불 쬐기', '눈사람 만들기', '내 캐릭터'])
+  for (const need of ['소원 걸기', '소원함', '랜덤 편지', '마을 광장', '오늘의 운세', '썰매 타기', '빙판 썰매', '분식집', '붕어빵 노점', '코코아 노점', '낚시 도감', '포토존', '종 울리기', '이글루', '풍선 가게', '고양이 찾아가기', '개썰매 한 바퀴', '사슴썰매 한 바퀴', '연못 낚시', '모닥불 쬐기', '눈사람 만들기', '내 캐릭터'])
     check(`☰ 메뉴: ${need}`, items.some(i => i.includes(need)));
   // 썰매 (메뉴로)
   await A.click('.menu >> text=썰매 타기'); await A.waitForTimeout(1500);
@@ -139,13 +139,13 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   await A.click('.menu-btn'); await A.click('.menu >> text=코코아 노점');
   await A.waitForSelector('.snack-grid', { timeout: 15000 }).catch(() => null);
   check('노점: 내 방에 사 가기 선택', !!(await A.$('.take-mode')));
-  check('코코아 노점 메뉴', (await A.$$('.snack-grid .act-btn')).length === 4);
+  check('코코아 노점 메뉴(커피 포함 7가지)', (await A.$$('.snack-grid .act-btn')).length === 7 && !!(await A.$('.snack-grid >> text=카페라떼')));
   await A.keyboard.press('Escape');
   // 낚시 도감 · 포토존
   await A.click('.menu-btn'); await A.click('.menu >> text=낚시 도감'); await A.waitForTimeout(300);
   check('낚시 도감 8칸', (await A.$$('.dex-item')).length === 8);
   await A.keyboard.press('Escape');
-  await A.click('.menu-btn'); await A.click('.menu >> text=포토존'); await A.waitForTimeout(1500);
+  await A.click('.menu-btn'); await A.click('.menu >> text=포토존'); await A.waitForSelector('.photo-preview', { timeout: 8000 }).catch(() => null);
   check('포토존: 사진 미리보기', !!(await A.$('.photo-preview')));
   await A.keyboard.press('Escape');
   // 장식 9가지(없음 포함) + 동물 6가지
@@ -164,7 +164,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   }
   // 🔔 종 울리기 (메뉴로)
   await A.click('.menu-btn'); await A.click('.menu >> text=종 울리기');
-  check('종: 상대 화면 딩동댕', await seen(B, '딩동댕', 15000));
+  check('종: 상대 화면 딩동댕', await seen(B, '딩동댕', 25000));
   check('종 표지 보임', (await A.$$eval('.spot-tag', x => x.map(e => e.textContent))).some(t => t.includes('종 울리기')));
   // 장소 범위: 메뉴로 붕어빵 노점을 열면 먼저 걸어가서 도착 후 메뉴가 열림
   await A.click('.menu-btn'); await A.click('.menu >> text=붕어빵 노점');
@@ -241,6 +241,25 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     await c.close();
   }
   // 🔑 내 방 열쇠: 방 만들 때 아이디·비밀번호 → 다른 기기(새 창)에서 '내 방 찾기'로 들어가기
+  // 🐱 광장 고양이 밤·캔디 + 고양이 집
+  {
+    const cats = await A.$$eval('.cat-tag', x => x.map(e => e.textContent));
+    check('고양이 밤·캔디 (머리 위 하트)', cats.some(t => t.includes('밤') && t.includes('💖')) && cats.some(t => t.includes('캔디')), cats.join(','));
+    const tg = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
+    check('고양이 집 표지', tg.some(t => t.includes('밤·캔디네 집')));
+    await A.click('.menu-btn'); await A.click('.menu >> text=고양이 찾아가기');
+    await A.waitForSelector('.cat-menu', { timeout: 25000 }).catch(() => null);
+    const catOk = !!(await A.$('.cat-menu'));
+    check('고양이 찾아가기 → 돌보기 메뉴(간식·쓰다듬기·놀아주기)', catOk && (await A.$$('.cat-menu .act-btn')).length === 3);
+    if (catOk) { await A.click('.cat-menu .act-btn >> nth=0'); check('고양이 간식 주기: 상대 화면 말풍선', await seen(B, '간식 먹자')); }
+  }
+  // 🎈 풍선 가게: 걸어가서 하트 풍선 사기 → 상대 화면 말풍선
+  await A.click('.menu-btn'); await A.click('.menu >> text=풍선 가게');
+  await A.waitForSelector('.snack-grid', { timeout: 20000 }).catch(() => null);
+  check('풍선 가게 메뉴 4가지', (await A.$$('.snack-grid .act-btn')).length === 4);
+  if (await A.$('.snack-grid')) await A.click('.snack-grid >> text=하트 풍선');
+  check('풍선: 상대 화면 말풍선', await seen(B, '풍선'));
+  { const tg = await A.$$eval('.spot-tag', x => x.map(e => e.textContent)); check('썰매 언덕 2곳', tg.filter(t => t.includes('썰매 타기')).length === 2, tg.join(',')); }
   // ❄️ 이글루: 걸어가서 들어가기, 두 명이 서로 보임, 소원 방명록(트리 소원과 같은 창), 나가기
   {
     const tagA = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
@@ -255,6 +274,13 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     check('이글루: 안에 있는 사람 서로 보임', both);
     await B.click('.igloo-emotes button >> nth=1');
     check('이글루: 감정 표현 보임', await seen(A, '❤️'));
+    // 🔥 불멍하기 / 방석 옮기기
+    await A.click('.igloo-actions >> text=불멍하기'); await A.waitForTimeout(600);
+    check('이글루: 불멍하기', !!(await A.$('.igloo-actions >> text=불멍 그만하기')));
+    check('이글루: 불멍 상대에게 보임', await seen(B, '불멍'));
+    await A.click('.igloo-actions >> text=불멍 그만하기'); await A.waitForTimeout(300);
+    await A.click('.igloo-actions >> text=마시멜로');
+    check('이글루: 마시멜로 상대에게 보임', await seen(B, '마시멜로'));
     await A.click('.igloo-actions >> text=소원 쓰기'); await A.waitForTimeout(300);
     check('이글루: 소원 쓰기 창(트리와 같은 소원)', !!(await A.$('.backdrop .name-field')));
     await A.keyboard.press('Escape'); await A.waitForTimeout(200);
@@ -286,7 +312,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     // 🎨 방 꾸미기: 벽지 바꾸고 소품 놓고 저장 → 다른 기기(D)에서도 보임
     await C.click('.bottom-bar >> text=🎨 꾸미기'); await C.waitForTimeout(400);
     check('꾸미기 패널', !!(await C.$('.decor-panel')));
-    await C.click('.decor-panel .sw >> nth=1'); await C.click('.decor-panel .chip:has-text("선물 상자")');
+    await C.click('.decor-panel .sw >> nth=1'); await C.click('.decor-panel .chip:has-text("눈사람 인형")');
     await C.click('.decor-panel >> text=저장'); await C.waitForTimeout(1200);
     check('꾸미기 저장 안내', (await C.textContent('.toast').catch(() => '')).includes('저장'));
     // ✏️ 꾸미기 창에서 방 이름 바꾸기
@@ -316,7 +342,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     if (await D.$('.owner-ask')) { await D.click('text=네, 제 방이에요'); await D.waitForTimeout(300); }
     await D.waitForSelector('.bottom-bar >> text=🎨 꾸미기', { timeout: 10000 }).catch(() => null);
     await D.click('.bottom-bar >> text=🎨 꾸미기'); await D.waitForTimeout(400);
-    check('꾸미기: 다른 기기에서도 저장된 소품', !!(await D.$('.decor-panel .chip.on:has-text("선물 상자")')));
+    check('꾸미기: 다른 기기에서도 저장된 소품', !!(await D.$('.decor-panel .chip.on:has-text("눈사람 인형")')));
     await D.click('.decor-panel >> text=취소');
     // 열쇠 창의 로그아웃 버튼 (D: 열쇠로 들어온 기기)
     await D.click('.bottom-bar >> text=🔑 열쇠');

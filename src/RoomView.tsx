@@ -171,8 +171,8 @@ export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, noti
         <color attach="background" args={["#2a1e1a"]} />
         <RoomScene letterCount={info?.letterCount ?? 0} onMailbox={onMailbox} alert={hasNew} decor={preview ?? normDecor(info?.decor)}
           avatar={(isOwner && myAvatar) || parseAvatar(info?.avatar) || DEFAULT_AVATAR} />
-        <OrbitControls enablePan={false} target={[0, 1, -0.5]} minDistance={3} maxDistance={8}
-          minAzimuthAngle={-0.2} maxAzimuthAngle={1.3} maxPolarAngle={Math.PI / 2.2} />
+        {/* 360도 돌려 보기 (카메라 쪽 벽은 자동으로 숨겨짐) */}
+        <OrbitControls enablePan={false} target={[0, 1, 0]} minDistance={3} maxDistance={9} maxPolarAngle={Math.PI / 2.15} />
       </Canvas>
 
       <div className="title">
