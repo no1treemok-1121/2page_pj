@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { Stars } from "@react-three/drei";
 import * as THREE from "three";
 import { currentEvent } from "./events";
+import { BENCHES } from "./benches";
 
 // 매번 같은 마을 배치가 나오도록 고정된 난수
 function seeded(seed: number) {
@@ -121,6 +122,35 @@ function SmallPine({ position, scale }: { position: [number, number, number]; sc
 }
 
 // 트리에 감긴 반짝이 전구
+// 눈 쌓인 나무 벤치 (누르면 앉기)
+function Bench({ x, z, ry, onClick }: { x: number; z: number; ry: number; onClick?: () => void }) {
+  return (
+    <group position={[x, 0, z]} rotation={[0, ry, 0]}
+      onClick={(e) => { if (onClick && e.delta < 6) { e.stopPropagation(); onClick(); } }}
+      onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
+      onPointerOut={() => { document.body.style.cursor = "auto"; }}>
+      <mesh position={[0, 0.42, 0]}>
+        <boxGeometry args={[1.5, 0.08, 0.5]} />
+        <meshStandardMaterial color="#8b5a3c" />
+      </mesh>
+      <mesh position={[0, 0.47, 0]}>
+        <boxGeometry args={[1.45, 0.03, 0.45]} />
+        <meshStandardMaterial color="#f4f7fb" />
+      </mesh>
+      <mesh position={[0, 0.72, -0.24]} rotation={[-0.15, 0, 0]}>
+        <boxGeometry args={[1.5, 0.36, 0.06]} />
+        <meshStandardMaterial color="#8b5a3c" />
+      </mesh>
+      {[-0.65, 0.65].map((lx) => [-0.18, 0.18].map((lz) => (
+        <mesh key={`${lx}${lz}`} position={[lx, 0.2, lz]}>
+          <boxGeometry args={[0.07, 0.4, 0.07]} />
+          <meshStandardMaterial color="#3b2a20" />
+        </mesh>
+      )))}
+    </group>
+  );
+}
+
 export function TreeLights({ count = 46 }) {
   const group = useRef<THREE.Group>(null);
   const bulbs = useMemo(() => {
@@ -173,7 +203,7 @@ export function TreeLights({ count = 46 }) {
   );
 }
 
-export default function Village({ onGround }: { onGround?: (x: number, z: number) => void }) {
+export default function Village({ onGround, onBench }: { onGround?: (x: number, z: number) => void; onBench?: (i: number) => void }) {
   const layout = useMemo(() => {
     const rand = seeded(7);
     // 트리를 둘러싼 집들 (카메라 정면 쪽은 비워 두어 트리가 잘 보이게)
@@ -239,6 +269,7 @@ export default function Village({ onGround }: { onGround?: (x: number, z: number
       {layout.houses.map((h, i) => (
         <House key={i} {...h} />
       ))}
+      {BENCHES.map((b, i) => <Bench key={i} {...b} onClick={onBench && (() => onBench(i))} />)}
       {layout.lamps.map((p, i) => (
         <Lamp key={i} position={p} />
       ))}
