@@ -1,68 +1,104 @@
-import { useEffect, useState } from "react";
-import AppToast from "@/components/AppToast";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import Index from "./pages/Index";
-import Home from "./pages/Home";
-import PostDetail from "./pages/PostDetail";
-import Profile from "./pages/Profile";
-import SignupCode from "./pages/SignupCode";
-import SignupAuth from "./pages/SignupAuth";
-import SignupProfile from "./pages/SignupProfile";
-import Notifications from "./pages/Notifications";
-import Settings from "./pages/Settings";
-import SettingsNickname from "./pages/SettingsNickname";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
-import Category from "./pages/Category";
-import NotFound from "./pages/NotFound";
+import { useCallback, useEffect, useState } from "react";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
+import Scene from "./Scene";
+import WishDialog from "./WishDialog";
+import { Wish, addWish, fetchWishes, isShared, newWishDraft } from "./wishes";
 
-const queryClient = new QueryClient();
+const REFRESH_MS = 15000;
 
-const App = () => {
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+export default function App() {
+  const [wishes, setWishes] = useState<Wish[]>([]);
+  const [writing, setWriting] = useState(false);
+  const [viewing, setViewing] = useState<Wish | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-    return () => subscription.unsubscribe();
+  const refresh = useCallback(async () => {
+    try {
+      const list = await fetchWishes();
+      setWishes((prev) => {
+        // 방금 건 소원이 아직 목록에 안 잡혔으면 유지
+        const ids = new Set(list.map((w) => w.id));
+        return [...list, ...prev.filter((w) => w.id.startsWith("pending-") && !ids.has(w.id))];
+      });
+    } catch (e) {
+      setNotice((e as Error).message);
+    }
   }, []);
 
-  if (loading) return null;
+  // 처음 열 때 + 주기적으로 + 다시 이 탭으로 돌아올 때 다른 사람 소원 불러오기
+  useEffect(() => {
+    refresh();
+    if (!isShared) return;
+    const timer = setInterval(() => document.visibilityState === "visible" && refresh(), REFRESH_MS);
+    const onVisible = () => document.visibilityState === "visible" && refresh();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  const hangWish = async (text: string) => {
+    setWriting(false);
+    const draft = newWishDraft(text);
+    const tempId = `pending-${Date.now()}`;
+    // 바로 트리에 보이게 먼저 걸고, 저장되면 실제 값으로 교체
+    setWishes((prev) => [...prev, { ...draft, id: tempId, createdAt: Date.now() }]);
+    try {
+      const saved = await addWish(draft);
+      setWishes((prev) => prev.map((w) => (w.id === tempId ? saved : w)));
+    } catch (e) {
+      setWishes((prev) => prev.filter((w) => w.id !== tempId));
+      setNotice((e as Error).message + " 잠시 후 다시 시도해 주세요.");
+    }
+  };
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AppToast />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={session ? <Navigate to="/home" replace /> : <Index />} />
-            <Route path="/home" element={!session ? <Navigate to="/" replace /> : <Home />} />
-            <Route path="/post/:id" element={!session ? <Navigate to="/" replace /> : <PostDetail />} />
-            <Route path="/profile" element={!session ? <Navigate to="/" replace /> : <Profile />} />
-            <Route path="/category" element={!session ? <Navigate to="/" replace /> : <Category />} />
-            <Route path="/notifications" element={!session ? <Navigate to="/" replace /> : <Notifications />} />
-            <Route path="/settings" element={!session ? <Navigate to="/" replace /> : <Settings />} />
-            <Route path="/settings/nickname" element={!session ? <Navigate to="/" replace /> : <SettingsNickname />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/signup/code" element={<SignupCode />} />
-            <Route path="/signup/auth" element={<SignupAuth />} />
-            <Route path="/signup/profile" element={<SignupProfile />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-};
+    <>
+      <Canvas camera={{ position: [0, 3, 10], fov: 50 }} dpr={[1, 2]}>
+        <color attach="background" args={["#0b1733"]} />
+        <fog attach="fog" args={["#0b1733", 12, 30]} />
+        <Scene wishes={wishes} onTreeClick={() => setWriting(true)} onWishClick={setViewing} />
+        <OrbitControls
+          enablePan={false}
+          minDistance={6}
+          maxDistance={16}
+          maxPolarAngle={Math.PI / 2.1}
+          target={[0, 2, 0]}
+        />
+      </Canvas>
 
-export default App;
+      <div className="title">
+        <h1>눈 내리는 마을</h1>
+        <p>트리를 눌러 소원을 걸어 보세요 · 걸린 장식을 누르면 소원이 보여요</p>
+        {wishes.length > 0 && (
+          <p className="count">
+            {isShared ? "함께 건 소원" : "지금까지 걸린 소원"} {wishes.length}개
+          </p>
+        )}
+      </div>
+
+      {notice && <div className="toast" role="status">{notice}</div>}
+
+      {writing && <WishDialog onSubmit={hangWish} onClose={() => setWriting(false)} />}
+
+      {viewing && (
+        <div className="backdrop" onClick={() => setViewing(null)}>
+          <div className="card" onClick={(e) => e.stopPropagation()}>
+            <span className="dot" style={{ background: viewing.color }} />
+            <p className="wish-text">{viewing.text}</p>
+            <p className="date">{new Date(viewing.createdAt).toLocaleDateString("ko-KR")}</p>
+            <button className="btn" onClick={() => setViewing(null)}>닫기</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

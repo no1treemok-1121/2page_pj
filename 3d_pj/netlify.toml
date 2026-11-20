@@ -1,4 +1,0 @@
-# Netlify에서 Base directory를 3d_pj 로 지정하면 이 설정이 사용됩니다.
-[build]
-  command = "npm run build"
-  publish = "dist"
