@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { Wish } from "./wishes";
 import Village, { TreeLights } from "./Village";
 import Fireworks from "./Fireworks";
+import ShootingStars from "./ShootingStars";
 import { currentEvent } from "./events";
 
 // 드래그(화면 회전)와 클릭을 구분: 포인터가 거의 안 움직였을 때만 클릭으로 처리
@@ -262,7 +263,7 @@ type SceneProps = {
   onBench?: (i: number) => void;
   onSled?: () => void;
   onIce?: () => void;
-  onSnack?: () => void;
+  onSnack?: (stall: string) => void;
   onFish?: () => void;
   onWarm?: (i: number) => void;
   mineIds?: Set<string>;
@@ -281,6 +282,7 @@ export default function Scene({ wishes, onTreeClick, onWishClick, onGround, onBe
       ))}
       <Snow />
       <Fireworks />
+      <ShootingStars />
     </>
   );
 }

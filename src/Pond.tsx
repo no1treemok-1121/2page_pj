@@ -87,16 +87,29 @@ export default function PondArea({ onFish, onWarm, onSeat }: { onFish?: () => vo
 
 // 낚시 결과 (재미로)
 export const CATCHES = [
-  { w: 30, text: "🐟 붕어를 낚았다!" },
-  { w: 18, text: "🐠 반짝이는 금붕어다!" },
-  { w: 12, text: "🦐 새우가 딸려 왔다" },
-  { w: 10, text: "🐡 복어?! 다시 놓아주자" },
-  { w: 12, text: "👢 장화가 걸렸다…" },
-  { w: 13, text: "😅 아깝다, 놓쳤다!" },
-  { w: 5, text: "🐋 전설의 월척!!" },
+  { id: "crucian", emoji: "🐟", name: "붕어", w: 28, text: "🐟 붕어를 낚았다!" },
+  { id: "gold", emoji: "🐠", name: "금붕어", w: 16, text: "🐠 반짝이는 금붕어다!" },
+  { id: "shrimp", emoji: "🦐", name: "새우", w: 12, text: "🦐 새우가 딸려 왔다" },
+  { id: "puffer", emoji: "🐡", name: "복어", w: 9, text: "🐡 복어?! 다시 놓아주자" },
+  { id: "crab", emoji: "🦀", name: "꽃게", w: 8, text: "🦀 꽃게가 집게를 번쩍!" },
+  { id: "squid", emoji: "🦑", name: "오징어", w: 6, text: "🦑 연못에 오징어가?!" },
+  { id: "boot", emoji: "👢", name: "장화", w: 10, text: "👢 장화가 걸렸다…" },
+  { id: "miss", emoji: "😅", name: "놓침", w: 12, text: "😅 아깝다, 놓쳤다!" },
+  { id: "whale", emoji: "🐋", name: "전설의 월척", w: 3, text: "🐋 전설의 월척!!" },
 ];
+// 낚시 도감: 이 기기에 기록 (놓침은 기록 안 함)
+const DEX_KEY = "3d_pj.fishDex";
+export function loadDex(): Record<string, number> {
+  try { return JSON.parse(localStorage.getItem(DEX_KEY) || "{}"); } catch { return {}; }
+}
 export function randomCatch() {
   let r = Math.random() * CATCHES.reduce((a, c) => a + c.w, 0);
-  for (const c of CATCHES) { if ((r -= c.w) < 0) return c.text; }
-  return CATCHES[0].text;
+  let got = CATCHES[0];
+  for (const c of CATCHES) { if ((r -= c.w) < 0) { got = c; break; } }
+  if (got.id !== "miss") {
+    const d = loadDex(); const first = !d[got.id]; d[got.id] = (d[got.id] || 0) + 1;
+    try { localStorage.setItem(DEX_KEY, JSON.stringify(d)); } catch { /* 무시 */ }
+    return got.text + (first ? " (도감 등록! 📖)" : "");
+  }
+  return got.text;
 }

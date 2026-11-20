@@ -162,6 +162,28 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
           </mesh>
         ))}
       </group>
+      {/* 새 장식: 귀마개·털모자·안경·루돌프 머리띠 */}
+      <group position={[0, 1.02, 0]}>
+        {avatar.acc === "earmuff" && <>
+          <mesh position={[0, 0.2, 0]} rotation={[0, 0, 0]}><torusGeometry args={[0.33, 0.025, 6, 20, Math.PI]} /><meshStandardMaterial color="#c9a7eb" /></mesh>
+          {[-1, 1].map((s) => <mesh key={s} position={[s * 0.32, 0.02, 0]}><sphereGeometry args={[0.11, 12, 12]} /><meshStandardMaterial color="#f4a7b9" roughness={1} /></mesh>)}
+        </>}
+        {avatar.acc === "beanie" && <>
+          <mesh position={[0, 0.2, 0]}><sphereGeometry args={[0.33, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color="#3b6fd6" roughness={1} /></mesh>
+          <mesh position={[0, 0.2, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.31, 0.05, 8, 24]} /><meshStandardMaterial color="#f4f7fb" /></mesh>
+          <mesh position={[0, 0.55, 0]}><sphereGeometry args={[0.08, 10, 10]} /><meshStandardMaterial color="#f4f7fb" /></mesh>
+        </>}
+        {avatar.acc === "glasses" && <>
+          {[-0.11, 0.11].map((x) => <mesh key={x} position={[x, 0.04, 0.33]}><torusGeometry args={[0.07, 0.013, 6, 16]} /><meshStandardMaterial color="#2b2b30" /></mesh>)}
+          <mesh position={[0, 0.04, 0.33]}><boxGeometry args={[0.08, 0.012, 0.012]} /><meshStandardMaterial color="#2b2b30" /></mesh>
+        </>}
+        {avatar.acc === "rudolph" && [-1, 1].map((s) => (
+          <group key={s} position={[s * 0.16, 0.3, 0]} rotation={[0, 0, -s * 0.35]}>
+            <mesh position={[0, 0.12, 0]}><cylinderGeometry args={[0.022, 0.028, 0.26, 6]} /><meshStandardMaterial color="#8a5a35" /></mesh>
+            <mesh position={[s * 0.06, 0.18, 0]} rotation={[0, 0, -s * 0.9]}><cylinderGeometry args={[0.018, 0.022, 0.14, 6]} /><meshStandardMaterial color="#8a5a35" /></mesh>
+          </group>
+        ))}
+      </group>
       {avatar.acc === "scarf" && (
         <mesh position={[0, 0.74, 0]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.24, 0.07, 10, 24]} />
