@@ -104,7 +104,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   await A.click('.people-list button:has-text("햄찌")'); await A.click('.act-btn:has-text("들이받기")'); await A.waitForTimeout(3000);
   check('NPC 들이받기: 아야', await seen(A, '아야'));
   for (let i = 0; i < 12 && !(await A.$('.act-btn')); i++) { // NPC가 걷는 중이면 빗나갈 수 있어 몇 번 시도
-    const nt = await A.$$eval('.npc-tag', x => { const e = x.find(el => el.textContent.includes('루루')); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height + 40]; });
+    const nt = await A.$$eval('.npc-tag', x => { const e = x.find(el => el.textContent.includes('너구리 할배')); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height + 40]; });
     if (nt) { await A.mouse.click(nt[0], nt[1]); await A.waitForTimeout(500); }
     if (!(await A.$('.act-btn'))) { await A.keyboard.press('Escape'); await A.waitForTimeout(1500); }
   }
