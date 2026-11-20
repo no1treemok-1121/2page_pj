@@ -881,7 +881,8 @@ export default function App() {
       {!setupDone ? (
         <CharacterSetup initial={myAvatar} onDone={finishSetup} />
       ) : roomId ? (
-        <RoomView key={roomId} roomId={roomId} myRoom={myRoom} onLeaveRoom={leaveMyRoom} onGoVillage={() => go(null)} onGoMyRoom={goMyRoom}
+        <RoomView key={roomId} roomId={roomId} myRoom={myRoom} onLeaveRoom={leaveMyRoom}
+          onRoomGone={(create) => { forgetMyRoom(); setMyRoom(null); go(null); if (create) setCreating(true); }} onGoVillage={() => go(null)} onGoMyRoom={goMyRoom}
           notify={notify} myAvatar={myAvatar} onNickname={(nickname) => {
             if (myRoom?.roomId === roomId && myRoom.nickname !== nickname) {
               const updated = { ...myRoom, nickname };

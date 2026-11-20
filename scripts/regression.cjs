@@ -210,6 +210,21 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   const gA = await seen(A, '그만할래요', 1500);
   check('낚시 그만하기: 그만할래요', await seen(B, '그만할래요'), 'A:' + gA + ' ' + (await bubbles(B)).join(','));
   // 노점 간판·지붕 모형은 3D라 화면 오류 없음으로 확인
+  // 지워진 '내 방'을 가진 기기: '내 방이 없어졌어요' → 새 방 만들기 창
+  {
+    const c = await b.newContext({ viewport: { width: 900, height: 600 } });
+    const rid = '00000000-0000-4000-8000-000000000000';
+    await c.addInitScript(r => localStorage.setItem('3d_pj.myRoom', JSON.stringify({ roomId: r, ownerKey: 'x', nickname: '[테스트]옛방' })), rid);
+    const p = await c.newPage();
+    await p.goto(BASE + '/?room=' + rid); await p.fill('.gate input', '1225'); await p.press('.gate input', 'Enter'); await p.waitForTimeout(400);
+    await p.click('text=이 캐릭터로 입장'); await p.waitForTimeout(1500);
+    if (await p.$('.owner-ask')) { await p.keyboard.press('Escape'); await p.waitForTimeout(300); }
+    check('지워진 내 방: 안내 화면', !!(await p.$('text=내 방이 없어졌어요')));
+    if (await p.$('text=🏠 새 방 만들기')) await p.click('text=🏠 새 방 만들기');
+    await p.waitForTimeout(800);
+    check('지워진 내 방: 새 방 만들기 창', !!(await p.$('.find-first')));
+    await c.close();
+  }
   // 첫 입장 화면에 닉네임 입력 칸
   {
     const c = await b.newContext({ viewport: { width: 900, height: 600 } });
