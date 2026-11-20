@@ -11,8 +11,9 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
 (async () => {
   const b = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
   const errs = [];
-  const mk = async (n) => {
-    const c = await b.newContext({ viewport: { width: 900, height: 600 } });
+  // 느린 컴퓨터(그래픽 없이 CPU로 그림)에서 여러 창을 띄우면 실시간 반응이 늦어져서, 보조 창(B 등)은 작게
+  const mk = async (n, small) => {
+    const c = await b.newContext({ viewport: small ? { width: 480, height: 360 } : { width: 900, height: 600 } });
     await c.addInitScript(n => localStorage.setItem('3d_pj.chatNick', n), n);
     const p = await c.newPage(); p.on('pageerror', e => errs.push(n + ': ' + e.message));
     await p.goto(BASE);
@@ -22,7 +23,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     await p.click('text=이 캐릭터로 입장'); await p.waitForSelector('.name-tag'); await p.waitForTimeout(2500);
     return p;
   };
-  const A = await mk('[테스트]A'); const B = await mk('[테스트]B');
+  const A = await mk('[테스트]A'); const B = await mk('[테스트]B', true);
   await A.waitForTimeout(1500);
   const tag = async (p, n, mine) => p.$$eval('.name-tag', (x, [n, mine]) => {
     const e = x.find(el => el.textContent.includes(n) && el.textContent.includes('(나)') === mine);
