@@ -12,7 +12,7 @@ async function sha256(text: string) {
 
 function readPassed() {
   try {
-    return localStorage.getItem(STORAGE_KEY) === __ENTRY_CODE_HASH__;
+    return sessionStorage.getItem(STORAGE_KEY) === __ENTRY_CODE_HASH__;
   } catch {
     return false;
   }
@@ -39,7 +39,7 @@ export default function EntryGate({ children }: { children: ReactNode }) {
     setChecking(false);
     if (ok) {
       try {
-        localStorage.setItem(STORAGE_KEY, __ENTRY_CODE_HASH__);
+        sessionStorage.setItem(STORAGE_KEY, __ENTRY_CODE_HASH__); // 새로 방문할 때마다 다시 물어봄
       } catch {
         // 저장 못 해도 이번 방문은 입장
       }

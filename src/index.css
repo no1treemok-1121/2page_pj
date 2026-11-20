@@ -266,3 +266,16 @@ html, body, #root {
 .pick.color { border-radius: 50%; }
 .who { display: inline-flex; align-items: center; gap: 4px; }
 @media (max-width: 520px) { .me-btn { top: max(10px, env(safe-area-inset-top)); left: 10px; } .title { padding-left: 56px; padding-right: 56px; } }
+
+/* 입장 후 캐릭터 고르기 */
+.setup-card { margin-top: 24px; text-align: center; }
+.setup-card h2 { font-size: 19px; }
+/* 오른쪽 위 ☰ 메뉴 */
+.menu-btn { position: fixed; z-index: 15; top: max(14px, env(safe-area-inset-top)); right: 14px; width: 48px; height: 48px; border: none; border-radius: 50%; background: rgba(255,255,255,0.12); color: #fdf9f0; font-size: 22px; cursor: pointer; }
+.menu-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(5,10,25,0.55); animation: fade 0.2s ease; }
+.menu { position: absolute; top: 0; right: 0; bottom: 0; width: min(380px, 88vw); box-sizing: border-box; overflow-y: auto; padding: max(28px, env(safe-area-inset-top)) 18px 32px; background: radial-gradient(ellipse at 50% 0%, #1f3570 0%, #0b1733 70%); color: #f3f0e8; text-align: center; animation: slide 0.22s ease; }
+.menu h2 { margin: 6px 0 10px; font-size: 24px; }
+.menu .intro-lead { font-size: 14.5px; margin-bottom: 20px; }
+.menu-close { position: absolute; top: 14px; right: 12px; }
+@keyframes slide { from { transform: translateX(30px); opacity: 0; } }
+@media (max-width: 520px) { .menu-btn { top: max(10px, env(safe-area-inset-top)); right: 10px; width: 44px; height: 44px; } }
