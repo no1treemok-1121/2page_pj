@@ -417,3 +417,10 @@ a.btn { display: inline-block; text-decoration: none; text-align: center; box-si
 .name-tag.mine { background: #ffd84d; color: #1b1b2b; font-weight: 700; }
 .spot-tag.tour { background: #2f7d5b; }
 .ride-off { position: fixed; z-index: 16; left: 50%; transform: translateX(-50%); bottom: calc(84px + env(safe-area-inset-bottom)); box-shadow: 0 6px 20px rgba(0,0,0,0.35); }
+
+/* 🔑 내 방 열쇠 */
+.key-box { display: flex; flex-direction: column; gap: 8px; margin: 6px 0 10px; }
+.key-box form, .find-room { display: flex; flex-direction: column; gap: 8px; }
+.link-btn.small, .hint.small { font-size: 12px; }
+.link-btn.small { background: none; border: none; color: inherit; opacity: 0.6; text-decoration: underline; cursor: pointer; padding: 4px; }
+.center-link { display: block; margin: 10px auto 0; }

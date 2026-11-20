@@ -21,6 +21,9 @@ export async function rpc<T>(fn: string, body: Record<string, unknown>): Promise
     if (msg.includes("not owner")) throw new Error("이 방의 주인만 편지를 읽을 수 있어요.");
     if (msg.includes("room not found")) throw new Error("방을 찾을 수 없어요.");
     if (msg.includes("cannot reply")) throw new Error("이미 답장한 편지예요.");
+    if (msg.includes("login taken") || msg.includes("duplicate")) throw new Error("이미 누가 쓰고 있는 아이디예요. 다른 아이디로 해 주세요.");
+    if (msg.includes("bad login")) throw new Error("아이디는 한글·영어·숫자로 3~16자로 해 주세요. (띄어쓰기·기호 안 돼요)");
+    if (msg.includes("bad pw")) throw new Error("비밀번호는 4~30자로 해 주세요.");
     throw new Error(`요청에 실패했어요 (${res.status})`);
   }
   const text = await res.text();
@@ -55,6 +58,26 @@ export async function getLetters(roomId: string, ownerKey: string): Promise<Lett
 
 export function deleteLetter(roomId: string, ownerKey: string, letterId: string) {
   return rpc<void>("delete_letter", { p_room: roomId, p_key: ownerKey, p_letter: letterId });
+}
+
+// 🔑 내 방 열쇠 (아이디 + 비밀번호)
+export const LOGIN_RE = /^[a-zA-Z0-9_가-힣]{3,16}$/;
+export function setRoomLogin(room: MyRoom, login: string, pw: string) {
+  return rpc<string>("set_room_login", { p_room: room.roomId, p_key: room.ownerKey, p_login: login.trim(), p_pw: pw });
+}
+export async function getRoomLogin(room: MyRoom): Promise<string | null> {
+  return (await rpc<string | null>("get_room_login", { p_room: room.roomId, p_key: room.ownerKey })) ?? null;
+}
+export async function loginRoom(login: string, pw: string): Promise<MyRoom> {
+  const [r] = await rpc<{ status: string; room_id: string | null; owner_key: string | null; nickname: string | null; left_tries: number | null }[]>(
+    "room_login", { p_login: login.trim(), p_pw: pw });
+  if (r?.status === "locked") throw new Error("비밀번호를 5번 틀려서 10분 동안 잠겼어요. 잠시 후 다시 해 주세요.");
+  if (!r || r.status !== "ok" || !r.room_id || !r.owner_key) {
+    throw new Error(r?.left_tries != null ? `아이디나 비밀번호가 맞지 않아요. (남은 기회 ${r.left_tries}번)` : "아이디나 비밀번호가 맞지 않아요.");
+  }
+  const mine = { roomId: r.room_id, ownerKey: r.owner_key, nickname: r.nickname ?? "" };
+  saveMyRoom(mine);
+  return mine;
 }
 
 export function loadMyRoom(): MyRoom | null {

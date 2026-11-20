@@ -2,7 +2,7 @@
 // 사용법: npm run build 후 `npx vite preview --port 4173 --host 127.0.0.1` 을 띄우고
 //        node scripts/regression.cjs [주소]
 // 배포(main 반영) 전에 반드시 실행. 실제 서버(Supabase)를 쓰므로 이름은 [테스트]로 시작함.
-// (이 스크립트는 데이터를 새로 저장하지 않음: 액션·감정·썰매는 실시간 전송만 사용)
+// (데이터는 '내 방 열쇠' 확인용 [테스트] 방 하나만 만들고 끝에서 지움. 나머지는 실시간 전송만 사용)
 const { chromium } = require('playwright');
 const BASE = process.argv[2] || 'http://127.0.0.1:4173';
 const results = [];
@@ -216,6 +216,32 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     await p.goto(BASE); await p.fill('.gate input', '1225'); await p.press('.gate input', 'Enter'); await p.waitForTimeout(400);
     check('입장: 닉네임 입력 칸', !!(await p.$('.nick-field')));
     await c.close();
+  }
+  // 🔑 내 방 열쇠: 방 만들 때 아이디·비밀번호 → 다른 기기(새 창)에서 '내 방 찾기'로 들어가기
+  await A.context().close(); await B.context().close(); // 화면이 많으면 느려져서 먼저 닫음
+  {
+    const kid = 'tk' + Math.floor(Math.random() * 1e8), kpw = 'pw' + Math.floor(Math.random() * 1e6);
+    const C = await mk('[테스트]C');
+    await C.click('.menu-btn'); await C.click('.menu >> text=내 방 만들기'); await C.waitForTimeout(300);
+    const f = await C.$$('.backdrop .field');
+    await f[0].fill('[테스트]열쇠'); await f[1].fill(kid); await f[2].fill(kpw);
+    await C.click('.backdrop button[type=submit]');
+    await C.waitForSelector('text=[테스트]열쇠의 방', { timeout: 8000 }).catch(() => null);
+    check('방 만들기: 아이디·비밀번호 입력 후 내 방', !!(await C.$('text=[테스트]열쇠의 방')));
+    const D = await mk('[테스트]D');
+    await D.click('.menu-btn'); await D.click('.menu >> text=내 방 찾기'); await D.waitForTimeout(300);
+    const g = await D.$$('.find-room .field');
+    await g[0].fill(kid); await g[1].fill('틀린비번'); await D.click('.find-room button[type=submit]'); await D.waitForTimeout(1500);
+    check('내 방 찾기: 틀리면 남은 기회 안내', (await D.textContent('.find-room').catch(() => '')).includes('남은 기회'));
+    await g[1].fill(kpw); await D.click('.find-room button[type=submit]');
+    await D.waitForSelector('text=[테스트]열쇠의 방', { timeout: 8000 }).catch(() => null);
+    check('내 방 찾기: 다른 기기에서 내 방(주인)', !!(await D.$('text=[테스트]열쇠의 방')) && !!(await D.$('.bottom-bar >> text=🔑 열쇠')));
+    await C.context().close(); await D.context().close();
+    // 테스트로 만든 방 지우기 (Supabase 관리 API, 토큰은 환경 프록시가 넣어 줌)
+    try {
+      const body = JSON.stringify({ query: "delete from rooms where nickname like '[테스트]%'" });
+      require('child_process').execFileSync('curl', ['-s', '-X', 'POST', 'https://api.supabase.com/v1/projects/iabzybciyltmydycynat/database/query', '-H', 'Content-Type: application/json', '-d', body]);
+    } catch { console.log('⚠️ 테스트 방을 직접 지워 주세요 (nickname [테스트]열쇠)'); }
   }
   check('화면 오류 없음', errs.length === 0, errs.join(' | '));
   await b.close();
