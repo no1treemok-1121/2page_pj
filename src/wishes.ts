@@ -3,6 +3,7 @@ export type Wish = {
   text: string;
   name?: string | null;
   avatar?: string | null;
+  roomId?: string | null;
   color: string;
   position: [number, number, number];
   createdAt: number;
@@ -21,8 +22,9 @@ export function randomOrnamentPosition(): [number, number, number] {
   return [Math.cos(angle) * r, centerY - 0.9 + h, Math.sin(angle) * r];
 }
 
-export function newWishDraft(text: string, name?: string, avatar?: string | null): Omit<Wish, "id" | "createdAt"> {
+export function newWishDraft(text: string, name?: string, avatar?: string | null, roomId?: string | null): Omit<Wish, "id" | "createdAt"> {
   return {
+    roomId: roomId ?? null,
     text,
     name: name?.trim() || null,
     avatar: avatar ?? null,
@@ -37,13 +39,14 @@ const URL_ = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
 export const isShared = Boolean(URL_ && KEY);
 
-type Row = { id: string; text: string; name: string | null; avatar: string | null; color: string; x: number; y: number; z: number; created_at: string };
+type Row = { id: string; text: string; name: string | null; avatar: string | null; room_id: string | null; color: string; x: number; y: number; z: number; created_at: string };
 
 const fromRow = (r: Row): Wish => ({
   id: r.id,
   text: r.text,
   name: r.name,
   avatar: r.avatar,
+  roomId: r.room_id,
   color: r.color,
   position: [r.x, r.y, r.z],
   createdAt: Date.parse(r.created_at),
@@ -95,7 +98,7 @@ export async function addWish(draft: Omit<Wish, "id" | "createdAt">): Promise<Wi
   const res = await fetch(`${URL_}/rest/v1/wishes`, {
     method: "POST",
     headers: headers({ Prefer: "return=representation" }),
-    body: JSON.stringify({ text: draft.text, name: draft.name || null, avatar: draft.avatar || null, color: draft.color, x, y, z }),
+    body: JSON.stringify({ text: draft.text, name: draft.name || null, avatar: draft.avatar || null, room_id: draft.roomId || null, color: draft.color, x, y, z }),
   });
   if (!res.ok) throw new Error(`소원을 걸지 못했어요 (${res.status})`);
   const [row] = (await res.json()) as Row[];

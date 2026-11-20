@@ -5,7 +5,31 @@ import Character3D from "./Character3D";
 import { Avatar } from "./avatar";
 
 // 아늑한 방: 바닥·벽·창문(밖에 눈)·난로·작은 트리·편지함
-function Mailbox({ onClick, count }: { onClick: () => void; count: number }) {
+// 안 읽은 편지가 있으면 편지함 위에서 둥둥 떠서 깜박이는 화살표
+function Arrow() {
+  const g = useRef<THREE.Group>(null);
+  const m = useRef<THREE.MeshStandardMaterial>(null);
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    if (g.current) { g.current.position.y = 1.95 + Math.sin(t * 4) * 0.12; g.current.rotation.y = t * 1.5; }
+    if (m.current) m.current.emissiveIntensity = 0.6 + (Math.sin(t * 6) + 1) * 1.2;
+  });
+  return (
+    <group ref={g} position={[0, 1.95, 0]} raycast={() => null}>
+      <mesh rotation={[Math.PI, 0, 0]} raycast={() => null}>
+        <coneGeometry args={[0.18, 0.32, 4]} />
+        <meshStandardMaterial ref={m} color="#ffd36b" emissive="#ffb300" />
+      </mesh>
+      <mesh position={[0, 0.26, 0]} raycast={() => null}>
+        <boxGeometry args={[0.1, 0.25, 0.1]} />
+        <meshStandardMaterial color="#ffd36b" emissive="#ffb300" emissiveIntensity={1} />
+      </mesh>
+      <pointLight color="#ffd36b" intensity={2} distance={2.5} />
+    </group>
+  );
+}
+
+function Mailbox({ onClick, count, alert }: { onClick: () => void; count: number; alert?: boolean }) {
   const ref = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
   useEffect(() => {
@@ -42,6 +66,7 @@ function Mailbox({ onClick, count }: { onClick: () => void; count: number }) {
           </mesh>
         )}
       </group>
+      {alert && <Arrow />}
     </group>
   );
 }
@@ -66,7 +91,7 @@ function Fireplace() {
   );
 }
 
-export default function RoomScene({ letterCount, onMailbox, avatar }: { letterCount: number; onMailbox: () => void; avatar: Avatar }) {
+export default function RoomScene({ letterCount, onMailbox, avatar, alert }: { letterCount: number; onMailbox: () => void; avatar: Avatar; alert?: boolean }) {
   return (
     <>
       <ambientLight intensity={0.45} color="#ffe6c7" />
@@ -122,7 +147,7 @@ export default function RoomScene({ letterCount, onMailbox, avatar }: { letterCo
           <meshStandardMaterial color="#ffd36b" emissive="#ffb300" emissiveIntensity={1.5} />
         </mesh>
       </group>
-      <Mailbox onClick={onMailbox} count={letterCount} />
+      <Mailbox onClick={onMailbox} count={letterCount} alert={alert} />
       <Character3D avatar={avatar} position={[-0.2, 0, 0.5]} />
     </>
   );

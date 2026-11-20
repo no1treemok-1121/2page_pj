@@ -298,3 +298,6 @@ html, body, #root {
 
 /* 걸어 다니는 캐릭터 이름표 */
 .name-tag { padding: 2px 8px; border-radius: 999px; background: rgba(11, 23, 51, 0.75); color: #fdf9f0; font-size: 12px; white-space: nowrap; pointer-events: none; user-select: none; }
+
+.visit-btn { display: inline-block; margin-top: 6px; padding: 4px 10px; border: 1px solid #d9d2c3; border-radius: 999px; background: #fff; color: #0b1733; font: inherit; font-size: 12.5px; cursor: pointer; }
+.btn.ghost.wide { border: 1px solid #d9d2c3; }
