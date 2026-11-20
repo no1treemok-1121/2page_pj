@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { Modal } from "./RoomView";
+import { BUNGEO, IconText, bungeoImage } from "./FoodIcon";
 
 // 먹거리 노점 3곳: 분식집 / 붕어빵 / 코코아. 메뉴를 고르면 머리 위 음식 + 소리 말풍선 3번, 모두에게 보임, 무료.
 // (참고 사이트의 간식 가판대 + 소리 말풍선 방식을 벤치마킹, 메뉴·문구는 직접 작성)
@@ -18,15 +19,15 @@ export const STALLS: Stall[] = [
       { id: "eomuk", emoji: "🍢", name: "어묵", sounds: ["호로록~", "국물이 끝내줘 ♨️", "후루룩 😌"] },
       { id: "sundae", emoji: "🌭", name: "순대", sounds: ["쫄깃쫄깃~", "소금 콕콕 🧂", "냠냠 😋"] },
       { id: "twigim", emoji: "🍤", name: "튀김모둠", sounds: ["바삭바삭!", "떡볶이 국물에 콕 🌶️", "와삭 😆"] },
-      { id: "bungeo", emoji: "🐟", name: "붕어빵", sounds: ["따끈따끈~", "팥이 가득 😍", "꼬리부터 냠"] },
+      { id: "kimbap", emoji: "🍙", name: "김밥", sounds: ["냠냠 한 줄 뚝딱!", "단무지가 아삭~", "역시 분식엔 김밥 😋"] },
     ],
   },
   {
-    id: "bungeo", title: "붕어빵 노점", icon: "🐟", spot: { x: 10.5, z: 1.5 }, stripe: "#2f6fd6", body: "#fff4dc", tag: "#2f6fd6",
+    id: "bungeo", title: "붕어빵 노점", icon: BUNGEO, spot: { x: 10.5, z: 1.5 }, stripe: "#2f6fd6", body: "#fff4dc", tag: "#2f6fd6",
     items: [
-      { id: "cream", emoji: "🐟", name: "슈크림붕어빵", sounds: ["말랑~ 슈크림이 쭉!", "달콤해 😍", "하나 더 먹을래"] },
-      { id: "pizza", emoji: "🍕", name: "피자붕어빵", sounds: ["치즈가 쭈욱~ 🧀", "짭짤 고소해!", "이건 반칙이야 😋"] },
-      { id: "redbean", emoji: "🫘", name: "팥많이붕어빵", sounds: ["팥이 꽉꽉!", "꼬리까지 팥이야 😆", "역시 원조가 최고"] },
+      { id: "cream", emoji: BUNGEO, name: "슈크림붕어빵", sounds: ["말랑~ 슈크림이 쭉!", "달콤해 😍", "하나 더 먹을래"] },
+      { id: "pizza", emoji: BUNGEO, name: "피자붕어빵", sounds: ["치즈가 쭈욱~ 🧀", "짭짤 고소해!", "이건 반칙이야 😋"] },
+      { id: "redbean", emoji: BUNGEO, name: "팥많이붕어빵", sounds: ["팥이 꽉꽉!", "꼬리까지 팥이야 😆", "역시 원조가 최고"] },
       { id: "hoppang", emoji: "🥮", name: "호빵", sounds: ["호호~ 김이 모락모락", "폭신폭신 ☁️", "속이 따뜻해져 😌"] },
       { id: "milk", emoji: "🥛", name: "우유", sounds: ["꿀꺽꿀꺽", "붕어빵엔 역시 우유 🥛", "캬~ 😆"] },
     ],
@@ -51,16 +52,24 @@ function useSignTexture(stall: Stall) {
     const c = document.createElement("canvas");
     c.width = 512; c.height = 160;
     const g = c.getContext("2d")!;
+    const tex = new THREE.CanvasTexture(c);
     g.fillStyle = stall.tag; g.beginPath(); g.roundRect(6, 6, 500, 148, 26); g.fill();
     g.lineWidth = 8; g.strokeStyle = "#ffd84d"; g.stroke();
     g.fillStyle = "#ffffff"; g.textAlign = "center"; g.textBaseline = "middle";
-    g.font = "bold 66px sans-serif"; g.fillText(`${stall.icon} ${stall.title}`, 256, 62);
+    g.font = "bold 66px sans-serif";
+    if (stall.icon === BUNGEO) {
+      // 간판에 붕어빵 그림 + 이름 (그림이 아직 안 불러졌으면 불러진 뒤 다시 그림)
+      const w = g.measureText(stall.title).width, x0 = 256 - (w + 96) / 2;
+      g.textAlign = "left"; g.fillText(stall.title, x0 + 96, 62); g.textAlign = "center";
+      const draw = (im: HTMLImageElement) => g.drawImage(im, x0, 30, 86, 60);
+      const im = bungeoImage(() => { draw(bungeoImage(() => undefined)!); tex.needsUpdate = true; });
+      if (im) draw(im);
+    } else g.fillText(`${stall.icon} ${stall.title}`, 256, 62);
     g.font = "bold 30px sans-serif"; g.fillStyle = "#fff6d6";
     const names = stall.items.map((i) => i.name.replace("붕어빵", "")).join(" · ");
     g.fillText(names.length > 26 ? names.slice(0, 25) + "…" : names, 256, 122);
-    const t = new THREE.CanvasTexture(c);
-    t.colorSpace = THREE.SRGBColorSpace;
-    return t;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
   }, [stall]);
 }
 
@@ -192,7 +201,7 @@ export function SnackStand({ stall, onOpen }: { stall: Stall; onOpen?: () => voi
       ))}
       <RoofModel id={stall.id} />
       <Html pointerEvents="none" position={[0, 4.15, 0]} center distanceFactor={11} zIndexRange={[4, 0]}>
-        <div className="spot-tag" style={{ background: stall.tag }}>{stall.icon} {stall.title}</div>
+        <div className="spot-tag" style={{ background: stall.tag }}><IconText text={stall.icon} /> {stall.title}</div>
       </Html>
     </group>
   );
@@ -202,7 +211,7 @@ export function SnackMenu({ stall, onPick, onClose, onTakeout }: { stall: Stall;
   const [takeout, setTakeout] = useState(false);
   return (
     <Modal onClose={onClose}>
-      <h2>{stall.icon} 눈마을 {stall.title}</h2>
+      <h2><IconText text={stall.icon} /> 눈마을 {stall.title}</h2>
       <div className="chips center take-mode">
         <button className={!takeout ? "chip on" : "chip"} onClick={() => setTakeout(false)}>😋 여기서 먹기</button>
         <button className={takeout ? "chip on" : "chip"} onClick={() => setTakeout(true)}>🏠 내 방에 사 가기</button>
@@ -210,7 +219,7 @@ export function SnackMenu({ stall, onPick, onClose, onTakeout }: { stall: Stall;
       <p className="hint">{takeout ? (onTakeout ? "고른 음식이 내 방 테이블에 놓여요 (최대 6개)" : "내 방이 있어야 사 갈 수 있어요. ☰ 메뉴에서 내 방을 만들거나 찾아 주세요") : "먹고 싶은 걸 골라 보세요. 모두 무료예요!"}</p>
       <div className="snack-grid">
         {stall.items.map((s) => (
-          <button key={s.id} className="act-btn" disabled={takeout && !onTakeout} onClick={() => (takeout ? onTakeout?.(s) : onPick(s))}><span>{s.emoji}</span>{s.name}</button>
+          <button key={s.id} className="act-btn" disabled={takeout && !onTakeout} onClick={() => (takeout ? onTakeout?.(s) : onPick(s))}><span><IconText text={s.emoji} /></span>{s.name}</button>
         ))}
       </div>
       <button className="btn ghost wide" onClick={onClose}>닫기</button>

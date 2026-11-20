@@ -443,3 +443,8 @@ a.btn { display: inline-block; text-decoration: none; text-align: center; box-si
 .or-line { display: flex; align-items: center; gap: 8px; margin: 14px 0 4px; font-size: 12px; opacity: 0.6; }
 .or-line::before, .or-line::after { content: ""; flex: 1; height: 1px; background: currentColor; opacity: 0.4; }
 @media (max-width: 520px) { .bottom-bar .btn { padding-left: 12px; padding-right: 12px; font-size: 13px; } }
+
+/* 직접 그린 붕어빵 그림 (글자 크기에 맞춤) */
+.food-ico { height: 1.15em; width: auto; vertical-align: -0.2em; }
+.food-ico.big { height: 1em; }
+.act-btn .food-ico { height: 1.1em; }

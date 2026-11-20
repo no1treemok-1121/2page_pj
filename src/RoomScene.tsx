@@ -1,4 +1,5 @@
 import { DEFAULT_DECOR, Decor, foodById } from "./decor";
+import { IconText } from "./FoodIcon";
 import { Html } from "@react-three/drei";
 import { useEffect, useRef, useState } from "react";
 import { ThreeEvent, useFrame } from "@react-three/fiber";
@@ -131,7 +132,7 @@ function Table({ food, candle }: { food: string[]; candle: boolean }) {
         return (
           <group key={i} position={[Math.cos(a) * 0.36, 0.67, Math.sin(a) * 0.36]}>
             <mesh position={[0, 0.01, 0]}><cylinderGeometry args={[0.13, 0.11, 0.02, 14]} /><meshStandardMaterial color="#ffffff" /></mesh>
-            <Html pointerEvents="none" position={[0, 0.16, 0]} center distanceFactor={4.5} zIndexRange={[3, 0]}><div className="food-emoji">{f.emoji}</div></Html>
+            <Html pointerEvents="none" position={[0, 0.16, 0]} center distanceFactor={4.5} zIndexRange={[3, 0]}><div className="food-emoji"><IconText text={f.emoji} /></div></Html>
           </group>
         );
       })}

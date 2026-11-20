@@ -2,6 +2,7 @@ import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import RoomScene from "./RoomScene";
+import { IconText } from "./FoodIcon";
 import { DEFAULT_DECOR, Decor, FLOORS, MAX_FOOD, PROPS, RUGS, WALLS, foodById, normDecor, setRoomDecor } from "./decor";
 import { Avatar, DEFAULT_AVATAR, parseAvatar } from "./avatar";
 import {
@@ -296,7 +297,7 @@ function DecorPanel({ decor, onChange, onSave, onCancel }: { decor: Decor; onCha
         {decor.food.length ? (
           <div className="chips">
             {decor.food.map((id, i) => { const f = foodById(id); return f && (
-              <button key={i} className="chip on" onClick={() => set({ food: decor.food.filter((_, j) => j !== i) })}>{f.emoji} {f.name} ✕</button>
+              <button key={i} className="chip on" onClick={() => set({ food: decor.food.filter((_, j) => j !== i) })}><IconText text={f.emoji} /> {f.name} ✕</button>
             ); })}
           </div>
         ) : <p className="hint small">비어 있어요. 마을 노점에서 <b>🏠 내 방에 사 가기</b>를 고르면 테이블에 놓여요.</p>}

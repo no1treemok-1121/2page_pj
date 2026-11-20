@@ -138,6 +138,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   await A.click('.menu-btn'); await A.click('.menu >> text=코코아 노점');
   await A.waitForSelector('.snack-grid', { timeout: 15000 }).catch(() => null);
   check('노점: 내 방에 사 가기 선택', !!(await A.$('.take-mode')));
+  check('붕어빵 노점: 붕어빵은 직접 그린 그림', (await A.$$('.snack-grid .food-ico')).length >= 1);
   check('코코아 노점 메뉴', (await A.$$('.snack-grid .act-btn')).length === 4);
   await A.keyboard.press('Escape');
   // 낚시 도감 · 포토존

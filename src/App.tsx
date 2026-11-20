@@ -9,6 +9,7 @@ import { Wish, addWish, fetchWishes, isShared, loadMyWishIds, newWishDraft, reme
 import RoomView, { Modal, ShareDialog } from "./RoomView";
 import { LOGIN_RE, MyRoom, copyText, createRoom, forgetMyRoom, getRoom, getRoomLogin, loadMyRoom, loginRoom, rpc, saveMyRoom, setRoomLogin } from "./rooms";
 import { MAX_FOOD, normDecor, setRoomDecor } from "./decor";
+import { BUNGEO_SRC, IconText } from "./FoodIcon";
 import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup, loadNickname } from "./Avatar";
 import RandomLetters, { useRandomInbox } from "./RandomLetters";
@@ -440,7 +441,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
       {walk.sledding ? (
         <button className="btn ride-off" onClick={() => { if (walk.stopRide()) setNotice("🛷 썰매에서 내렸어요"); }}>🛷 여기서 내리기</button>
       ) : busy && (
-        <button className="btn ride-off busy-off" onClick={cancelBusy}>{busy} · ✋ 그만하기</button>
+        <button className="btn ride-off busy-off" onClick={cancelBusy}><IconText text={busy} /> · ✋ 그만하기</button>
       )}
       <div className="cam-wrap">
         <button className={camFollow ? "cam-btn on" : "cam-btn"} onClick={toggleFollow} aria-label="카메라 따라가기" aria-pressed={camFollow}>🎥<small>{camFollow ? "ON" : "OFF"}</small></button>
@@ -756,7 +757,7 @@ function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose, onFindRoom }: 
             <span>🔥</span><strong>모닥불 쬐기</strong><small>연못가 통나무에 앉아 몸을 녹여요</small>
           </button>
           <button className="intro-card" onClick={() => onAction("bungeo")}>
-            <span>🐟</span><strong>붕어빵 노점</strong><small>슈크림·피자·팥많이 붕어빵, 호빵, 우유</small>
+            <span><img className="food-ico big" src={BUNGEO_SRC} alt="" /></span><strong>붕어빵 노점</strong><small>슈크림·피자·팥많이 붕어빵, 호빵, 우유</small>
           </button>
           <button className="intro-card" onClick={() => onAction("cocoa")}>
             <span>☕</span><strong>코코아 노점</strong><small>핫코코아·마시멜로 코코아·유자차·따뜻한 우유</small>
@@ -908,7 +909,7 @@ export default function App() {
       )}
       {editingAvatar && <AvatarEditor initial={myAvatar} onSave={saveAvatar} onClose={() => setEditingAvatar(false)} />}
 
-      {notice && <div className="toast" role="status">{notice}</div>}
+      {notice && <div className="toast" role="status"><IconText text={notice} /></div>}
 
       {creating && (
         <CreateRoom onClose={() => setCreating(false)} onFind={() => { setCreating(false); setFinding(true); }} onCreated={(room) => {
