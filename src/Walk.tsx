@@ -5,10 +5,11 @@ import * as THREE from "three";
 import Character3D from "./Character3D";
 import { Avatar, DEFAULT_AVATAR, parseAvatar, toStr } from "./avatar";
 import { supabase } from "./supabase";
+import { BENCHES, SIT_Y } from "./benches";
 import { CARDS, loadToday } from "./Fortune";
 
 // 마을을 걸어 다니는 캐릭터 + 다른 사람 캐릭터 실시간 표시 (Supabase Realtime presence)
-export type Walker = { avatar: string; nick: string; x: number; z: number; ry: number; fortune?: number | null };
+export type Walker = { avatar: string; nick: string; x: number; z: number; ry: number; fortune?: number | null; sit?: boolean };
 export type Emote = { e: string; t: number };
 export type Act = { type: "bump" | "snow" | "hug"; from: string; to: string; dir: [number, number] };
 type Shot = { id: number; from: [number, number]; to: [number, number]; t: number };
@@ -47,10 +48,12 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
   const [mySay, setMySay] = useState<Emote | null>(null);
   // 친구에게 하는 액션 (들이받기·눈덩이·안아주기)
   const goal = useRef<[number, number] | null>(null);
+  const benchTo = useRef<number | null>(null); // 이 벤치로 걸어가서 앉을 예정
+  const [sitting, setSitting] = useState(false);
   const knock = useRef(0); // 이 시각까지 튕겨 나가는 중 (빠르게 + 빙글빙글)
   const [shots, setShots] = useState<Shot[]>([]);
   const othersRef = useRef<Record<string, Walker>>({});
-  const [pos, setPos] = useState<Record<string, { x: number; z: number; ry: number }>>({});
+  const [pos, setPos] = useState<Record<string, { x: number; z: number; ry: number; sit?: boolean }>>({});
   const chRef = useRef<ReturnType<NonNullable<typeof supabase>["channel"]> | null>(null);
   const keyRef = useRef(crypto.randomUUID());
   const meRef = useRef<Walker>({ avatar: toStr(myAvatar ?? DEFAULT_AVATAR), nick, x: (Math.random() - 0.5) * 6, z: 4.5, ry: 0, fortune: loadToday() }); // 처음엔 화면 쪽을 바라봄, 오늘 뽑은 운세 카드도 함께 알림
@@ -59,8 +62,8 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
 
   const sendPos = () => {
     lastSent.current = Date.now(); pending.current = null;
-    const { x, z, ry } = meRef.current;
-    chRef.current?.send({ type: "broadcast", event: "pos", payload: { key: keyRef.current, x, z, ry } });
+    const { x, z, ry, sit } = meRef.current;
+    chRef.current?.send({ type: "broadcast", event: "pos", payload: { key: keyRef.current, x, z, ry, sit: !!sit } });
   };
 
   useEffect(() => {
@@ -84,8 +87,8 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
         setEmotes((prev) => ({ ...prev, [p.key]: { e: p.e, t: Date.now() } }));
       })
       .on("broadcast", { event: "pos" }, ({ payload }) => {
-        const p = payload as { key: string; x: number; z: number; ry: number };
-        setPos((prev) => ({ ...prev, [p.key]: { x: p.x, z: p.z, ry: p.ry } }));
+        const p = payload as { key: string; x: number; z: number; ry: number; sit?: boolean };
+        setPos((prev) => ({ ...prev, [p.key]: { x: p.x, z: p.z, ry: p.ry, sit: p.sit } }));
       })
       .subscribe((status) => { if (status === "SUBSCRIBED") ch.track(meRef.current); });
     chRef.current = ch;
@@ -174,8 +177,31 @@ export function useWalkers(myAvatar: Avatar | null, nick: string) {
     setMySay({ e: short, t: Date.now() });
     chRef.current?.send({ type: "broadcast", event: "say", payload: { key: keyRef.current, text: short } });
   };
+  // 벤치에 앉기: 벤치 앞까지 걸어가서 트리를 바라보고 앉음
+  const sitAt = (i: number) => {
+    const b = BENCHES[i];
+    if (!b) return;
+    benchTo.current = i;
+    goal.current = [b.x, b.z];
+    if (meRef.current.sit) { meRef.current = { ...meRef.current, sit: false }; setSitting(false); }
+  };
+  const standUp = () => {
+    benchTo.current = null;
+    if (!meRef.current.sit) return;
+    meRef.current = { ...meRef.current, sit: false };
+    setSitting(false);
+    sendPos();
+  };
+  const sitDown = () => {
+    const b = BENCHES[benchTo.current ?? -1];
+    benchTo.current = null;
+    if (!b) return;
+    meRef.current = { ...meRef.current, x: b.x, z: b.z, ry: b.ry, sit: true };
+    setSitting(true);
+    sendPos();
+  };
   othersRef.current = others;
-  return { others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
+  return { sitAt, standUp, sitDown, benchTo, sitting, others, me: meRef, share, emotes, myEmote, emote, setFortune, says, mySay, say, act, goal, knock, shots, myKey: keyRef.current };
 }
 
 // 감정 표현: 3초 동안 머리 위에 띄우고, 그동안 캐릭터가 깡충 뜀
@@ -232,7 +258,7 @@ export function MyWalker({ walk, target, avatar }: {
   const myShow = useEmoteHop(walk.myEmote, hop);
   const mySay = useTimed(walk.mySay, SAY_MS);
 
-  useEffect(() => { if (target) goal.current = clampSpot(target[0], target[1]); }, [target]);
+  useEffect(() => { if (target) { walk.standUp(); goal.current = clampSpot(target[0], target[1]); } }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest?.("input, textarea")) return;
@@ -250,9 +276,19 @@ export function MyWalker({ walk, target, avatar }: {
     let dz = (k["arrowdown"] || k["s"] ? 1 : 0) - (k["arrowup"] || k["w"] ? 1 : 0);
     if (dx || dz) {
       goal.current = null;
+      if (me.sit || walk.benchTo.current !== null) walk.standUp();
     } else if (goal.current) {
       dx = goal.current[0] - me.x; dz = goal.current[1] - me.z;
-      if (Math.hypot(dx, dz) < 0.05) { goal.current = null; dx = 0; dz = 0; }
+      if (Math.hypot(dx, dz) < 0.05) {
+        goal.current = null; dx = 0; dz = 0;
+        if (walk.benchTo.current !== null) {
+          walk.sitDown();
+          const m = walk.me.current;
+          if (g.current) { g.current.position.set(m.x, 0, m.z); g.current.rotation.y = m.ry; }
+        }
+      } else if (me.sit) {
+        walk.standUp();
+      }
     }
     const len = Math.hypot(dx, dz);
     const isMoving = len > 0;
@@ -270,7 +306,9 @@ export function MyWalker({ walk, target, avatar }: {
   const me = walk.me.current;
   return (
     <group ref={g} position={[me.x, 0, me.z]} rotation={[0, me.ry, 0]}>
-      <group ref={hop}><Character3D avatar={avatar ?? DEFAULT_AVATAR} walking={moving} /></group>
+      <group position={[0, walk.sitting ? SIT_Y : 0, 0]}>
+        <group ref={hop}><Character3D avatar={avatar ?? DEFAULT_AVATAR} walking={moving} /></group>
+      </group>
       <NameTag text={`${me.nick} (나)${fortuneIcon(me.fortune)}`} />
       {myShow && <EmoteBubble e={myShow.e} />}
       {mySay && <SayBubble text={mySay.e} high={!!myShow} />}
@@ -291,6 +329,7 @@ function OtherWalker({ w, emote, said, onSelect }: { w: Walker; emote?: Emote; s
     const d = Math.hypot(dx, dz);
     const isMoving = d > 0.05;
     if (isMoving !== moving) setMoving(isMoving);
+    if (!isMoving && w.sit) o.rotation.y = w.ry;
     if (isMoving) {
       const hit = said && said.e.startsWith("💫") && Date.now() - said.t < 900;
       const step = Math.min(d, SPEED * (hit ? 4.5 : 1.2) * dt);
@@ -300,11 +339,13 @@ function OtherWalker({ w, emote, said, onSelect }: { w: Walker; emote?: Emote; s
   });
   return (
     <group ref={g} position={[w.x, 0, w.z]} rotation={[0, w.ry, 0]}>
+      <group position={[0, w.sit ? SIT_Y : 0, 0]}>
       <group ref={hop}
         onClick={(e) => { if (onSelect && e.delta < 6) { e.stopPropagation(); onSelect(); } }}
         onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
         onPointerOut={() => { document.body.style.cursor = "auto"; }}>
         <Character3D avatar={parseAvatar(w.avatar) ?? DEFAULT_AVATAR} walking={moving} />
+      </group>
       </group>
       <NameTag text={`${w.nick}${fortuneIcon(w.fortune)}`} />
       {show && <EmoteBubble e={show.e} />}

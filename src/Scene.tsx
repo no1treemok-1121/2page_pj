@@ -77,6 +77,55 @@ function Ornament({ wish, onClick, mine }: { wish: Wish; onClick: (w: Wish) => v
 }
 
 // 꼭대기 별: 반짝임 이벤트 때 크게 빛나며 빙글빙글
+// 반짝임 이벤트 때: 무지개 조명 3개가 트리 주위를 돌고, 반짝이 가루가 나선으로 솟아오름
+const GLITTER = 220;
+function TreeParty() {
+  const group = useRef<THREE.Group>(null);
+  const lights = useRef<(THREE.PointLight | null)[]>([]);
+  const pts = useRef<THREE.Points>(null);
+  const seeds = useMemo(() => Array.from({ length: GLITTER }, () => ({ a: Math.random() * Math.PI * 2, h: Math.random(), s: 0.6 + Math.random() * 0.8 })), []);
+  const geo = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(GLITTER * 3), 3));
+    g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(GLITTER * 3), 3));
+    return g;
+  }, []);
+  const c = useMemo(() => new THREE.Color(), []);
+  useFrame(({ clock }) => {
+    const on = currentEvent() === "sparkle";
+    if (group.current) group.current.visible = on;
+    if (!on) return;
+    const t = clock.elapsedTime;
+    lights.current.forEach((l, i) => {
+      if (!l) return;
+      const a = t * 1.6 + (i * Math.PI * 2) / 3;
+      l.position.set(Math.cos(a) * 3, 1.5 + i * 1.2 + Math.sin(t * 2 + i) * 0.5, Math.sin(a) * 3);
+      l.color.setHSL((t * 0.2 + i / 3) % 1, 1, 0.6);
+    });
+    const p = geo.getAttribute("position") as THREE.BufferAttribute;
+    const col = geo.getAttribute("color") as THREE.BufferAttribute;
+    seeds.forEach((sd, i) => {
+      const h = (sd.h + t * 0.12 * sd.s) % 1; // 0(아래) → 1(위) 로 계속 올라감
+      const y = 0.4 + h * 5.2;
+      const r = 2.4 * (1 - h * 0.8) + 0.25;
+      const a = sd.a + t * 1.5 * sd.s + h * 8;
+      p.setXYZ(i, Math.cos(a) * r, y, Math.sin(a) * r);
+      c.setHSL((h + t * 0.3) % 1, 1, 0.65);
+      col.setXYZ(i, c.r, c.g, c.b);
+    });
+    p.needsUpdate = true; col.needsUpdate = true;
+    if (pts.current) (pts.current.material as THREE.PointsMaterial).size = 0.13 + Math.abs(Math.sin(t * 6)) * 0.07;
+  });
+  return (
+    <group ref={group} visible={false}>
+      {[0, 1, 2].map((i) => <pointLight key={i} ref={(l) => { lights.current[i] = l; }} intensity={10} distance={6} />)}
+      <points ref={pts} geometry={geo} raycast={() => null}>
+        <pointsMaterial vertexColors size={0.15} transparent blending={THREE.AdditiveBlending} depthWrite={false} />
+      </points>
+    </group>
+  );
+}
+
 function TreeStar() {
   const mesh = useRef<THREE.Mesh>(null);
   const mat = useRef<THREE.MeshStandardMaterial>(null);
@@ -123,6 +172,7 @@ function Tree({ onClick }: { onClick: () => void }) {
         </mesh>
       ))}
       <TreeStar />
+      <TreeParty />
     </group>
   );
 }
@@ -166,15 +216,16 @@ type SceneProps = {
   onTreeClick: () => void;
   onWishClick: (w: Wish) => void;
   onGround?: (x: number, z: number) => void;
+  onBench?: (i: number) => void;
   mineIds?: Set<string>;
 };
 
-export default function Scene({ wishes, onTreeClick, onWishClick, onGround, mineIds }: SceneProps) {
+export default function Scene({ wishes, onTreeClick, onWishClick, onGround, onBench, mineIds }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.35} color="#9fb4ff" />
       <directionalLight position={[5, 10, 5]} intensity={0.6} />
-      <Village onGround={onGround} />
+      <Village onGround={onGround} onBench={onBench} />
       <Tree onClick={onTreeClick} />
       <TreeLights />
       {wishes.map((w) => (

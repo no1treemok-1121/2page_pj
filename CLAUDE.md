@@ -7,6 +7,9 @@
 - 기술: Vite + React + TypeScript + Three.js (@react-three/fiber, drei). 저장소 루트가 곧 이 사이트.
 - 이전에 있던 2Page 앱(Lovable로 만든 SNS)은 사용자 요청으로 삭제함. 필요하면 git 기록에서 복구 가능 (커밋 2c1819c 이전).
 
+## ⚠️ 기능 목록 먼저 확인
+- **`FEATURES.md`에 지금까지 만든 모든 기능이 있음.** 무엇을 고치든 먼저 읽고, 고친 뒤 기존 기능이 그대로인지 확인하고, 같은 커밋에서 `FEATURES.md`도 갱신할 것. (사용자가 기능 누락을 걱정함)
+
 ## 명령
 - `npm install`, `npm run dev`, `npm run build` (npm만 사용)
 
@@ -34,6 +37,8 @@
 - 운세 공유: 뽑은 카드를 `village-walk` presence에 `fortune`으로 실어 보냄 → 이름표 옆 아이콘, 운세 창에 '광장 친구들의 오늘 카드'(지금 마을에 있는 사람만).
 - 채팅 말풍선: 광장 채팅을 보내면 broadcast `say` → 캐릭터 머리 위 4초.
 - 친구 액션: 다른 캐릭터를 누르면 메뉴(💥 들이받기 / ❄️ 눈덩이 / 🤗 안아주기), broadcast `act`. 들이받기 맞은 사람은 자기 화면에서 빙글 돌며 2.4만큼 밀려나고 위치를 공유.
+- 벤치(`src/benches.ts`): 4개, 트리 가까이(휴대폰 세로 화면에서도 보이게), 모두 화면 쪽을 바라봄. 앉으면 presence/pos에 `sit` 전달.
+- 👊 장난치기 버튼: 광장 사람 목록 → 액션 메뉴. 이벤트는 각 30초.
 - 관리 방법: 환경에 저장된 Supabase 개인 접근 토큰(api.supabase.com, 프록시가 자동 주입)으로 Management API 사용. SQL 실행은 `POST https://api.supabase.com/v1/projects/{ref}/database/query` 에 `{"query": "..."}`. 토큰 권한은 좁음(프로젝트 목록 조회 불가, ref 직접 지정), 2026-11-20 발급·7일 만료 — 만료되면 새 토큰 발급을 안내.
 
 ## 배포

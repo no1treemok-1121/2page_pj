@@ -25,3 +25,18 @@ alter table public.wishes add column if not exists name text check (name is null
 
 -- 소원을 건 사람의 방 (있으면 소원함에서 '방 놀러 가기' 가능). 방이 지워지면 연결만 끊김
 alter table public.wishes add column if not exists room_id uuid references public.rooms(id) on delete set null;
+
+-- 방을 나중에 만든 경우: 이 기기에서 건 소원(아직 방 연결 없는 것)을 내 방에 연결 (방 주인 열쇠 확인)
+create or replace function public.link_my_wishes(p_room uuid, p_key text, p_ids uuid[])
+returns int language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  if not exists (select 1 from rooms where id = p_room and owner_key_hash = encode(sha256(convert_to(p_key, 'UTF8')), 'hex')) then
+    raise exception 'not owner';
+  end if;
+  update wishes set room_id = p_room where id = any(p_ids[1:200]) and room_id is null;
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke all on function public.link_my_wishes(uuid, text, uuid[]) from public;
+grant execute on function public.link_my_wishes(uuid, text, uuid[]) to anon, authenticated;

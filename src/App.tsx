@@ -5,7 +5,7 @@ import Scene from "./Scene";
 import WishDialog from "./WishDialog";
 import { Wish, addWish, fetchWishes, isShared, loadMyWishIds, newWishDraft, rememberMyWish } from "./wishes";
 import RoomView, { Modal, ShareDialog } from "./RoomView";
-import { MyRoom, copyText, createRoom, loadMyRoom, saveMyRoom } from "./rooms";
+import { MyRoom, copyText, createRoom, loadMyRoom, rpc, saveMyRoom } from "./rooms";
 import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup } from "./Avatar";
 import RandomLetters, { useRandomInbox } from "./RandomLetters";
@@ -46,12 +46,32 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const [emoteOpen, setEmoteOpen] = useState(false);
   const [treeMenu, setTreeMenu] = useState(false);
   const [actTarget, setActTarget] = useState<string | null>(null);
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const othersCount = Object.keys(walk.others).length;
+  // 다른 사람이 처음 보이면 한 번만 장난치기 안내
+  useEffect(() => {
+    if (othersCount === 0) return;
+    try {
+      if (sessionStorage.getItem("3d_pj.actTip")) return;
+      sessionStorage.setItem("3d_pj.actTip", "1");
+    } catch { /* 무시 */ }
+    setNotice("👊 친구 캐릭터를 누르거나 왼쪽 👊 버튼으로 장난칠 수 있어요");
+  }, [othersCount > 0]); // eslint-disable-line react-hooks/exhaustive-deps
   const [event, setEvent] = useState<VillageEvent>(() => currentEvent());
   useEffect(() => {
     const id = setInterval(() => setEvent(currentEvent()), 1000);
     return () => clearInterval(id);
   }, []);
   const [myWishIds, setMyWishIds] = useState<Set<string>>(() => loadMyWishIds());
+  // 방을 나중에 만든 경우: 이 기기에서 건 소원 중 방 연결이 없는 것을 내 방에 연결
+  useEffect(() => {
+    if (!myRoom || wishes.length === 0) return;
+    const ids = wishes.filter((w) => !w.roomId && myWishIds.has(w.id)).map((w) => w.id);
+    if (ids.length === 0) return;
+    rpc<number>("link_my_wishes", { p_room: myRoom.roomId, p_key: myRoom.ownerKey, p_ids: ids })
+      .then(() => setWishes((prev) => prev.map((w) => (ids.includes(w.id) ? { ...w, roomId: myRoom.roomId } : w))))
+      .catch(() => undefined);
+  }, [myRoom?.roomId, wishes.length, myWishIds]); // eslint-disable-line react-hooks/exhaustive-deps
   const [fortuneOpen, setFortuneOpen] = useState(action?.type === "fortune");
   const [lettersOpen, setLettersOpen] = useState(action?.type === "letters");
   // 메뉴에서 고른 동작 실행
@@ -113,7 +133,8 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         <color attach="background" args={["#0b1733"]} />
         <fog attach="fog" args={["#0b1733", 14, 38]} />
         <Scene wishes={wishes} mineIds={myWishIds} onTreeClick={() => setTreeMenu(true)} onWishClick={setViewing}
-          onGround={(x, z) => setWalkTarget([x, z])} />
+          onGround={(x, z) => setWalkTarget([x, z])}
+          onBench={(i) => { walk.sitAt(i); setNotice("벤치로 가서 앉아요 🪑 움직이면 일어나요"); }} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
         <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} onSelect={setActTarget} />
         <Snowballs shots={walk.shots} />
@@ -134,7 +155,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
 
       <div className="title">
         <h1>눈 내리는 마을</h1>
-        <p>트리를 눌러 소원을 쓰거나 읽어 보세요<span className="sep"> · </span><br className="br-mobile" />땅을 누르면 걸어가고, 친구를 누르면 장난칠 수 있어요</p>
+        <p>트리를 눌러 소원을 쓰거나 읽어 보세요<span className="sep"> · </span><br className="br-mobile" />땅을 누르면 걸어가고, 벤치를 누르면 앉아요</p>
         {wishes.length > 0 && (
           <p className="count">
             {isShared ? "함께 건 소원" : "지금까지 걸린 소원"} {wishes.length}개
@@ -153,10 +174,31 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         )}
         <button className="emote-btn" onClick={() => setEmoteOpen((v) => !v)} aria-label="감정 표현">😊</button>
         <button className="emote-btn" onClick={() => setFortuneOpen(true)} aria-label="오늘의 운세">🔮</button>
+        <button className="emote-btn chat-btn" onClick={() => setPeopleOpen(true)} aria-label="장난치기">
+          👊{othersCount > 0 && <span className="badge">{othersCount}</span>}
+        </button>
       </div>
       {fortuneOpen && (
         <Fortune onClose={() => setFortuneOpen(false)} onPicked={walk.setFortune}
           peers={Object.values(walk.others).filter((w) => w.fortune != null).map((w) => ({ nick: w.nick, avatar: w.avatar, card: w.fortune as number }))} />
+      )}
+      {peopleOpen && (
+        <Modal onClose={() => setPeopleOpen(false)}>
+          <h2>👊 누구에게 장난칠까요?</h2>
+          {othersCount === 0 ? <p className="hint">지금 광장에 다른 사람이 없어요.<br />친구가 들어오면 여기에 나타나요.</p> : (
+            <ul className="people-list">
+              {Object.entries(walk.others).map(([k, w]) => (
+                <li key={k}>
+                  <button onClick={() => { setPeopleOpen(false); setActTarget(k); }}>
+                    <AvatarBadge value={w.avatar} size={34} /><span>{w.nick}</span><small>장난치기 ›</small>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="hint">마을에서 친구 캐릭터를 직접 눌러도 돼요.</p>
+          <button className="btn ghost wide" onClick={() => setPeopleOpen(false)}>닫기</button>
+        </Modal>
       )}
       {actTarget && walk.others[actTarget] && (
         <Modal onClose={() => setActTarget(null)}>
@@ -208,8 +250,10 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
                   <div>
                     <p>{w.text}</p>
                     <small>{w.name || "익명"} · {new Date(w.createdAt).toLocaleDateString("ko-KR")}</small>
-                    {w.roomId && w.roomId !== myRoom?.roomId && (
-                      <button className="visit-btn" onClick={() => onVisitRoom(w.roomId!)}>🏠 방 놀러 가기</button>
+                    {w.roomId && (
+                      <button className="visit-btn" onClick={() => onVisitRoom(w.roomId!)}>
+                        {w.roomId === myRoom?.roomId ? "🏠 내 방 가기" : "🏠 방 놀러 가기"}
+                      </button>
                     )}
                   </div>
                 </li>
@@ -230,8 +274,10 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
             <p className="wish-name">— {viewing.name || "익명"}</p>
             <p className="date">{new Date(viewing.createdAt).toLocaleDateString("ko-KR")}</p>
             <div className="actions center">
-              {viewing.roomId && viewing.roomId !== myRoom?.roomId && (
-                <button className="btn" onClick={() => onVisitRoom(viewing.roomId!)}>🏠 방 놀러 가기</button>
+              {viewing.roomId && (
+                <button className="btn" onClick={() => onVisitRoom(viewing.roomId!)}>
+                  {viewing.roomId === myRoom?.roomId ? "🏠 내 방 가기" : "🏠 방 놀러 가기"}
+                </button>
               )}
               <button className="btn ghost" onClick={() => setViewing(null)}>닫기</button>
             </div>
