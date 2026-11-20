@@ -8,7 +8,7 @@ export type MyRoom = { roomId: string; ownerKey: string; nickname: string };
 
 const MY_ROOM_KEY = "3d_pj.myRoom";
 
-async function rpc<T>(fn: string, body: Record<string, unknown>): Promise<T> {
+export async function rpc<T>(fn: string, body: Record<string, unknown>): Promise<T> {
   if (!URL_ || !KEY) throw new Error("서버 연결 정보가 없어요");
   const res = await fetch(`${URL_}/rest/v1/rpc/${fn}`, {
     method: "POST",
@@ -20,6 +20,7 @@ async function rpc<T>(fn: string, body: Record<string, unknown>): Promise<T> {
     if (msg.includes("too many")) throw new Error("편지가 너무 많이 왔어요. 잠시 후 다시 보내 주세요.");
     if (msg.includes("not owner")) throw new Error("이 방의 주인만 편지를 읽을 수 있어요.");
     if (msg.includes("room not found")) throw new Error("방을 찾을 수 없어요.");
+    if (msg.includes("cannot reply")) throw new Error("이미 답장한 편지예요.");
     throw new Error(`요청에 실패했어요 (${res.status})`);
   }
   const text = await res.text();
