@@ -3,6 +3,8 @@ import { useFrame } from "@react-three/fiber";
 import { Stars } from "@react-three/drei";
 import * as THREE from "three";
 import { currentEvent } from "./events";
+
+const WHITE = new THREE.Color("#ffffff");
 import { BENCHES } from "./benches";
 import { HILL, SLED_PARK } from "./sled";
 import { Html } from "@react-three/drei";
@@ -124,6 +126,33 @@ function SmallPine({ position, scale }: { position: [number, number, number]; sc
 }
 
 // 트리에 감긴 반짝이 전구
+// 카메라와 트리 사이를 가리면 반투명해지는 묶음 (언덕·집)
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3();
+function FadeWhenBlocking({ center, radius, children }: { center: [number, number, number]; radius: number; children: React.ReactNode }) {
+  const g = useRef<THREE.Group>(null);
+  const mats = useRef<THREE.Material[]>([]);
+  const op = useRef(1);
+  useFrame(({ camera }, dt) => {
+    if (!g.current) return;
+    if (mats.current.length === 0) {
+      g.current.traverse((o) => {
+        const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+        if (m && !(m as THREE.MeshBasicMaterial).transparent) { m.transparent = true; mats.current.push(m); }
+      });
+    }
+    // 카메라 → 트리 중심 선분에서 이 물체 중심까지 거리
+    _a.copy(camera.position); _b.set(0, 1.8, 0); _c.set(...center);
+    _d.copy(_b).sub(_a);
+    const len2 = _d.lengthSq();
+    const tt = Math.max(0, Math.min(1, _c.clone().sub(_a).dot(_d) / len2));
+    const dist = _a.clone().addScaledVector(_d, tt).distanceTo(_c);
+    const target = dist < radius || camera.position.distanceTo(_c) < radius * 1.1 ? 0.22 : 1;
+    op.current += (target - op.current) * Math.min(1, dt * 6);
+    for (const m of mats.current) { m.opacity = op.current; m.depthWrite = op.current > 0.9; }
+  });
+  return <group ref={g}>{children}</group>;
+}
+
 // 썰매 (마을에 세워 둔 것 / 타고 내려올 때 공용)
 export function SledMesh() {
   return (
@@ -162,10 +191,12 @@ function SledHill({ onSled }: { onSled?: () => void }) {
   };
   return (
     <group>
-      <mesh position={[HILL.x, -0.2, HILL.z]} scale={[HILL.r, HILL.h + 0.2, HILL.r]} onClick={click} {...hover}>
-        <sphereGeometry args={[1, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color="#f2f6fc" roughness={1} />
-      </mesh>
+      <FadeWhenBlocking center={[HILL.x, HILL.h / 2, HILL.z]} radius={HILL.r}>
+        <mesh position={[HILL.x, -0.2, HILL.z]} scale={[HILL.r, HILL.h + 0.2, HILL.r]} onClick={click} {...hover}>
+          <sphereGeometry args={[1, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          <meshStandardMaterial color="#f2f6fc" roughness={1} />
+        </mesh>
+      </FadeWhenBlocking>
       <group position={[SLED_PARK.x, 0, SLED_PARK.z]} rotation={[0, -0.6, 0]} onClick={click} {...hover}>
         <SledMesh />
         {/* 누르기 쉽게 썰매 주변을 넓게 감싼 투명 영역 */}
@@ -236,12 +267,12 @@ export function TreeLights({ count = 46 }) {
       const mesh = child as THREE.Mesh;
       const m = mesh.material as THREE.MeshStandardMaterial;
       if (party) {
-        // 아래에서 위로 올라가는 빛의 물결 + 색이 계속 바뀜
-        const wave = Math.sin(t * 9 - i * 0.55);
-        m.emissiveIntensity = wave > 0.2 ? 5 : 0.4;
-        tmp.setHSL(((t * 0.25 + i / bulbs.length) % 1), 1, 0.6);
+        // 아래에서 위로 부드럽게 올라가는 금빛 물결 (따뜻한 금색 ↔ 하얀 빛)
+        const wave = (Math.sin(t * 4 - i * 0.45) + 1) / 2; // 0~1 부드럽게
+        m.emissiveIntensity = 0.8 + wave * 3.2;
+        tmp.set(i % 3 === 0 ? "#fff6e0" : "#ffcf6b").lerp(WHITE, wave * 0.5);
         m.emissive.copy(tmp); m.color.copy(tmp);
-        mesh.scale.setScalar(wave > 0.2 ? 1.9 : 1);
+        mesh.scale.setScalar(1 + wave * 0.35);
       } else {
         m.emissiveIntensity = 0.6 + (Math.sin(t * 2.2 + bulbs[i].phase) + 1) * 0.9;
         m.emissive.copy(base[i]); m.color.copy(base[i]);
@@ -326,7 +357,9 @@ export default function Village({ onGround, onBench, onSled }: { onGround?: (x: 
       ))}
 
       {layout.houses.map((h, i) => (
-        <House key={i} {...h} />
+        <FadeWhenBlocking key={i} center={[h.position[0], 1, h.position[2]]} radius={1.6 * h.scale}>
+          <House {...h} />
+        </FadeWhenBlocking>
       ))}
       {BENCHES.map((b, i) => <Bench key={i} {...b} onClick={onBench && (() => onBench(i))} />)}
       <SledHill onSled={onSled} />

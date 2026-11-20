@@ -383,3 +383,7 @@ html, body, #root {
 
 .emote-btn:disabled { opacity: 0.5; }
 @media (max-width: 520px) { .emote-btn { width: 46px; height: 46px; font-size: 22px; } .emote-wrap { gap: 6px; } }
+
+/* 팝업: 화면 안에서만 보이고 길면 안에서 스크롤 (아래 Netlify 배지에 버튼이 가리지 않게) */
+.backdrop { padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: calc(72px + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.backdrop > .card { max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }

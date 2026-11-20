@@ -65,9 +65,7 @@ export default function Fireworks() {
     const ang = Math.random() * Math.PI * 2, rad = 11 + Math.random() * 5;
     const at = new THREE.Vector3(Math.cos(ang) * rad, 5.5 + Math.random() * 4, Math.sin(ang) * rad);
     const r = Math.random();
-    if (r < 0.3) {
-      burst(at, pick(), "ring", 4.6, 0.36);
-    } else if (r < 0.6) {
+    if (r < 0.45) {
       // 두 색 겹치기: 큰 공 + 안쪽 작은 공
       burst(at, pick(), "sphere", 4.8, 0.4);
       burst(at, pick(), "sphere", 2.4, 0.3);

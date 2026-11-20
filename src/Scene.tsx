@@ -100,7 +100,7 @@ function TreeParty() {
       if (!l) return;
       const a = t * 1.6 + (i * Math.PI * 2) / 3;
       l.position.set(Math.cos(a) * 3, 1.5 + i * 1.2 + Math.sin(t * 2 + i) * 0.5, Math.sin(a) * 3);
-      l.color.setHSL((t * 0.2 + i / 3) % 1, 1, 0.6);
+      l.color.set(i === 1 ? "#fff2d0" : "#ffc861"); // 따뜻한 금빛 조명
     });
     const p = geo.getAttribute("position") as THREE.BufferAttribute;
     const col = geo.getAttribute("color") as THREE.BufferAttribute;
@@ -110,15 +110,15 @@ function TreeParty() {
       const r = 2.4 * (1 - h * 0.8) + 0.25;
       const a = sd.a + t * 1.5 * sd.s + h * 8;
       p.setXYZ(i, Math.cos(a) * r, y, Math.sin(a) * r);
-      c.setHSL((h + t * 0.3) % 1, 1, 0.65);
+      c.setHSL(0.11, 0.9, 0.62 + Math.sin(t * 5 + i) * 0.18); // 금가루 (밝기만 반짝반짝)
       col.setXYZ(i, c.r, c.g, c.b);
     });
     p.needsUpdate = true; col.needsUpdate = true;
-    if (pts.current) (pts.current.material as THREE.PointsMaterial).size = 0.13 + Math.abs(Math.sin(t * 6)) * 0.07;
+    if (pts.current) (pts.current.material as THREE.PointsMaterial).size = 0.09 + Math.abs(Math.sin(t * 3)) * 0.04;
   });
   return (
     <group ref={group} visible={false}>
-      {[0, 1, 2].map((i) => <pointLight key={i} ref={(l) => { lights.current[i] = l; }} intensity={10} distance={6} />)}
+      {[0, 1, 2].map((i) => <pointLight key={i} ref={(l) => { lights.current[i] = l; }} intensity={6} distance={5} />)}
       <points ref={pts} geometry={geo} raycast={() => null}>
         <pointsMaterial vertexColors size={0.15} transparent blending={THREE.AdditiveBlending} depthWrite={false} />
       </points>
