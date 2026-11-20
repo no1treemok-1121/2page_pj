@@ -159,7 +159,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     timers.current.forEach((t) => clearTimeout(t));
     timers.current = [];
     setBusy(null);
-    if (had) walk.say("✋ 그만할래요");
+    walk.setFishing(false);
     return had;
   };
   autoTick.current = () => {
@@ -196,12 +196,33 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const [catMenu, setCatMenu] = useState<number | null>(null);
   const [catReacts, setCatReacts] = useState<Record<number, CatReact>>({});
   walk.onCatRef.current = (id, kind) => setCatReacts((r) => ({ ...r, [id]: { kind, t: Date.now() } }));
-  const tapCat = (id: number) => goThen(catPos[id].x, catPos[id].z, 0.9, () => setCatMenu(id));
+  // 메뉴를 고르는 동안 고양이가 기다려 줌 (멀어지지 않게)
+  // 고양이를 따라가서(고양이가 움직여도) 가까워지면 고양이가 멈추고 메뉴가 열림
+  const tapCat = (id: number) => {
+    if (pending.current) clearInterval(pending.current);
+    walk.stopRide(); walk.standUp();
+    const until = Date.now() + 20000;
+    const step = () => {
+      const m = walk.me.current, c = catPos[id];
+      const d = Math.hypot(c.x - m.x, c.z - m.z);
+      if (d < 1.3) {
+        clearInterval(pending.current!); pending.current = null; walk.goal.current = null;
+        setCatReacts((r) => ({ ...r, [id]: { kind: "wait", t: Date.now() + 15000 } }));
+        setCatMenu(id);
+        return;
+      }
+      if (Date.now() > until) { clearInterval(pending.current!); pending.current = null; return; }
+      walk.goal.current = clampSpot(c.x + ((m.x - c.x) / (d || 1)) * 0.8, c.z + ((m.z - c.z) / (d || 1)) * 0.8);
+    };
+    setNotice("고양이한테 가는 중, 총총총 🐾");
+    step();
+    pending.current = window.setInterval(step, 200);
+  };
   const careCat = (id: number, kind: string) => {
     setCatMenu(null);
     const c = CAT_CARE.find((x) => x.kind === kind);
     if (!c) return;
-    if (Math.hypot(walk.me.current.x - catPos[id].x, walk.me.current.z - catPos[id].z) > 2.2) { setNotice("고양이 가까이 가야 해요 🐾"); return; }
+    if (Math.hypot(walk.me.current.x - catPos[id].x, walk.me.current.z - catPos[id].z) > 3.5) { setNotice("고양이 가까이 가야 해요 🐾"); return; }
     setCatReacts((r) => ({ ...r, [id]: { kind, t: Date.now() } }));
     walk.announceCat(id, kind);
     walk.emote(c.icon);
@@ -247,10 +268,11 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     goThen(spot[0], spot[1], 0.2, () => {
       cancelBusy();
       setBusy("🎣 낚시하는 중");
+      walk.setFishing(true);
       walk.emote("🎣");
       walk.say("🎣 낚싯대를 휙~ 던졌다");
       later(2600, () => walk.say("🎣 찌가 움찔움찔… 조금만 더!"));
-      later(5200, () => walk.say(randomCatch()));
+      later(5200, () => { walk.say(randomCatch()); walk.setFishing(false); });
     });
   };
   // 🔔 종 울리기: 종이 흔들리고 딩동댕 (모두에게)
@@ -486,7 +508,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         <Cats me={() => walk.me.current} onTap={tapCat} reacts={catReacts} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
         <Npcs walk={walk} onSelect={setActTarget} />
-        <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} balloons={walk.balloons} onSelect={setActTarget} />
+        <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} balloons={walk.balloons} fishers={walk.fishers} onSelect={setActTarget} />
         <Snowballs shots={walk.shots} />
         <Snowmen list={snowmen.list} smashed={snowmen.smashed} onClick={setSnowmanInfo} />
         <CameraFollow follow={camFollow} snapAt={snapAt} />
@@ -608,7 +630,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         </Modal>
       )}
       {catMenu !== null && (
-        <Modal onClose={() => setCatMenu(null)}>
+        <Modal onClose={() => { if (catMenu !== null) setCatReacts((r) => ({ ...r, [catMenu]: { kind: "wait", t: 0 } })); setCatMenu(null); }}>
           <div className="cat-menu">
             <h2>🐱 {CAT_NAMES[catMenu]}</h2>
             <p className="hint">{catMenu === 0 ? "삼색 아가씨 밤이에요. 뭘 해 줄까요?" : "고등어 태비 캔디예요. 뭘 해 줄까요?"}</p>
@@ -976,6 +998,10 @@ export default function App() {
     setSetupDone(true);
   };
   const [askOwner, setAskOwner] = useState<MyRoom | null>(null);
+  useEffect(() => {
+    if (!myRoom || roomId === myRoom.roomId) return; // 내 방 화면이면 방 화면이 '내 방이 없어졌어요'로 안내
+    getRoom(myRoom.roomId).then((r) => { if (r === null) { forgetMyRoom(); setMyRoom(null); } }).catch(() => undefined);
+  }, [myRoom?.roomId]); // eslint-disable-line react-hooks/exhaustive-deps
   const leaveMyRoom = () => {
     forgetMyRoom();
     setMyRoom(null);

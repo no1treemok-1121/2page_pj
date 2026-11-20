@@ -4,7 +4,10 @@ import * as THREE from "three";
 import { ALL_ANIMALS, Avatar } from "./avatar";
 
 // 간단한 도형으로 만든 3D 캐릭터 (방에 서 있음, 살짝 숨쉬듯 움직임)
-export default function Character3D({ avatar, position = [0, 0, 0], walking }: { avatar: Avatar; position?: [number, number, number]; walking?: boolean }) {
+export type CharStyle = "now" | "chibi" | "pastel" | "mochi";
+export const CHAR_STYLE: CharStyle = "now"; // 사용자가 고른 스타일로 바꾸면 모든 캐릭터에 적용
+
+export default function Character3D({ avatar, position = [0, 0, 0], walking, look = CHAR_STYLE }: { avatar: Avatar; position?: [number, number, number]; walking?: boolean; look?: CharStyle }) {
   const ref = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
     const g = ref.current;
@@ -19,12 +22,19 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
   const c = avatar.color;
   const isPenguin = avatar.animal === "penguin";
   const dark = new THREE.Color(c).multiplyScalar(0.8).getStyle();
+  const cute = look !== "now";
+  const pastel = (col: string) => look === "pastel" ? new THREE.Color(col).lerp(new THREE.Color("#ffffff"), 0.28).getStyle() : col;
+  const skin = (col: string) => look === "pastel" ? <meshToonMaterial color={pastel(col)} />
+    : look === "mochi" ? <meshPhysicalMaterial color={col} roughness={0.25} clearcoat={1} clearcoatRoughness={0.2} sheen={0.5} />
+      : <meshStandardMaterial color={col} />;
+  const headScale = look === "chibi" || look === "pastel" ? 1.28 : look === "mochi" ? 1.18 : 1;
+  const headY = look === "now" ? 1.02 : look === "mochi" ? 0.9 : 0.98;
   return (
     <group ref={ref} position={position}>
       {/* 몸 */}
       <mesh position={[0, 0.45, 0]}>
-        <capsuleGeometry args={[0.28, 0.3, 8, 16]} />
-        <meshStandardMaterial color={isPenguin ? "#2b2f3a" : c} />
+        {look === "now" ? <capsuleGeometry args={[0.28, 0.3, 8, 16]} /> : look === "mochi" ? <sphereGeometry args={[0.36, 24, 18]} /> : <capsuleGeometry args={[0.27, 0.12, 8, 16]} />}
+        {skin(isPenguin ? "#2b2f3a" : c)}
       </mesh>
       <mesh position={[0, 0.45, 0.2]}>
         <sphereGeometry args={[0.18, 16, 16]} />
@@ -71,11 +81,23 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
           ))}
         </group>
       )}
+      {cute && [-1, 1].map((sd) => (
+        <group key={`a${sd}`}>
+          <mesh position={[sd * 0.27, 0.42, 0.06]} scale={[0.8, 1, 0.8]}><sphereGeometry args={[0.09, 12, 10]} />{skin(isPenguin ? "#2b2f3a" : c)}</mesh>
+          <mesh position={[sd * 0.13, 0.06, 0.08]} scale={[1, 0.6, 1.3]}><sphereGeometry args={[0.1, 12, 10]} />{skin(dark)}</mesh>
+        </group>
+      ))}
+      {look === "pastel" && (
+        <group position={[0, 0.42, 0.29]}>
+          {[-1, 1].map((sd) => <mesh key={sd} position={[sd * 0.03, 0.02, 0]}><circleGeometry args={[0.04, 16]} /><meshBasicMaterial color="#ff8fb0" /></mesh>)}
+          <mesh position={[0, -0.02, 0]} rotation={[0, 0, Math.PI / 4]}><planeGeometry args={[0.057, 0.057]} /><meshBasicMaterial color="#ff8fb0" /></mesh>
+        </group>
+      )}
       {/* 머리 */}
-      <group position={[0, 1.02, 0]}>
-        <mesh>
-          <sphereGeometry args={[0.32, 24, 24]} />
-          <meshStandardMaterial color={isPenguin ? "#2b2f3a" : c} />
+      <group position={[0, headY, 0]} scale={headScale}>
+        <mesh scale={look === "mochi" ? [1.08, 0.92, 1] : 1}>
+          <sphereGeometry args={[0.32, 28, 24]} />
+          {skin(isPenguin ? "#2b2f3a" : c)}
         </mesh>
         {isPenguin && (
           <mesh position={[0, -0.03, 0.15]} scale={[0.95, 0.9, 0.8]}>
@@ -89,45 +111,53 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
         {/* 눈 (펭귄은 하얀 얼굴 위에 오도록 앞으로) + 반짝이는 눈동자 */}
         {[-0.11, 0.11].map((x) => (
           <group key={x} position={[x, 0.04, isPenguin ? 0.315 : 0.29]} scale={isPenguin ? [1, 1, 0.6] : 1}>
-            <mesh>
-              <sphereGeometry args={[0.045, 10, 10]} />
-              <meshStandardMaterial color="#1b1b22" />
+            <mesh scale={cute ? [1, 1.15, 0.6] : 1}>
+              <sphereGeometry args={[look === "chibi" || look === "pastel" ? 0.062 : 0.045, 14, 12]} />
+              <meshStandardMaterial color="#1b1b22" roughness={0.2} />
             </mesh>
-            <mesh position={[0.015, 0.018, 0.035]}>
-              <sphereGeometry args={[0.014, 6, 6]} />
+            <mesh position={cute ? [0.018, 0.024, 0.04] : [0.015, 0.018, 0.035]}>
+              <sphereGeometry args={[cute ? 0.019 : 0.014, 8, 8]} />
               <meshBasicMaterial color="#ffffff" />
             </mesh>
+            {cute && <mesh position={[-0.016, -0.02, 0.038]}><sphereGeometry args={[0.009, 6, 6]} /><meshBasicMaterial color="#ffffff" /></mesh>}
+            {look === "pastel" && <mesh position={[0.02, -0.018, 0.04]} rotation={[0, 0, 0.6]}><octahedronGeometry args={[0.012]} /><meshBasicMaterial color="#fff6a8" /></mesh>}
           </group>
         ))}
         <mesh position={[0, -0.06, isPenguin ? 0.345 : 0.31]}>
           {isPenguin ? <coneGeometry args={[0.05, 0.12, 8]} /> : <sphereGeometry args={[0.035, 8, 8]} />}
           <meshStandardMaterial color={isPenguin ? "#ffb347" : isDeer ? "#e0322d" : "#3a2a24"} emissive={isDeer ? "#ff2a1a" : "#000000"} emissiveIntensity={isDeer ? 0.8 : 0} />
         </mesh>
+        {cute && [-1, 1].map((sd) => (
+          <mesh key={`b${sd}`} position={[sd * 0.19, -0.07, 0.26]} rotation={[0, sd * 0.6, 0]}><circleGeometry args={[0.055, 16]} /><meshBasicMaterial color="#ff9fb2" transparent opacity={0.6} depthWrite={false} /></mesh>
+        ))}
+        {cute && !isPenguin && [-1, 1].map((sd) => (
+          <mesh key={`m${sd}`} position={[sd * 0.022, -0.11, 0.3]} rotation={[0, 0, Math.PI]}><torusGeometry args={[0.022, 0.006, 6, 12, Math.PI]} /><meshBasicMaterial color="#3a2a24" /></mesh>
+        ))}
         {/* 귀 */}
         {[-1, 1].map((s) => (
           <group key={s}>
             {ears === "pointy" && (
               <mesh position={[s * 0.2, 0.3, 0]} rotation={[0, 0, -s * 0.3]}>
                 <coneGeometry args={[0.1, 0.22, 4]} />
-                <meshStandardMaterial color={dark} />
+                {skin(dark)}
               </mesh>
             )}
             {ears === "long" && (
               <mesh position={[s * 0.12, 0.42, 0]} rotation={[0, 0, -s * 0.15]} scale={[1, 2.6, 0.7]}>
                 <sphereGeometry args={[0.08, 12, 12]} />
-                <meshStandardMaterial color={dark} />
+                {skin(dark)}
               </mesh>
             )}
             {ears === "round" && (
               <mesh position={[s * 0.22, 0.24, 0]}>
                 <sphereGeometry args={[0.1, 12, 12]} />
-                <meshStandardMaterial color={dark} />
+                {skin(dark)}
               </mesh>
             )}
             {ears === "floppy" && (
               <mesh position={[s * 0.3, 0.02, 0]} rotation={[0, 0, s * 0.3]} scale={[0.7, 1.6, 0.6]}>
                 <sphereGeometry args={[0.1, 12, 12]} />
-                <meshStandardMaterial color={dark} />
+                {skin(dark)}
               </mesh>
             )}
           </group>

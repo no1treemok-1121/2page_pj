@@ -276,7 +276,7 @@ function IglooPersonView({ p, mine, emote }: { p: IglooPerson; mine: boolean; em
       <Html pointerEvents="none" position={[0, 1.8, 0]} center distanceFactor={7} zIndexRange={[5, 0]}>
         <div className={mine ? "name-tag mine" : "name-tag"}>{p.nick}{mine ? " (나)" : ""}{p.gaze ? " 🔥" : ""}</div>
       </Html>
-      {emote && <Html pointerEvents="none" position={[0, 2.35, 0]} center distanceFactor={7} zIndexRange={[6, 0]}><div className="emote-bubble"><IconText text={emote} /></div></Html>}
+      {emote && <Html pointerEvents="none" position={[0, 2.35, 0]} center distanceFactor={7} zIndexRange={[6, 0]}><div className={[...emote].length <= 2 ? "emote-bubble" : "say-bubble"}><IconText text={emote} /></div></Html>}
     </group>
   );
 }

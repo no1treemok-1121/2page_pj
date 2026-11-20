@@ -255,7 +255,8 @@ function Cat({ id, name, me, onTap, react }: { id: number; name: string; me: () 
       onClick={(e) => { if (e.delta < 6) { e.stopPropagation(); onTap(id); setView((v) => ({ ...v, say: "애옹~ 💕", sayAt: Date.now() })); } }}
       onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
       onPointerOut={() => { document.body.style.cursor = "auto"; }}>
-      <group ref={roll}><CatBody look={look} pose={view.pose} t={tRef.current} /></group>
+      {/* 뒹굴 때 배 높이를 중심으로 굴러서 땅속으로 사라지지 않게 */}
+      <group ref={roll} position={[0, 0.2, 0]}><group position={[0, -0.2, 0]}><CatBody look={look} pose={view.pose} t={tRef.current} /></group></group>
       {/* 누르기 쉽게 투명 영역 */}
       <mesh position={[0, 0.3, 0.05]}><boxGeometry args={[0.7, 0.7, 0.9]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} /></mesh>
       <Html pointerEvents="none" position={[0, 0.95, 0]} center distanceFactor={9} zIndexRange={[5, 0]}>
