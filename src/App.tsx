@@ -7,6 +7,12 @@ import { Wish, addWish, fetchWishes, isShared, newWishDraft } from "./wishes";
 
 const REFRESH_MS = 15000;
 
+// 세로로 긴 휴대폰 화면에서는 조금 더 멀리서, 넓게 보여 줌
+const isPortrait = typeof window !== "undefined" && window.innerWidth / window.innerHeight < 0.8;
+const CAMERA = isPortrait
+  ? { position: [0, 3.5, 14] as [number, number, number], fov: 62 }
+  : { position: [0, 3, 10] as [number, number, number], fov: 50 };
+
 export default function App() {
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [writing, setWriting] = useState(false);
@@ -62,14 +68,14 @@ export default function App() {
 
   return (
     <>
-      <Canvas camera={{ position: [0, 3, 10], fov: 50 }} dpr={[1, 2]}>
+      <Canvas camera={CAMERA} dpr={[1, 2]}>
         <color attach="background" args={["#0b1733"]} />
-        <fog attach="fog" args={["#0b1733", 12, 30]} />
+        <fog attach="fog" args={["#0b1733", 14, 38]} />
         <Scene wishes={wishes} onTreeClick={() => setWriting(true)} onWishClick={setViewing} />
         <OrbitControls
           enablePan={false}
           minDistance={6}
-          maxDistance={16}
+          maxDistance={isPortrait ? 20 : 16}
           maxPolarAngle={Math.PI / 2.1}
           target={[0, 2, 0]}
         />
@@ -77,7 +83,7 @@ export default function App() {
 
       <div className="title">
         <h1>눈 내리는 마을</h1>
-        <p>트리를 눌러 소원을 걸어 보세요 · 걸린 장식을 누르면 소원이 보여요</p>
+        <p>트리를 눌러 소원을 걸어 보세요<span className="sep"> · </span><br className="br-mobile" />걸린 장식을 누르면 소원이 보여요</p>
         {wishes.length > 0 && (
           <p className="count">
             {isShared ? "함께 건 소원" : "지금까지 걸린 소원"} {wishes.length}개

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ThreeEvent, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Wish } from "./wishes";
+import Village, { TreeLights } from "./Village";
 
 // 드래그(화면 회전)와 클릭을 구분: 포인터가 거의 안 움직였을 때만 클릭으로 처리
 const isClick = (e: ThreeEvent<MouseEvent>) => e.delta < 6;
@@ -123,11 +124,9 @@ export default function Scene({ wishes, onTreeClick, onWishClick }: SceneProps) 
     <>
       <ambientLight intensity={0.35} color="#9fb4ff" />
       <directionalLight position={[5, 10, 5]} intensity={0.6} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[20, 48]} />
-        <meshStandardMaterial color="#e8eef8" />
-      </mesh>
+      <Village />
       <Tree onClick={onTreeClick} />
+      <TreeLights />
       {wishes.map((w) => (
         <Ornament key={w.id} wish={w} onClick={onWishClick} />
       ))}

@@ -127,3 +127,14 @@ html, body, #root {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   animation: fade 0.2s ease;
 }
+
+.title { padding: 0 16px; top: max(24px, env(safe-area-inset-top)); text-shadow: 0 2px 12px rgba(5, 10, 25, 0.8); }
+.br-mobile { display: none; }
+@media (max-width: 520px) {
+  .title { top: max(16px, env(safe-area-inset-top)); }
+  .title h1 { font-size: 22px; }
+  .title p { font-size: 12.5px; line-height: 1.5; }
+  .title .sep { display: none; }
+  .br-mobile { display: inline; }
+  .toast { bottom: max(16px, env(safe-area-inset-bottom)); border-radius: 14px; }
+}
