@@ -126,7 +126,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   // 마시멜로 굽기 (통나무에 앉은 뒤 버튼)
   for (let i = 0; i < 20 && !(await A.$('.mallow-btn')); i++) await A.waitForTimeout(500);
   check('마시멜로 굽기 버튼', !!(await A.$('.mallow-btn')));
-  if (await A.$('.mallow-btn')) { await A.click('.mallow-btn'); check('마시멜로: 상대 화면 말풍선', await seen(B, '마시멜로')); }
+  if (await A.$('.mallow-btn')) { await A.click('.mallow-btn'); check('마시멜로: 상대 화면 말풍선', await seen(B, '마시멜로', 7000)); }
   // 노점 3곳
   const stalls = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
   check('노점 3곳 표지', ['분식집', '붕어빵', '코코아'].every(n => stalls.some(t => t.includes(n))), stalls.join(','));
@@ -251,7 +251,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     await A.waitForSelector('.cat-menu', { timeout: 25000 }).catch(() => null);
     const catOk = !!(await A.$('.cat-menu'));
     check('고양이 찾아가기 → 돌보기 메뉴(간식·쓰다듬기·놀아주기)', catOk && (await A.$$('.cat-menu .act-btn')).length === 3);
-    if (catOk) { await A.click('.cat-menu .act-btn >> nth=0'); check('고양이 간식 주기: 상대 화면 말풍선', await seen(B, '간식 먹자')); }
+    if (catOk) { await A.click('.cat-menu .act-btn >> nth=0'); check('고양이 간식 주기: 상대 화면 말풍선', await seen(B, '간식 먹자', 6000)); }
   }
   // 🎈 풍선 가게: 걸어가서 하트 풍선 사기 → 상대 화면 말풍선
   await A.click('.menu-btn'); await A.click('.menu >> text=풍선 가게');

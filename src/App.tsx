@@ -196,12 +196,13 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const [catMenu, setCatMenu] = useState<number | null>(null);
   const [catReacts, setCatReacts] = useState<Record<number, CatReact>>({});
   walk.onCatRef.current = (id, kind) => setCatReacts((r) => ({ ...r, [id]: { kind, t: Date.now() } }));
-  const tapCat = (id: number) => goThen(catPos[id].x, catPos[id].z, 0.9, () => setCatMenu(id));
+  // 메뉴를 고르는 동안 고양이가 기다려 줌 (멀어지지 않게)
+  const tapCat = (id: number) => goThen(catPos[id].x, catPos[id].z, 0.9, () => { setCatReacts((r) => ({ ...r, [id]: { kind: "wait", t: Date.now() + 15000 } })); setCatMenu(id); });
   const careCat = (id: number, kind: string) => {
     setCatMenu(null);
     const c = CAT_CARE.find((x) => x.kind === kind);
     if (!c) return;
-    if (Math.hypot(walk.me.current.x - catPos[id].x, walk.me.current.z - catPos[id].z) > 2.2) { setNotice("고양이 가까이 가야 해요 🐾"); return; }
+    if (Math.hypot(walk.me.current.x - catPos[id].x, walk.me.current.z - catPos[id].z) > 3.5) { setNotice("고양이 가까이 가야 해요 🐾"); return; }
     setCatReacts((r) => ({ ...r, [id]: { kind, t: Date.now() } }));
     walk.announceCat(id, kind);
     walk.emote(c.icon);
@@ -609,7 +610,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         </Modal>
       )}
       {catMenu !== null && (
-        <Modal onClose={() => setCatMenu(null)}>
+        <Modal onClose={() => { if (catMenu !== null) setCatReacts((r) => ({ ...r, [catMenu]: { kind: "wait", t: 0 } })); setCatMenu(null); }}>
           <div className="cat-menu">
             <h2>🐱 {CAT_NAMES[catMenu]}</h2>
             <p className="hint">{catMenu === 0 ? "삼색 아가씨 밤이에요. 뭘 해 줄까요?" : "고등어 태비 캔디예요. 뭘 해 줄까요?"}</p>
