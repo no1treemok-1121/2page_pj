@@ -230,6 +230,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     await C.click('.backdrop button[type=submit]');
     await C.waitForSelector('text=[테스트]열쇠의 방', { timeout: 8000 }).catch(() => null);
     check('방 만들기: 아이디·비밀번호 입력 후 내 방', !!(await C.$('text=[테스트]열쇠의 방')));
+    await C.keyboard.press('Escape'); await C.waitForTimeout(300); // '내 방이 생겼어요' 창 닫기
     const D = await mk('[테스트]D');
     await D.click('.menu-btn'); await D.click('.menu >> text=내 방 찾기'); await D.waitForTimeout(300);
     const g = await D.$$('.find-room .field');
