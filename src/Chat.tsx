@@ -113,7 +113,10 @@ export default function ChatPanel({ chat, defaultNick, avatar, onClose }: {
     if (!body || sending) return;
     setSending(true);
     setErr(null);
-    try { await chat.send(nick, body, avatar); setText(""); }
+    try {
+      await chat.send(nick, body, avatar); setText("");
+      const ta = document.querySelector<HTMLTextAreaElement>(".chat-input"); if (ta) ta.style.height = "auto";
+    }
     catch (e2) { setErr((e2 as Error).message); }
     finally { setSending(false); }
   };
@@ -154,8 +157,20 @@ export default function ChatPanel({ chat, defaultNick, avatar, onClose }: {
         ) : (
           <>
             <button type="button" className="nick" onClick={() => setEditingNick(true)} title="닉네임 바꾸기">{nick}</button>
-            <input className="field" value={text} maxLength={300} placeholder="메시지 보내기" autoFocus
-              onChange={(e) => setText(e.target.value)} />
+            <textarea className="field chat-input" value={text} maxLength={300} placeholder="메시지 보내기" rows={1}
+              onChange={(e) => {
+                setText(e.target.value);
+                // 줄이 늘어나면 최대 4줄까지만 커지고, 그 이상은 입력칸 안에서 스크롤
+                e.target.style.height = "auto";
+                e.target.style.height = Math.min(e.target.scrollHeight, 104) + "px";
+              }}
+              onKeyDown={(e) => {
+                // 컴퓨터: Enter 보내기, Shift+Enter 줄바꿈 / 휴대폰: Enter 줄바꿈(보내기 버튼으로 전송)
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && matchMedia("(pointer: fine)").matches) {
+                  e.preventDefault();
+                  (e.currentTarget.form as HTMLFormElement).requestSubmit();
+                }
+              }} />
             <button className="btn" disabled={!text.trim() || sending}>보내기</button>
           </>
         )}

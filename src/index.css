@@ -326,3 +326,22 @@ html, body, #root {
 /* 트리에 걸린 내 소원 표시 */
 .my-wish-tag { padding: 2px 8px; border-radius: 999px; background: #ffd36b; color: #3a2a00; font-size: 12px; font-weight: 700; white-space: nowrap; pointer-events: none; box-shadow: 0 0 12px rgba(255, 211, 107, 0.9); animation: tag-blink 1s ease-in-out infinite; }
 @keyframes tag-blink { 50% { opacity: 0.55; transform: scale(0.94); } }
+
+/* 채팅 가독성·입력줄 고정 */
+.chat-form { align-items: flex-end; flex-shrink: 0; }
+.chat-input { resize: none; min-height: 44px; max-height: 104px; line-height: 1.45; padding: 10px 12px; overflow-y: auto; font-size: 16px; }
+.chat-form .btn, .nick { height: 44px; }
+.chat-list { padding: 14px 12px; }
+.msg { margin-bottom: 14px; }
+.who { font-size: 13.5px; color: #4a453c; font-weight: 700; margin-bottom: 4px; }
+.bubble { font-size: 16px; line-height: 1.55; padding: 9px 13px; }
+.bubble-row time { font-size: 11.5px; color: #8a8478; }
+.chat-note { font-size: 12px; }
+@media (max-width: 520px) {
+  /* 휴대폰: 화면 위부터 아래(Netlify 배지 위)까지 꽉 차게. 키보드가 올라오면 남은 공간을 모두 대화에 사용 */
+  .chat { top: max(8px, env(safe-area-inset-top)); bottom: calc(68px + env(safe-area-inset-bottom)); left: 6px; right: 6px; height: auto; border-radius: 16px; }
+  .chat header { padding: 10px 12px; }
+}
+
+/* 팝업 창은 캐릭터 이름표·말풍선(3D 위에 뜨는 글자)보다 항상 위에 */
+.backdrop { z-index: 50; }

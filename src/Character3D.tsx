@@ -58,7 +58,7 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
         )}
         {/* 눈 (펭귄은 하얀 얼굴 위에 오도록 앞으로) + 반짝이는 눈동자 */}
         {[-0.11, 0.11].map((x) => (
-          <group key={x} position={[x, 0.04, isPenguin ? 0.36 : 0.29]}>
+          <group key={x} position={[x, 0.04, isPenguin ? 0.315 : 0.29]} scale={isPenguin ? [1, 1, 0.6] : 1}>
             <mesh>
               <sphereGeometry args={[0.045, 10, 10]} />
               <meshStandardMaterial color="#1b1b22" />
@@ -69,7 +69,7 @@ export default function Character3D({ avatar, position = [0, 0, 0], walking }: {
             </mesh>
           </group>
         ))}
-        <mesh position={[0, -0.06, isPenguin ? 0.38 : 0.31]}>
+        <mesh position={[0, -0.06, isPenguin ? 0.345 : 0.31]}>
           {isPenguin ? <coneGeometry args={[0.05, 0.12, 8]} /> : <sphereGeometry args={[0.035, 8, 8]} />}
           <meshStandardMaterial color={isPenguin ? "#ffb347" : "#3a2a24"} />
         </mesh>
