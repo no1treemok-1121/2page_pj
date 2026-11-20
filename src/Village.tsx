@@ -129,7 +129,7 @@ export function TreeLights({ count = 46 }) {
   );
 }
 
-export default function Village() {
+export default function Village({ onGround }: { onGround?: (x: number, z: number) => void }) {
   const layout = useMemo(() => {
     const rand = seeded(7);
     // 트리를 둘러싼 집들 (카메라 정면 쪽은 비워 두어 트리가 잘 보이게)
@@ -179,7 +179,8 @@ export default function Village() {
       <directionalLight position={[-14, 14, -26]} intensity={0.35} color="#cfdcff" />
 
       {/* 눈 덮인 바닥과 언덕 */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}
+        onClick={(e) => { if (onGround && e.delta < 6) { e.stopPropagation(); onGround(e.point.x, e.point.z); } }}>
         <circleGeometry args={[30, 64]} />
         <meshStandardMaterial color="#e8eef8" roughness={1} />
       </mesh>

@@ -4,14 +4,15 @@ import * as THREE from "three";
 import { ANIMALS, Avatar } from "./avatar";
 
 // 간단한 도형으로 만든 3D 캐릭터 (방에 서 있음, 살짝 숨쉬듯 움직임)
-export default function Character3D({ avatar, position = [0, 0, 0] }: { avatar: Avatar; position?: [number, number, number] }) {
+export default function Character3D({ avatar, position = [0, 0, 0], walking }: { avatar: Avatar; position?: [number, number, number]; walking?: boolean }) {
   const ref = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
     const g = ref.current;
     if (!g) return;
     const t = clock.elapsedTime;
     g.position.y = position[1] + Math.abs(Math.sin(t * 2)) * 0.05;
-    g.rotation.y = Math.sin(t * 0.6) * 0.35 + 0.4;
+    if (walking === undefined) g.rotation.y = Math.sin(t * 0.6) * 0.35 + 0.4; // 방에서는 두리번, 마을에서는 걷는 방향을 바라봄
+    else g.position.y = position[1] + (walking ? Math.abs(Math.sin(t * 9)) * 0.12 : Math.abs(Math.sin(t * 2)) * 0.04);
   });
   const ears = ANIMALS.find((x) => x.id === avatar.animal)?.ears ?? "round";
   const c = avatar.color;

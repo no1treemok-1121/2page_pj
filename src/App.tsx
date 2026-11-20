@@ -9,6 +9,7 @@ import { MyRoom, copyText, createRoom, loadMyRoom, saveMyRoom } from "./rooms";
 import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup } from "./Avatar";
 import RandomLetters, { useRandomInbox } from "./RandomLetters";
+import { MyWalker, OtherWalkers, useWalkers } from "./Walk";
 import { Avatar, loadMyAvatar, saveMyAvatar, toStr } from "./avatar";
 import { setRoomAvatar } from "./rooms";
 
@@ -35,6 +36,10 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice, action, myAvatar }: 
   const [chatOpen, setChatOpen] = useState(action?.type === "chat");
   const [boxOpen, setBoxOpen] = useState(action?.type === "box");
   const letters = useRandomInbox();
+  // 걸어 다니는 캐릭터: 이름은 채팅 닉네임 → 방 닉네임 → 익명 순
+  const walkNick = (() => { try { return localStorage.getItem("3d_pj.chatNick") || myRoom?.nickname || "익명"; } catch { return myRoom?.nickname || "익명"; } })();
+  const walk = useWalkers(myAvatar, walkNick);
+  const [walkTarget, setWalkTarget] = useState<[number, number] | null>(null);
   const [lettersOpen, setLettersOpen] = useState(action?.type === "letters");
   // 메뉴에서 고른 동작 실행
   useEffect(() => {
@@ -91,7 +96,10 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice, action, myAvatar }: 
       <Canvas camera={CAMERA} dpr={[1, 2]}>
         <color attach="background" args={["#0b1733"]} />
         <fog attach="fog" args={["#0b1733", 14, 38]} />
-        <Scene wishes={wishes} onTreeClick={() => setWriting(true)} onWishClick={setViewing} />
+        <Scene wishes={wishes} onTreeClick={() => setWriting(true)} onWishClick={setViewing}
+          onGround={(x, z) => setWalkTarget([x, z])} />
+        <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
+        <OtherWalkers others={walk.others} />
         <OrbitControls
           enablePan={false}
           minDistance={6}
@@ -103,7 +111,7 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice, action, myAvatar }: 
 
       <div className="title">
         <h1>눈 내리는 마을</h1>
-        <p>트리를 눌러 소원을 걸어 보세요<span className="sep"> · </span><br className="br-mobile" />걸린 장식을 누르면 소원이 보여요</p>
+        <p>트리를 눌러 소원을 걸어 보세요<span className="sep"> · </span><br className="br-mobile" />땅을 누르면 내 캐릭터가 걸어가요</p>
         {wishes.length > 0 && (
           <p className="count">
             {isShared ? "함께 건 소원" : "지금까지 걸린 소원"} {wishes.length}개
