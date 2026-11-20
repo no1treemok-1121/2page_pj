@@ -117,14 +117,15 @@ type SceneProps = {
   wishes: Wish[];
   onTreeClick: () => void;
   onWishClick: (w: Wish) => void;
+  onGround?: (x: number, z: number) => void;
 };
 
-export default function Scene({ wishes, onTreeClick, onWishClick }: SceneProps) {
+export default function Scene({ wishes, onTreeClick, onWishClick, onGround }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.35} color="#9fb4ff" />
       <directionalLight position={[5, 10, 5]} intensity={0.6} />
-      <Village />
+      <Village onGround={onGround} />
       <Tree onClick={onTreeClick} />
       <TreeLights />
       {wishes.map((w) => (

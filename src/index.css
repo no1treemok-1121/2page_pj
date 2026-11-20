@@ -295,3 +295,6 @@ html, body, #root {
 .sent-list small { color: #8a8478; font-size: 12.5px; }
 .reply-in { margin: 6px 0 0 8px !important; padding: 6px 10px; border-radius: 10px; background: #eaf3ff; font-size: 14px; }
 .bottom-bar .btn { padding: 9px 14px; }
+
+/* 걸어 다니는 캐릭터 이름표 */
+.name-tag { padding: 2px 8px; border-radius: 999px; background: rgba(11, 23, 51, 0.75); color: #fdf9f0; font-size: 12px; white-space: nowrap; pointer-events: none; user-select: none; }
