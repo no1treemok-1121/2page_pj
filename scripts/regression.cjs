@@ -262,6 +262,8 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     check('고양이 밤·캔디 (머리 위 하트)', cats.some(t => t.includes('밤') && t.includes('💖')) && cats.some(t => t.includes('캔디')), cats.join(','));
     const tg = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
     check('고양이 집 표지', tg.some(t => t.includes('밤·캔디네 집')));
+    // 상대(B)도 같은 고양이 근처로 가서 A가 화면에 보이게 (먼 곳은 화면 뒤라 말풍선이 안 그려질 수 있음)
+    await openMenu(B, '고양이 찾아가기'); await B.waitForSelector('.cat-menu', { timeout: 25000 }).catch(() => null); await B.keyboard.press('Escape');
     await openMenu(A, '고양이 찾아가기');
     await A.waitForSelector('.cat-menu', { timeout: 25000 }).catch(() => null);
     const catOk = !!(await A.$('.cat-menu'));
