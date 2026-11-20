@@ -4,6 +4,8 @@ import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import { Wish } from "./wishes";
 import Village, { TreeLights } from "./Village";
+import Fireworks from "./Fireworks";
+import { currentEvent } from "./events";
 
 // 드래그(화면 회전)와 클릭을 구분: 포인터가 거의 안 움직였을 때만 클릭으로 처리
 const isClick = (e: ThreeEvent<MouseEvent>) => e.delta < 6;
@@ -74,6 +76,32 @@ function Ornament({ wish, onClick, mine }: { wish: Wish; onClick: (w: Wish) => v
   );
 }
 
+// 꼭대기 별: 반짝임 이벤트 때 크게 빛나며 빙글빙글
+function TreeStar() {
+  const mesh = useRef<THREE.Mesh>(null);
+  const mat = useRef<THREE.MeshStandardMaterial>(null);
+  const light = useRef<THREE.PointLight>(null);
+  useFrame(({ clock }, dt) => {
+    const party = currentEvent() === "sparkle";
+    const t = clock.elapsedTime;
+    if (mesh.current) {
+      mesh.current.rotation.y += dt * (party ? 4 : 0.4);
+      mesh.current.scale.setScalar(party ? 1.4 + Math.sin(t * 8) * 0.25 : 1);
+    }
+    if (mat.current) mat.current.emissiveIntensity = party ? 4 + Math.sin(t * 10) * 2 : 1.5;
+    if (light.current) light.current.intensity = party ? 20 + Math.sin(t * 10) * 8 : 8;
+  });
+  return (
+    <>
+      <mesh ref={mesh} position={[0, 5.1, 0]}>
+        <octahedronGeometry args={[0.3]} />
+        <meshStandardMaterial ref={mat} color="#ffd36b" emissive="#ffb300" emissiveIntensity={1.5} />
+      </mesh>
+      <pointLight ref={light} position={[0, 5.1, 0]} color="#ffd36b" intensity={8} distance={8} />
+    </>
+  );
+}
+
 function Tree({ onClick }: { onClick: () => void }) {
   const hover = useHoverCursor();
   return (
@@ -94,11 +122,7 @@ function Tree({ onClick }: { onClick: () => void }) {
           <meshStandardMaterial color="#2f7a4b" />
         </mesh>
       ))}
-      <mesh position={[0, 5.1, 0]}>
-        <octahedronGeometry args={[0.3]} />
-        <meshStandardMaterial color="#ffd36b" emissive="#ffb300" emissiveIntensity={1.5} />
-      </mesh>
-      <pointLight position={[0, 5.1, 0]} color="#ffd36b" intensity={8} distance={8} />
+      <TreeStar />
     </group>
   );
 }
@@ -157,6 +181,7 @@ export default function Scene({ wishes, onTreeClick, onWishClick, onGround, mine
         <Ornament key={w.id} wish={w} onClick={onWishClick} mine={mineIds?.has(w.id) || w.id.startsWith("pending-")} />
       ))}
       <Snow />
+      <Fireworks />
     </>
   );
 }

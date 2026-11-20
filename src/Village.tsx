@@ -2,6 +2,7 @@ import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Stars } from "@react-three/drei";
 import * as THREE from "three";
+import { currentEvent } from "./events";
 
 // 매번 같은 마을 배치가 나오도록 고정된 난수
 function seeded(seed: number) {
@@ -137,10 +138,26 @@ export function TreeLights({ count = 46 }) {
     });
   }, [count]);
 
+  const base = useMemo(() => bulbs.map((b) => new THREE.Color(b.color)), [bulbs]);
+  const tmp = useMemo(() => new THREE.Color(), []);
   useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    const party = currentEvent() === "sparkle";
     group.current?.children.forEach((child, i) => {
-      const m = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
-      m.emissiveIntensity = 0.6 + (Math.sin(clock.elapsedTime * 2.2 + bulbs[i].phase) + 1) * 0.9;
+      const mesh = child as THREE.Mesh;
+      const m = mesh.material as THREE.MeshStandardMaterial;
+      if (party) {
+        // 아래에서 위로 올라가는 빛의 물결 + 색이 계속 바뀜
+        const wave = Math.sin(t * 9 - i * 0.55);
+        m.emissiveIntensity = wave > 0.2 ? 5 : 0.4;
+        tmp.setHSL(((t * 0.25 + i / bulbs.length) % 1), 1, 0.6);
+        m.emissive.copy(tmp); m.color.copy(tmp);
+        mesh.scale.setScalar(wave > 0.2 ? 1.9 : 1);
+      } else {
+        m.emissiveIntensity = 0.6 + (Math.sin(t * 2.2 + bulbs[i].phase) + 1) * 0.9;
+        m.emissive.copy(base[i]); m.color.copy(base[i]);
+        mesh.scale.setScalar(1);
+      }
     });
   });
 

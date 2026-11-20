@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Modal } from "./RoomView";
 
 // 오늘의 운세: 뒤집힌 카드 12장 중 한 장을 골라요. 하루에 한 장 (자정이 지나면 새로 뽑기)
-const CARDS = [
+export const CARDS = [
   { icon: "❄️", name: "첫눈", text: "오래 기다린 소식이 조용히 찾아오는 날이에요. 서두르지 않아도 괜찮아요.", item: "따뜻한 장갑", color: "#9ad0ec" },
   { icon: "🕯️", name: "촛불", text: "작은 친절이 큰 빛이 돼요. 먼저 건넨 한마디가 오늘을 밝혀 줘요.", item: "손글씨 메모", color: "#ffd36b" },
   { icon: "🎁", name: "선물 상자", text: "예상하지 못한 기쁨이 숨어 있어요. 평소 지나치던 곳을 한 번 더 살펴보세요.", item: "리본 끈", color: "#e8735a" },
@@ -20,7 +20,7 @@ const CARDS = [
 const KEY = "3d_pj.fortune";
 const today = () => new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD (내 기기 기준 날짜)
 
-function loadToday(): number | null {
+export function loadToday(): number | null {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || "null");
     return v && v.date === today() ? v.card : null;
@@ -36,7 +36,11 @@ function shuffledFor(date: string) {
   return order;
 }
 
-export default function Fortune({ onClose }: { onClose: () => void }) {
+export type FortunePeer = { nick: string; avatar: string; card: number };
+
+export default function Fortune({ onClose, onPicked, peers = [] }: {
+  onClose: () => void; onPicked?: (card: number) => void; peers?: FortunePeer[];
+}) {
   const [picked, setPicked] = useState<number | null>(() => loadToday());
   const [flipping, setFlipping] = useState<number | null>(null);
   const order = shuffledFor(today());
@@ -48,6 +52,7 @@ export default function Fortune({ onClose }: { onClose: () => void }) {
       const card = order[slot];
       try { localStorage.setItem(KEY, JSON.stringify({ date: today(), card })); } catch { /* 무시 */ }
       setPicked(card);
+      onPicked?.(card);
       setFlipping(null);
     }, 650);
   };
@@ -74,6 +79,22 @@ export default function Fortune({ onClose }: { onClose: () => void }) {
           </div>
           <p className="hint">재미로 보는 운세예요 🙂</p>
         </>
+      )}
+      {peers.length > 0 && (
+        <div className="fortune-peers">
+          <p className="pick-label">광장 친구들의 오늘 카드</p>
+          <ul>
+            {peers.map((p, i) => {
+              const pc = CARDS[p.card];
+              return pc && (
+                <li key={i}>
+                  <span className="fortune-mini" style={{ background: pc.color }}>{pc.icon}</span>
+                  <div><b>{p.nick}</b> · {pc.name} 카드<small>{pc.text}</small></div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
       <button className="btn wide" onClick={onClose}>닫기</button>
     </Modal>

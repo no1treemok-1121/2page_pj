@@ -30,6 +30,10 @@
 - 트리 누르면 '소원 쓰기 / 소원함 보기' 선택. 내가 건 소원은 이 기기에서만 크게 반짝이고 '✨ 내 소원' 표시(localStorage `3d_pj.myWishes`).
 - 닉네임: 왼쪽 위 캐릭터 편집기에서도 변경(채팅과 같은 localStorage `3d_pj.chatNick`, 걸어 다니는 캐릭터 이름표에도 사용).
 - 실제 방문자가 쓰고 있음 — 테스트 데이터는 '[테스트]'로 시작하게 넣고 반드시 지울 것.
+- 마을 이벤트(`src/events.ts`): 2분 주기, 기기 시계 기준. 0~15초 트리 반짝임(`TreeLights`·`TreeStar` 무지개 물결), 60~75초 불꽃놀이(`src/Fireworks.tsx`) — 1분 간격이라 겹치지 않음. 화면 위 안내 배너.
+- 운세 공유: 뽑은 카드를 `village-walk` presence에 `fortune`으로 실어 보냄 → 이름표 옆 아이콘, 운세 창에 '광장 친구들의 오늘 카드'(지금 마을에 있는 사람만).
+- 채팅 말풍선: 광장 채팅을 보내면 broadcast `say` → 캐릭터 머리 위 4초.
+- 친구 액션: 다른 캐릭터를 누르면 메뉴(💥 들이받기 / ❄️ 눈덩이 / 🤗 안아주기), broadcast `act`. 들이받기 맞은 사람은 자기 화면에서 빙글 돌며 2.4만큼 밀려나고 위치를 공유.
 - 관리 방법: 환경에 저장된 Supabase 개인 접근 토큰(api.supabase.com, 프록시가 자동 주입)으로 Management API 사용. SQL 실행은 `POST https://api.supabase.com/v1/projects/{ref}/database/query` 에 `{"query": "..."}`. 토큰 권한은 좁음(프로젝트 목록 조회 불가, ref 직접 지정), 2026-11-20 발급·7일 만료 — 만료되면 새 토큰 발급을 안내.
 
 ## 배포

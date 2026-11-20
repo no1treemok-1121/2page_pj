@@ -10,7 +10,8 @@ import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup } from "./Avatar";
 import RandomLetters, { useRandomInbox } from "./RandomLetters";
 import Fortune from "./Fortune";
-import { EMOTES, MyWalker, OtherWalkers, useWalkers } from "./Walk";
+import { VillageEvent, currentEvent } from "./events";
+import { ACTIONS, EMOTES, MyWalker, OtherWalkers, Snowballs, useWalkers } from "./Walk";
 import { Avatar, loadMyAvatar, saveMyAvatar, toStr } from "./avatar";
 import { setRoomAvatar } from "./rooms";
 
@@ -44,6 +45,12 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const [walkTarget, setWalkTarget] = useState<[number, number] | null>(null);
   const [emoteOpen, setEmoteOpen] = useState(false);
   const [treeMenu, setTreeMenu] = useState(false);
+  const [actTarget, setActTarget] = useState<string | null>(null);
+  const [event, setEvent] = useState<VillageEvent>(() => currentEvent());
+  useEffect(() => {
+    const id = setInterval(() => setEvent(currentEvent()), 1000);
+    return () => clearInterval(id);
+  }, []);
   const [myWishIds, setMyWishIds] = useState<Set<string>>(() => loadMyWishIds());
   const [fortuneOpen, setFortuneOpen] = useState(action?.type === "fortune");
   const [lettersOpen, setLettersOpen] = useState(action?.type === "letters");
@@ -108,7 +115,8 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         <Scene wishes={wishes} mineIds={myWishIds} onTreeClick={() => setTreeMenu(true)} onWishClick={setViewing}
           onGround={(x, z) => setWalkTarget([x, z])} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
-        <OtherWalkers others={walk.others} emotes={walk.emotes} />
+        <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} onSelect={setActTarget} />
+        <Snowballs shots={walk.shots} />
         <OrbitControls
           enablePan={false}
           minDistance={6}
@@ -118,9 +126,15 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         />
       </Canvas>
 
+      {event && (
+        <div className="event-banner" key={event}>
+          {event === "sparkle" ? "✨ 트리가 반짝반짝 빛나는 시간이에요!" : "🎆 불꽃놀이가 시작됐어요! 트리 뒤 하늘을 보세요"}
+        </div>
+      )}
+
       <div className="title">
         <h1>눈 내리는 마을</h1>
-        <p>트리를 눌러 소원을 쓰거나 읽어 보세요<span className="sep"> · </span><br className="br-mobile" />땅을 누르면 내 캐릭터가 걸어가요</p>
+        <p>트리를 눌러 소원을 쓰거나 읽어 보세요<span className="sep"> · </span><br className="br-mobile" />땅을 누르면 걸어가고, 친구를 누르면 장난칠 수 있어요</p>
         {wishes.length > 0 && (
           <p className="count">
             {isShared ? "함께 건 소원" : "지금까지 걸린 소원"} {wishes.length}개
@@ -140,7 +154,23 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         <button className="emote-btn" onClick={() => setEmoteOpen((v) => !v)} aria-label="감정 표현">😊</button>
         <button className="emote-btn" onClick={() => setFortuneOpen(true)} aria-label="오늘의 운세">🔮</button>
       </div>
-      {fortuneOpen && <Fortune onClose={() => setFortuneOpen(false)} />}
+      {fortuneOpen && (
+        <Fortune onClose={() => setFortuneOpen(false)} onPicked={walk.setFortune}
+          peers={Object.values(walk.others).filter((w) => w.fortune != null).map((w) => ({ nick: w.nick, avatar: w.avatar, card: w.fortune as number }))} />
+      )}
+      {actTarget && walk.others[actTarget] && (
+        <Modal onClose={() => setActTarget(null)}>
+          <div className="act-head"><AvatarBadge value={walk.others[actTarget].avatar} size={44} /><h2>{walk.others[actTarget].nick}</h2></div>
+          <p className="hint">어떤 장난을 쳐 볼까요?</p>
+          <div className="act-grid">
+            {ACTIONS.map((a) => (
+              <button key={a.type} className="act-btn" onClick={() => { walk.act(a.type, actTarget); setActTarget(null); }}>
+                <span>{a.icon}</span>{a.label}
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
       {treeMenu && (
         <Modal onClose={() => setTreeMenu(false)}>
           <h2>🎄 소원 트리</h2>
@@ -162,7 +192,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         </button>
       </div>
 
-      {chatOpen && <ChatPanel chat={chat} avatar={myAvatar ? toStr(myAvatar) : null} defaultNick={myRoom?.nickname ?? ""} onClose={() => setChatOpen(false)} />}
+      {chatOpen && <ChatPanel chat={chat} onSent={walk.say} avatar={myAvatar ? toStr(myAvatar) : null} defaultNick={myRoom?.nickname ?? ""} onClose={() => setChatOpen(false)} />}
 
       {lettersOpen && <RandomLetters box={letters} myAvatar={myAvatar ? toStr(myAvatar) : null} notify={setNotice} onClose={() => setLettersOpen(false)} />}
 
