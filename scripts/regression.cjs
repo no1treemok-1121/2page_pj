@@ -74,7 +74,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   // ☰ 메뉴 항목
   await A.click('.menu-btn'); await A.waitForTimeout(300);
   const items = await A.$$eval('.menu .intro-card strong', x => x.map(e => e.textContent));
-  for (const need of ['소원 걸기', '소원함', '랜덤 편지', '마을 광장', '오늘의 운세', '썰매 타기', '빙판 썰매', '분식집', '붕어빵 노점', '코코아 노점', '낚시 도감', '포토존', '종 울리기', '연못 낚시', '모닥불 쬐기', '눈사람 만들기', '내 캐릭터'])
+  for (const need of ['소원 걸기', '소원함', '랜덤 편지', '마을 광장', '오늘의 운세', '썰매 타기', '빙판 썰매', '분식집', '붕어빵 노점', '코코아 노점', '낚시 도감', '포토존', '종 울리기', '개썰매 한 바퀴', '사슴썰매 한 바퀴', '연못 낚시', '모닥불 쬐기', '눈사람 만들기', '내 캐릭터'])
     check(`☰ 메뉴: ${need}`, items.some(i => i.includes(need)));
   // 썰매 (메뉴로)
   await A.click('.menu >> text=썰매 타기'); await A.waitForTimeout(1500);
@@ -97,7 +97,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   check('👊 목록에 NPC 포함', plist.filter(t => t.includes('NPC')).length === 4);
   await A.click('.people-list button:has-text("햄찌")'); await A.click('.act-btn:has-text("들이받기")'); await A.waitForTimeout(3000);
   check('NPC 들이받기: 아야', await seen(A, '아야'));
-  for (let i = 0; i < 4 && !(await A.$('.act-btn')); i++) { // NPC가 걷는 중이면 빗나갈 수 있어 몇 번 시도
+  for (let i = 0; i < 8 && !(await A.$('.act-btn')); i++) { // NPC가 걷는 중이면 빗나갈 수 있어 몇 번 시도
     const nt = await A.$$eval('.npc-tag', x => { const e = x.find(el => el.textContent.includes('루루')); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height + 40]; });
     if (nt) { await A.mouse.click(nt[0], nt[1]); await A.waitForTimeout(500); }
     if (!(await A.$('.act-btn'))) { await A.keyboard.press('Escape'); await A.waitForTimeout(1500); }
@@ -167,10 +167,37 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   // 장소 범위: 메뉴로 붕어빵 노점을 열면 먼저 걸어가서 도착 후 메뉴가 열림
   await A.click('.menu-btn'); await A.click('.menu >> text=붕어빵 노점');
   const walking = await A.textContent('.toast').catch(() => '');
-  check('장소 범위: 멀면 먼저 걸어감', walking.includes('걸어가는 중') || !!(await A.$('.snack-grid')), walking);
+  check('장소 범위: 멀면 먼저 걸어감', walking.includes('총총총') || !!(await A.$('.snack-grid')), walking);
   await A.waitForSelector('.snack-grid', { timeout: 15000 }).catch(() => null);
   check('장소 범위: 도착하면 메뉴', !!(await A.$('.snack-grid')));
   await A.keyboard.press('Escape');
+  // 🎥 카메라 따라가기 · 📍 내 위치 · 내 이름표 표시
+  check('카메라 따라가기 버튼(기본 ON)', (await A.textContent('.cam-btn').catch(() => '')).includes('ON'));
+  check('내 위치 버튼', !!(await A.$('.cam-btn[aria-label="내 위치"]')));
+  check('내 이름표 강조', !!(await A.$('.name-tag.mine')));
+  await A.click('.cam-btn[aria-label="카메라 따라가기"]'); await A.waitForTimeout(200);
+  check('카메라 따라가기 끄기', (await A.textContent('.cam-btn').catch(() => '')).includes('OFF'));
+  await A.click('.cam-btn[aria-label="카메라 따라가기"]'); await A.waitForTimeout(200);
+  check('카메라 따라가기 다시 켜기', (await A.textContent('.cam-btn').catch(() => '')).includes('ON'));
+  // 🐕 개썰매 한 바퀴: 걸어가서 타고, 상대에게 보이고, 땅을 누르면 내림
+  await A.click('.menu-btn'); await A.click('.menu >> text=개썰매 한 바퀴');
+  check('개썰매: 상대 화면 출발', await seen(B, '개썰매 출발', 15000));
+  const tags = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
+  check('썰매 정류장 표지 2개', tags.some(t => t.includes('개썰매')) && tags.some(t => t.includes('사슴썰매')));
+  await A.waitForTimeout(2500);
+  check('개썰매: 내리기 버튼', !!(await A.$('.ride-off')));
+  if (await A.$('.ride-off')) await A.click('.ride-off');
+  const off = (await A.textContent('.toast').catch(() => '')).includes('내렸어요');
+  check('개썰매: 내리면 안내', off);
+  check('개썰매 내림: 상대 화면 말풍선', await seen(B, '내릴게요'));
+  // 첫 입장 화면에 닉네임 입력 칸
+  {
+    const c = await b.newContext({ viewport: { width: 900, height: 600 } });
+    const p = await c.newPage();
+    await p.goto(BASE); await p.fill('.gate input', '1225'); await p.press('.gate input', 'Enter'); await p.waitForTimeout(400);
+    check('입장: 닉네임 입력 칸', !!(await p.$('.nick-field')));
+    await c.close();
+  }
   check('화면 오류 없음', errs.length === 0, errs.join(' | '));
   await b.close();
   for (const [r, n, d] of results) console.log(`${r}  ${n}${d ? '  (' + d + ')' : ''}`);

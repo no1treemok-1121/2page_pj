@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
+import * as THREE from "three";
 import Scene from "./Scene";
 import WishDialog from "./WishDialog";
 import { Wish, addWish, fetchWishes, isShared, loadMyWishIds, newWishDraft, rememberMyWish } from "./wishes";
@@ -13,10 +15,11 @@ import Fortune from "./Fortune";
 import { STALLS, SnackMenu } from "./Snack";
 import { CATCHES, loadDex, randomCatch } from "./Pond";
 import { BELL_SPOT, playChime } from "./Bell";
-import { RINK, SLED_PARK } from "./sled";
+import { RINK, SLED_PARK, TOUR_STATION, isTour } from "./sled";
+import { TourStation } from "./Tour";
 import { BENCHES, POND } from "./benches";
 import { VillageEvent, currentEvent } from "./events";
-import { ACTIONS, EMOTES, MyWalker, NPCS, Npcs, OtherWalkers, Snowballs, clampSpot, useWalkers } from "./Walk";
+import { ACTIONS, EMOTES, MyWalker, NPCS, Npcs, OtherWalkers, Snowballs, clampSpot, useWalkers, myWorldPos, myMoved } from "./Walk";
 import { toStr as avatarStr } from "./avatar";
 import { Snowman, Snowmen, useSnowmen } from "./Snowmen";
 import { Avatar, loadMyAvatar, saveMyAvatar, toStr } from "./avatar";
@@ -29,6 +32,39 @@ const isPortrait = typeof window !== "undefined" && window.innerWidth / window.i
 const CAMERA = isPortrait
   ? { position: [0, 3.5, 14] as [number, number, number], fov: 62 }
   : { position: [0, 3, 10] as [number, number, number], fov: 50 };
+
+// 🎥 카메라가 내 캐릭터를 따라감: 보는 각도·거리는 그대로 두고 함께 평행 이동
+const CAM_KEY = "3d_pj.camFollow";
+const _want = new THREE.Vector3();
+const _delta = new THREE.Vector3();
+function CameraFollow({ follow, snapAt }: { follow: boolean; snapAt: number }) {
+  const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update: () => void } | null;
+  useFrame(({ camera }, dt) => {
+    if (!controls) return;
+    const snapping = Date.now() - snapAt < 1200; // 📍 내 위치 버튼: 잠깐 동안 나에게로
+    if (!snapping && !(follow && myMoved.current)) return;
+    _want.set(myWorldPos.x, 1.2, myWorldPos.z);
+    _delta.copy(_want).sub(controls.target).multiplyScalar(Math.min(1, dt * (snapping ? 6 : 3.5)));
+    if (_delta.lengthSq() < 1e-8) return;
+    controls.target.add(_delta);
+    camera.position.add(_delta);
+    // 트리가 나를 가리면 카메라를 바깥쪽으로 천천히 돌려서 나를 보이게 함
+    const tx = controls.target.x, tz = controls.target.z;
+    const ox = camera.position.x - tx, oz = camera.position.z - tz;
+    const len2 = ox * ox + oz * oz;
+    if (len2 > 0.01) {
+      const k = Math.max(0, Math.min(1, -(tx * ox + tz * oz) / len2)); // 나→카메라 선분에서 트리(원점)에 가장 가까운 점
+      if (Math.hypot(tx + ox * k, tz + oz * k) < 2.6 && Math.hypot(tx, tz) > 2.6) {
+        const cur = Math.atan2(ox, oz), want = Math.atan2(tx, tz);
+        let d = want - cur; d = Math.atan2(Math.sin(d), Math.cos(d));
+        const a = cur + Math.sign(d) * Math.min(Math.abs(d), dt * 1.6), r = Math.sqrt(len2);
+        camera.position.x = tx + Math.sin(a) * r; camera.position.z = tz + Math.cos(a) * r;
+      }
+    }
+    controls.update();
+  });
+  return null;
+}
 
 function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action, myAvatar }: {
   onVisitRoom: (roomId: string) => void;
@@ -53,9 +89,18 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const [emoteOpen, setEmoteOpen] = useState(false);
   const [treeMenu, setTreeMenu] = useState(false);
   const [snackOpen, setSnackOpen] = useState<string | null>(null);
+  const [camFollow, setCamFollow] = useState(() => { try { return localStorage.getItem(CAM_KEY) !== "off"; } catch { return true; } });
+  const [snapAt, setSnapAt] = useState(0);
+  const toggleFollow = () => {
+    const v = !camFollow; setCamFollow(v);
+    try { localStorage.setItem(CAM_KEY, v ? "on" : "off"); } catch { /* 무시 */ }
+    if (v) { myMoved.current = true; setNotice("🎥 카메라가 내 캐릭터를 따라가요"); }
+    else setNotice("🎥 카메라 따라가기를 껐어요 (📍 버튼으로 내 위치 찾기)");
+  };
   // 장소 범위 규칙: 장소 기능은 그 장소에 가까이 있어야 함 → 멀면 먼저 걸어가고, 도착하면 실행
   const pending = useRef<number | null>(null);
   const goThen = (x: number, z: number, near: number, fn: () => void) => {
+    walk.stopRide();
     if (pending.current) clearInterval(pending.current);
     const me = walk.me.current;
     const d = Math.hypot(me.x - x, me.z - z);
@@ -63,7 +108,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     walk.standUp();
     const [tx, tz] = clampSpot(x + ((me.x - x) / d) * near, z + ((me.z - z) / d) * near);
     walk.goal.current = [tx, tz];
-    setNotice("걸어가는 중… 도착하면 시작해요 🚶");
+    setNotice("걸어가는 중, 총총총 🐾");
     const until = Date.now() + 15000;
     pending.current = window.setInterval(() => {
       const m = walk.me.current;
@@ -79,6 +124,10 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const stallOf = (id: string) => STALLS.find((s) => s.id === id) ?? STALLS[0];
   const openStall = (id: string) => { const st = stallOf(id).spot; goThen(st.x, st.z, 1.8, () => setSnackOpen(id)); };
   const rideHill = () => goThen(SLED_PARK.x, SLED_PARK.z, 1.2, () => walk.rideSled("hill"));
+  const rideTour = (kind: "dog" | "deer") => goThen(TOUR_STATION.x, TOUR_STATION.z, 1.6, () => {
+    walk.rideSled(kind);
+    setNotice("마을 한 바퀴 출발! 아무 곳이나 누르면 내려요 🛷");
+  });
   const rideIce = () => goThen(RINK.x, RINK.z, RINK.r + 0.6, () => walk.rideSled("ice"));
   const [dexOpen, setDexOpen] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -219,6 +268,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     if (action.type === "dex") setDexOpen(true);
     if (action.type === "photo") setTimeout(takePhoto, 400);
     if (action.type === "bell") setTimeout(ringBell, 300);
+    if (action.type === "dog" || action.type === "deer") { const k = action.type; setTimeout(() => rideTour(k), 300); }
     if (action.type === "fish") setTimeout(goFish, 300);
     if (action.type === "fire") setTimeout(() => warmUp(0), 300);
     if (action.type === "snowman") setTimeout(() => buildSnowmanRef.current(), 300);
@@ -273,7 +323,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         <color attach="background" args={["#0b1733"]} />
         <fog attach="fog" args={["#0b1733", 20, 58]} />
         <Scene wishes={wishes} mineIds={myWishIds} onTreeClick={() => setTreeMenu(true)} onWishClick={setViewing}
-          onGround={(x, z) => setWalkTarget([x, z])}
+          onGround={(x, z) => { if (walk.stopRide()) { setNotice("🛷 썰매에서 내렸어요"); return; } setWalkTarget([x, z]); }}
           onSled={rideHill}
           onIce={rideIce}
           onSnack={openStall}
@@ -281,13 +331,16 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           onBell={ringBell}
           bellAt={bellAt}
           onWarm={warmUp}
-          onBench={(i) => { walk.sitAt(i); setNotice("벤치로 가서 앉아요 🪑 움직이면 일어나요"); }} />
+          onBench={(i) => { walk.stopRide(); walk.sitAt(i); setNotice("벤치로 가서 앉아요 🪑 움직이면 일어나요"); }} />
+        <TourStation onRide={rideTour} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
         <Npcs walk={walk} onSelect={setActTarget} />
         <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} onSelect={setActTarget} />
         <Snowballs shots={walk.shots} />
         <Snowmen list={snowmen.list} smashed={snowmen.smashed} onClick={setSnowmanInfo} />
+        <CameraFollow follow={camFollow} snapAt={snapAt} />
         <OrbitControls
+          makeDefault
           enablePan={false}
           minDistance={6}
           maxDistance={isPortrait ? 30 : 26}
@@ -313,6 +366,13 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
         )}
       </div>
 
+      {walk.sledding && isTour(walk.mySledKind.current) && (
+        <button className="btn ride-off" onClick={() => { if (walk.stopRide()) setNotice("🛷 썰매에서 내렸어요"); }}>🛷 여기서 내리기</button>
+      )}
+      <div className="cam-wrap">
+        <button className={camFollow ? "cam-btn on" : "cam-btn"} onClick={toggleFollow} aria-label="카메라 따라가기" aria-pressed={camFollow}>🎥<small>{camFollow ? "ON" : "OFF"}</small></button>
+        <button className="cam-btn" onClick={() => setSnapAt(Date.now())} aria-label="내 위치">📍<small>나</small></button>
+      </div>
       <div className="emote-wrap">
         {emoteOpen && (
           <div className="emote-picker">
@@ -502,12 +562,12 @@ function CreateRoom({ onCreated, onClose }: { onCreated: (room: MyRoom) => void;
   );
 }
 
-type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell"; n: number } | null;
+type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer"; n: number } | null;
 const SETUP_KEY = "3d_pj.setupDone";
 
 // 오른쪽 위 ☰ 메뉴: 마을 소개와 바로가기
 function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
-  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
+  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -557,6 +617,12 @@ function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose }: {
           </button>
           <button className="intro-card" onClick={() => onAction("dex")}>
             <span>📖</span><strong>낚시 도감</strong><small>연못에서 낚은 것들을 모아 봐요</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("dog")}>
+            <span>🐕</span><strong>개썰매 한 바퀴</strong><small>산타 모자 쓴 리트리버·허스키가 마을을 크게 한 바퀴! 아무 곳이나 누르면 내려요</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("deer")}>
+            <span>🦌</span><strong>사슴썰매 한 바퀴</strong><small>산타 모자 쓴 숫사슴이 딸랑딸랑 마을 한 바퀴</small>
           </button>
           <button className="intro-card" onClick={() => onAction("bell")}>
             <span>🔔</span><strong>종 울리기</strong><small>트리 앞 금빛 종을 딩동댕~ 마을 모두에게 들려요</small>
@@ -623,7 +689,7 @@ export default function App() {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [villageAction, setVillageAction] = useState<VillageAction>(null);
-  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell") => {
+  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer") => {
     setMenuOpen(false);
     setVillageAction({ type, n: Date.now() });
     if (roomId) go(null);
