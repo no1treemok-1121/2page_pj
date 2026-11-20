@@ -1,73 +1,30 @@
-# Welcome to your Lovable project
+# 2page_pj
 
-## Project info
+이 저장소에는 두 개의 웹 프로젝트가 들어 있습니다.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+| 폴더 | 프로젝트 | 설명 |
+|---|---|---|
+| `/` (루트) | **2Page** | 24시간만 볼 수 있는 익명 기반 감성 SNS |
+| `3d_pj/` | **눈 내리는 마을** | 트리에 소원을 거는 3D 사이트 ([3d_pj/README.md](3d_pj/README.md)) |
 
-## How can I edit this code?
+두 프로젝트는 패키지와 빌드가 서로 분리되어 있습니다.
 
-There are several ways of editing your application.
+## 2Page 실행
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+npm install
+npm run dev      # http://localhost:8080
+npm run build    # dist/ 에 결과물
+npm test
 ```
 
-**Edit a file directly in GitHub**
+- 기술: Vite + React + TypeScript + Tailwind CSS + shadcn/ui
+- 데이터: Supabase (`src/integrations/supabase/`, 연결 정보는 `.env`)
+- 패키지 관리: npm (`package-lock.json`)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 배포 (Netlify)
 
-**Use GitHub Codespaces**
+- 2Page: Base directory 비움(루트) → `netlify.toml` 사용
+- 3D 사이트: Base directory `3d_pj` → `3d_pj/netlify.toml` 사용
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+배포 후 실제 주소가 정해지면 `index.html` 의 `og:image` 를 전체 주소(예: `https://도메인/og-image.png`)로 바꾸면 링크 미리보기가 더 안정적으로 보입니다.
