@@ -6,6 +6,7 @@ import WishDialog from "./WishDialog";
 import { Wish, addWish, fetchWishes, isShared, newWishDraft } from "./wishes";
 import RoomView, { Modal, ShareDialog } from "./RoomView";
 import { MyRoom, copyText, createRoom, loadMyRoom, saveMyRoom } from "./rooms";
+import ChatPanel, { useVillageChat } from "./Chat";
 
 const REFRESH_MS = 15000;
 
@@ -24,6 +25,8 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice }: {
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [writing, setWriting] = useState(false);
   const [viewing, setViewing] = useState<Wish | null>(null);
+  const chat = useVillageChat();
+  const [chatOpen, setChatOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -93,7 +96,13 @@ function VillageView({ onMyRoom, myRoom, notice, setNotice }: {
 
       <div className="bottom-bar">
         <button className="btn" onClick={onMyRoom}>{myRoom ? `🏠 ${myRoom.nickname}의 방` : "🏠 내 방 만들기"}</button>
+        <button className="btn chat-btn" onClick={() => setChatOpen(true)}>
+          💬 광장 {chat.online > 1 ? `(${chat.online}명)` : ""}
+          {chat.unread > 0 && <span className="badge">{chat.unread > 99 ? "99+" : chat.unread}</span>}
+        </button>
       </div>
+
+      {chatOpen && <ChatPanel chat={chat} defaultNick={myRoom?.nickname ?? ""} onClose={() => setChatOpen(false)} />}
 
       {writing && <WishDialog onSubmit={hangWish} onClose={() => setWriting(false)} />}
 
