@@ -10,6 +10,7 @@ import RoomView, { Modal, ShareDialog } from "./RoomView";
 import { LOGIN_RE, MyRoom, copyText, createRoom, forgetMyRoom, getRoom, getRoomLogin, loadMyRoom, loginRoom, rpc, saveMyRoom, setRoomLogin, setRoomName } from "./rooms";
 import { MAX_FOOD, normDecor, setRoomDecor } from "./decor";
 import { BUNGEO_SRC, IconText } from "./FoodIcon";
+import { IGLOO_DOOR, IglooCamera, IglooScene, VillageIgloo, useIgloo } from "./Igloo";
 import ChatPanel, { useVillageChat } from "./Chat";
 import { AvatarBadge, AvatarEditor, CharacterSetup, loadNickname } from "./Avatar";
 import RandomLetters, { useRandomInbox } from "./RandomLetters";
@@ -87,6 +88,9 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   // 걸어 다니는 캐릭터: 이름은 채팅 닉네임 → 방 닉네임 → 익명 순
   const walkNick = (() => { try { return localStorage.getItem("3d_pj.chatNick") || myRoom?.nickname || "익명"; } catch { return myRoom?.nickname || "익명"; } })();
   const walk = useWalkers(myAvatar, walkNick);
+  // ❄️ 이글루: 안에 들어가면 화면이 이글루 안으로 바뀜 (마을 채널은 그대로)
+  const [inIgloo, setInIgloo] = useState(false);
+  const igloo = useIgloo(inIgloo, walk.myKey, walkNick, myAvatar ? toStr(myAvatar) : null);
   const [walkTarget, setWalkTarget] = useState<[number, number] | null>(null);
   const [emoteOpen, setEmoteOpen] = useState(false);
   const [treeMenu, setTreeMenu] = useState(false);
@@ -159,7 +163,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   };
   autoTick.current = () => {
     const now = Date.now();
-    if (!autoOn || now - lastInput.current < 10000 || now - lastAuto.current < 7000) return;
+    if (inIgloo || !autoOn || now - lastInput.current < 10000 || now - lastAuto.current < 7000) return;
     if (walk.sledding || walk.goal.current || timers.current.length || pending.current || document.querySelector(".backdrop, .menu")) return;
     lastAuto.current = now;
     const r = Math.random();
@@ -180,6 +184,10 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const rideTour = (kind: "dog" | "deer") => goThen(TOUR_STATION.x, TOUR_STATION.z, 1.6, () => {
     walk.rideSled(kind);
     setNotice("마을 한 바퀴 출발! 아무 곳이나 누르면 내려요 🛷");
+  });
+  const enterIgloo = () => goThen(IGLOO_DOOR.x, IGLOO_DOOR.z, 0.6, () => {
+    setInIgloo(true);
+    walk.say("❄️ 이글루에 들어갔어요");
   });
   const rideIce = () => goThen(RINK.x, RINK.z, RINK.r + 0.6, () => walk.rideSled("ice"));
   const [dexOpen, setDexOpen] = useState(false);
@@ -340,6 +348,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
     if (action.type === "dex") setDexOpen(true);
     if (action.type === "photo") setTimeout(takePhoto, 400);
     if (action.type === "bell") setTimeout(ringBell, 300);
+    if (action.type === "igloo") setTimeout(enterIgloo, 300);
     if (action.type === "dog" || action.type === "deer") { const k = action.type; setTimeout(() => rideTour(k), 300); }
     if (action.type === "fish") setTimeout(goFish, 300);
     if (action.type === "fire") setTimeout(() => warmUp(0), 300);
@@ -391,6 +400,13 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
 
   return (
     <>
+      {inIgloo ? (
+        <Canvas camera={{ position: [0, isPortrait ? 5.2 : 4.2, isPortrait ? 7.2 : 6.2], fov: isPortrait ? 62 : 52 }} dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
+          <IglooScene people={igloo.people} myKey={walk.myKey} emotes={igloo.emotes} wishCount={wishes.length} onBoard={() => setTreeMenu(true)} />
+          <IglooCamera portrait={isPortrait} />
+          <OrbitControls makeDefault enablePan={false} target={[0, 1, -0.6]} minDistance={3} maxDistance={isPortrait ? 9.5 : 8} maxPolarAngle={Math.PI / 2.1} />
+        </Canvas>
+      ) : (
       <Canvas camera={CAMERA} dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
         <color attach="background" args={["#0b1733"]} />
         <fog attach="fog" args={["#0b1733", 20, 58]} />
@@ -405,6 +421,7 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           onWarm={warmUp}
           onBench={(i) => { walk.stopRide(); walk.sitAt(i); setNotice("벤치로 가서 앉아요 🪑 움직이면 일어나요"); }} />
         <TourStation onRide={rideTour} />
+        <VillageIgloo count={igloo.count} onEnter={enterIgloo} />
         <MyWalker walk={walk} target={walkTarget} avatar={myAvatar} />
         <Npcs walk={walk} onSelect={setActTarget} />
         <OtherWalkers others={walk.others} emotes={walk.emotes} says={walk.says} sleds={walk.sleds} onSelect={setActTarget} />
@@ -420,7 +437,9 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           target={[0, 2, 0]}
         />
       </Canvas>
+      )}
 
+      {!inIgloo && <>
       {event && (
         <div className="event-banner" key={event}>
           {event === "sparkle" ? "✨ 트리에 소원을 빌어요!" : event === "shooting" ? "🌠 별똥별이다! 소원을 빌어요" : "🎆 불꽃놀이가 시작됐어요!"}
@@ -463,6 +482,23 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
           👊{othersCount > 0 && <span className="badge">{othersCount}</span>}
         </button>
       </div>
+      </>}
+      {inIgloo && <>
+        <div className="title igloo-title">
+          <h1>❄️ 이글루</h1>
+          <p>지금 {igloo.people.length}명이 둘러앉아 있어요 · 📖 소원 방명록을 눌러 소원을 남겨요</p>
+        </div>
+        <div className="igloo-bar">
+          <div className="igloo-emotes">
+            {EMOTES.map((x) => <button key={x.e} title={x.label} onClick={() => igloo.emote(x.e)}>{x.e}</button>)}
+          </div>
+          <div className="igloo-actions">
+            <button className="btn ghost light" onClick={() => setInIgloo(false)}>← 마을로 나가기</button>
+            <button className="btn" onClick={() => setWriting(true)}>✏️ 소원 쓰기</button>
+            <button className="btn" onClick={() => setBoxOpen(true)}>📜 방명록</button>
+          </div>
+        </div>
+      </>}
       {fortuneOpen && (
         <Fortune onClose={() => setFortuneOpen(false)} onPicked={walk.setFortune}
           peers={Object.values(walk.others).filter((w) => w.fortune != null).map((w) => ({ nick: w.nick, avatar: w.avatar, card: w.fortune as number }))} />
@@ -706,13 +742,13 @@ function FindRoom({ onFound, onClose }: { onFound: (room: MyRoom) => void; onClo
   );
 }
 
-type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer"; n: number } | null;
+type VillageAction = { type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo"; n: number } | null;
 const SETUP_KEY = "3d_pj.setupDone";
 
 // 오른쪽 위 ☰ 메뉴: 마을 소개와 바로가기
 function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose, onFindRoom }: {
   onFindRoom: () => void;
-  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
+  myRoom: MyRoom | null; onAction: (t: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo") => void; onMyRoom: () => void; onCharacter: () => void; onClose: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -765,6 +801,9 @@ function Menu({ myRoom, onAction, onMyRoom, onCharacter, onClose, onFindRoom }: 
           </button>
           <button className="intro-card" onClick={() => onAction("dex")}>
             <span>📖</span><strong>낚시 도감</strong><small>연못에서 낚은 것들을 모아 봐요</small>
+          </button>
+          <button className="intro-card" onClick={() => onAction("igloo")}>
+            <span>❄️</span><strong>이글루</strong><small>누구나 들어가는 반짝반짝 이글루! 둘러앉아 소원 방명록을 써요</small>
           </button>
           <button className="intro-card" onClick={() => onAction("dog")}>
             <span>🐕</span><strong>개썰매 한 바퀴</strong><small>산타 모자 쓴 리트리버·허스키가 마을을 크게 한 바퀴! 아무 곳이나 누르면 내려요</small>
@@ -864,7 +903,7 @@ export default function App() {
   };
   const [menuOpen, setMenuOpen] = useState(false);
   const [villageAction, setVillageAction] = useState<VillageAction>(null);
-  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer") => {
+  const runAction = (type: "wish" | "chat" | "box" | "letters" | "fortune" | "sled" | "ice" | "snowman" | "snack" | "fish" | "fire" | "bungeo" | "cocoa" | "dex" | "photo" | "bell" | "dog" | "deer" | "igloo") => {
     setMenuOpen(false);
     setVillageAction({ type, n: Date.now() });
     if (roomId) go(null);

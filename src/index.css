@@ -453,3 +453,12 @@ a.btn { display: inline-block; text-decoration: none; text-align: center; box-si
 .name-row .field { flex: 1; min-width: 0; margin: 0; }
 .name-row span { font-size: 13px; white-space: nowrap; }
 .name-row .btn { padding: 8px 12px; font-size: 13px; }
+
+/* ❄️ 이글루 */
+.spot-tag.igloo { background: #3d78c9; }
+.igloo-title h1 { color: #e8f4ff; }
+.igloo-bar { position: fixed; z-index: 14; left: 0; right: 0; bottom: calc(76px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 12px; }
+.igloo-emotes { display: flex; gap: 4px; padding: 4px 8px; border-radius: 999px; background: rgba(13, 22, 48, 0.55); }
+.igloo-emotes button { width: 36px; height: 36px; border: none; background: none; font-size: 22px; cursor: pointer; }
+.igloo-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+@media (max-width: 520px) { .igloo-emotes button { width: 32px; height: 32px; font-size: 19px; } .igloo-actions .btn { padding: 8px 12px; font-size: 13px; } }

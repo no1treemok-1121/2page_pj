@@ -74,7 +74,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   // ☰ 메뉴 항목
   await A.click('.menu-btn'); await A.waitForTimeout(300);
   const items = await A.$$eval('.menu .intro-card strong', x => x.map(e => e.textContent));
-  for (const need of ['소원 걸기', '소원함', '랜덤 편지', '마을 광장', '오늘의 운세', '썰매 타기', '빙판 썰매', '분식집', '붕어빵 노점', '코코아 노점', '낚시 도감', '포토존', '종 울리기', '개썰매 한 바퀴', '사슴썰매 한 바퀴', '연못 낚시', '모닥불 쬐기', '눈사람 만들기', '내 캐릭터'])
+  for (const need of ['소원 걸기', '소원함', '랜덤 편지', '마을 광장', '오늘의 운세', '썰매 타기', '빙판 썰매', '분식집', '붕어빵 노점', '코코아 노점', '낚시 도감', '포토존', '종 울리기', '이글루', '개썰매 한 바퀴', '사슴썰매 한 바퀴', '연못 낚시', '모닥불 쬐기', '눈사람 만들기', '내 캐릭터'])
     check(`☰ 메뉴: ${need}`, items.some(i => i.includes(need)));
   // 썰매 (메뉴로)
   await A.click('.menu >> text=썰매 타기'); await A.waitForTimeout(1500);
@@ -235,6 +235,27 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     await c.close();
   }
   // 🔑 내 방 열쇠: 방 만들 때 아이디·비밀번호 → 다른 기기(새 창)에서 '내 방 찾기'로 들어가기
+  // ❄️ 이글루: 걸어가서 들어가기, 두 명이 서로 보임, 소원 방명록(트리 소원과 같은 창), 나가기
+  {
+    const tagA = await A.$$eval('.spot-tag', x => x.map(e => e.textContent));
+    check('이글루 표지', tagA.some(t => t.includes('이글루')));
+    await A.click('.menu-btn'); await A.click('.menu >> text=이글루');
+    await A.waitForSelector('.igloo-bar', { timeout: 25000 }).catch(() => null);
+    check('이글루: 걸어가서 안으로', !!(await A.$('.igloo-bar')));
+    await B.click('.menu-btn'); await B.click('.menu >> text=이글루');
+    await B.waitForSelector('.igloo-bar', { timeout: 25000 }).catch(() => null);
+    let both = false;
+    for (let i = 0; i < 15 && !both; i++) { await A.waitForTimeout(400); const t = await A.$$eval('.name-tag', x => x.map(e => e.textContent)); both = t.some(v => v.includes('[테스트]A')) && t.some(v => v.includes('[테스트]B')); }
+    check('이글루: 안에 있는 사람 서로 보임', both);
+    await B.click('.igloo-emotes button >> nth=1');
+    check('이글루: 감정 표현 보임', await seen(A, '❤️'));
+    await A.click('.igloo-actions >> text=소원 쓰기'); await A.waitForTimeout(300);
+    check('이글루: 소원 쓰기 창(트리와 같은 소원)', !!(await A.$('.backdrop .name-field')));
+    await A.keyboard.press('Escape'); await A.waitForTimeout(200);
+    if (await A.$('.backdrop .name-field')) await A.click('.backdrop', { position: { x: 5, y: 5 } });
+    await A.click('.igloo-actions >> text=마을로 나가기'); await B.click('.igloo-actions >> text=마을로 나가기'); await A.waitForTimeout(800);
+    check('이글루: 나가면 마을', !!(await A.$('.cam-wrap')));
+  }
   await A.context().close(); await B.context().close(); // 화면이 많으면 느려져서 먼저 닫음
   {
     const kid = 'tk' + Math.floor(Math.random() * 1e8), kpw = 'pw' + Math.floor(Math.random() * 1e6);
