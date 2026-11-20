@@ -197,7 +197,27 @@ function VillageView({ onMyRoom, onVisitRoom, myRoom, notice, setNotice, action,
   const [catReacts, setCatReacts] = useState<Record<number, CatReact>>({});
   walk.onCatRef.current = (id, kind) => setCatReacts((r) => ({ ...r, [id]: { kind, t: Date.now() } }));
   // 메뉴를 고르는 동안 고양이가 기다려 줌 (멀어지지 않게)
-  const tapCat = (id: number) => goThen(catPos[id].x, catPos[id].z, 0.9, () => { setCatReacts((r) => ({ ...r, [id]: { kind: "wait", t: Date.now() + 15000 } })); setCatMenu(id); });
+  // 고양이를 따라가서(고양이가 움직여도) 가까워지면 고양이가 멈추고 메뉴가 열림
+  const tapCat = (id: number) => {
+    if (pending.current) clearInterval(pending.current);
+    walk.stopRide(); walk.standUp();
+    const until = Date.now() + 20000;
+    const step = () => {
+      const m = walk.me.current, c = catPos[id];
+      const d = Math.hypot(c.x - m.x, c.z - m.z);
+      if (d < 1.3) {
+        clearInterval(pending.current!); pending.current = null; walk.goal.current = null;
+        setCatReacts((r) => ({ ...r, [id]: { kind: "wait", t: Date.now() + 15000 } }));
+        setCatMenu(id);
+        return;
+      }
+      if (Date.now() > until) { clearInterval(pending.current!); pending.current = null; return; }
+      walk.goal.current = clampSpot(c.x + ((m.x - c.x) / (d || 1)) * 0.8, c.z + ((m.z - c.z) / (d || 1)) * 0.8);
+    };
+    setNotice("고양이한테 가는 중, 총총총 🐾");
+    step();
+    pending.current = window.setInterval(step, 200);
+  };
   const careCat = (id: number, kind: string) => {
     setCatMenu(null);
     const c = CAT_CARE.find((x) => x.kind === kind);
