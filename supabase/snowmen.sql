@@ -25,3 +25,11 @@ end $$;
 drop trigger if exists snowman_before_insert on public.snowmen;
 create trigger snowman_before_insert before insert on public.snowmen
   for each row execute function public.snowman_before_insert();
+
+-- 눈사람 부수기: 누구나 부술 수 있음 (놀이)
+create or replace function public.smash_snowman(p_id uuid)
+returns void language sql security definer set search_path = public as $$
+  delete from snowmen where id = p_id;
+$$;
+revoke all on function public.smash_snowman(uuid) from public;
+grant execute on function public.smash_snowman(uuid) to anon, authenticated;

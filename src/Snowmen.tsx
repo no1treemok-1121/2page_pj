@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { supabase } from "./supabase";
+import { rpc } from "./rooms";
 
 // 눈사람: 광장에 만들면 24시간 동안 모두에게 보임 (supabase/snowmen.sql)
 export type Snowman = { id: string; x: number; z: number; ry: number; name: string; scarf: string; created_at: string };
@@ -31,13 +32,33 @@ export function useSnowmen() {
     setList((prev) => [data as Snowman, ...prev].slice(0, 40));
     return data as Snowman;
   };
-  return { list, load, build };
+  // 부수기: 0.9초 동안 와장창 흩어진 뒤 사라짐 (내가 부쉈으면 서버에서도 지움)
+  const [smashed, setSmashed] = useState<Record<string, number>>({});
+  const smash = (id: string, mine: boolean) => {
+    setSmashed((p) => ({ ...p, [id]: Date.now() }));
+    setTimeout(() => setList((p) => p.filter((s) => s.id !== id)), 950);
+    if (mine) rpc<void>("smash_snowman", { p_id: id }).catch(() => undefined);
+  };
+  return { list, load, build, smash, smashed };
 }
 
-function SnowmanMesh({ s, onClick }: { s: Snowman; onClick?: (s: Snowman) => void }) {
+function SnowmanMesh({ s, onClick, smashedAt }: { s: Snowman; onClick?: (s: Snowman) => void; smashedAt?: number }) {
   const g = useRef<THREE.Group>(null);
+  const parts = useRef<(THREE.Object3D | null)[]>([]);
   const born = useRef(Date.parse(s.created_at));
+  const dirs = useRef([0, 1, 2].map((i) => new THREE.Vector3(Math.cos(i * 2.1) * 1.6, 1.5 + i * 0.6, Math.sin(i * 2.1) * 1.6)));
   useFrame(() => {
+    if (smashedAt) {
+      // 와장창: 몸통 세 덩이가 사방으로 튀며 작아짐
+      const t = Math.min(1, (Date.now() - smashedAt) / 900);
+      parts.current.forEach((p, i) => {
+        if (!p) return;
+        const d = dirs.current[i];
+        p.position.set(d.x * t, p.userData.y0 + d.y * t - 4 * t * t, d.z * t);
+        p.scale.setScalar(Math.max(0.01, 1 - t));
+      });
+      return;
+    }
     // 막 만든 눈사람은 아래에서부터 쑥 자라남
     const age = (Date.now() - born.current) / 1000;
     if (g.current) g.current.scale.setScalar(age < 1.2 ? Math.max(0.05, Math.min(1, age / 1.2)) : 1);
@@ -47,9 +68,12 @@ function SnowmanMesh({ s, onClick }: { s: Snowman; onClick?: (s: Snowman) => voi
       onClick={(e) => { if (onClick && e.delta < 6) { e.stopPropagation(); onClick(s); } }}
       onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; }}
       onPointerOut={() => { document.body.style.cursor = "auto"; }}>
-      <mesh position={[0, 0.38, 0]}><sphereGeometry args={[0.42, 20, 16]} /><meshStandardMaterial color="#ffffff" roughness={1} /></mesh>
-      <mesh position={[0, 0.92, 0]}><sphereGeometry args={[0.3, 20, 16]} /><meshStandardMaterial color="#ffffff" roughness={1} /></mesh>
-      <mesh position={[0, 1.32, 0]}><sphereGeometry args={[0.22, 20, 16]} /><meshStandardMaterial color="#ffffff" roughness={1} /></mesh>
+      {[[0.38, 0.42], [0.92, 0.3], [1.32, 0.22]].map(([y, r], i) => (
+        <mesh key={i} ref={(m) => { parts.current[i] = m; if (m) m.userData.y0 = y; }} position={[0, y, 0]}>
+          <sphereGeometry args={[r, 20, 16]} /><meshStandardMaterial color="#ffffff" roughness={1} />
+        </mesh>
+      ))}
+      {smashedAt ? null : <>
       {/* 눈·단추 (석탄) */}
       {[-0.07, 0.07].map((x) => <mesh key={x} position={[x, 1.38, 0.2]}><sphereGeometry args={[0.03, 8, 8]} /><meshStandardMaterial color="#1b1b22" /></mesh>)}
       {[0.98, 0.86, 0.74].map((y) => <mesh key={y} position={[0, y, 0.29]}><sphereGeometry args={[0.03, 8, 8]} /><meshStandardMaterial color="#1b1b22" /></mesh>)}
@@ -63,10 +87,11 @@ function SnowmanMesh({ s, onClick }: { s: Snowman; onClick?: (s: Snowman) => voi
           <cylinderGeometry args={[0.015, 0.02, 0.45, 6]} /><meshStandardMaterial color="#5b3b28" />
         </mesh>
       ))}
+      </>}
     </group>
   );
 }
 
-export function Snowmen({ list, onClick }: { list: Snowman[]; onClick?: (s: Snowman) => void }) {
-  return <>{list.map((s) => <SnowmanMesh key={s.id} s={s} onClick={onClick} />)}</>;
+export function Snowmen({ list, onClick, smashed = {} }: { list: Snowman[]; onClick?: (s: Snowman) => void; smashed?: Record<string, number> }) {
+  return <>{list.map((s) => <SnowmanMesh key={s.id} s={s} onClick={onClick} smashedAt={smashed[s.id]} />)}</>;
 }
