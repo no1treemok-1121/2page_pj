@@ -137,6 +137,7 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
   await A.keyboard.press('Escape');
   await A.click('.menu-btn'); await A.click('.menu >> text=코코아 노점');
   await A.waitForSelector('.snack-grid', { timeout: 15000 }).catch(() => null);
+  check('노점: 내 방에 사 가기 선택', !!(await A.$('.take-mode')));
   check('코코아 노점 메뉴', (await A.$$('.snack-grid .act-btn')).length === 4);
   await A.keyboard.press('Escape');
   // 낚시 도감 · 포토존
@@ -225,9 +226,11 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     await C.click('.menu-btn'); await C.click('.menu >> text=내 방 만들기'); await C.waitForTimeout(300);
     const f = await C.$$('.backdrop .field');
     await f[0].fill('[테스트]열쇠'); await f[1].fill(kid); await f[2].fill(kpw);
+    check('내 방 창: 내 방 찾기 버튼이 맨 위에', !!(await C.$('.find-first')));
     await C.click('.backdrop button[type=submit]');
     await C.waitForSelector('text=[테스트]열쇠의 방', { timeout: 8000 }).catch(() => null);
     check('방 만들기: 아이디·비밀번호 입력 후 내 방', !!(await C.$('text=[테스트]열쇠의 방')));
+    await C.keyboard.press('Escape'); await C.waitForTimeout(300); // '내 방이 생겼어요' 창 닫기
     const D = await mk('[테스트]D');
     await D.click('.menu-btn'); await D.click('.menu >> text=내 방 찾기'); await D.waitForTimeout(300);
     const g = await D.$$('.find-room .field');
@@ -236,6 +239,38 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     await g[1].fill(kpw); await D.click('.find-room button[type=submit]');
     await D.waitForSelector('text=[테스트]열쇠의 방', { timeout: 8000 }).catch(() => null);
     check('내 방 찾기: 다른 기기에서 내 방(주인)', !!(await D.$('text=[테스트]열쇠의 방')) && !!(await D.$('.bottom-bar >> text=🔑 열쇠')));
+    // 🎨 방 꾸미기: 벽지 바꾸고 소품 놓고 저장 → 다른 기기(D)에서도 보임
+    await C.click('.bottom-bar >> text=🎨 꾸미기'); await C.waitForTimeout(400);
+    check('꾸미기 패널', !!(await C.$('.decor-panel')));
+    await C.click('.decor-panel .sw >> nth=1'); await C.click('.decor-panel .chip:has-text("선물 상자")');
+    await C.click('.decor-panel >> text=저장'); await C.waitForTimeout(1200);
+    check('꾸미기 저장 안내', (await C.textContent('.toast').catch(() => '')).includes('저장'));
+    // 같은 기기(C)에 다른 닉네임으로 새로 입장하면 '내 방이 맞나요?' → 내려놓기
+    {
+      const C2 = await C.context().newPage();
+      await C2.addInitScript(() => localStorage.setItem('3d_pj.chatNick', '[테스트]몽고양'));
+      await C2.goto(BASE); await C2.fill('.gate input', '1225'); await C2.press('.gate input', 'Enter'); await C2.waitForTimeout(400);
+      await C2.click('text=이 캐릭터로 입장'); await C2.waitForTimeout(1500);
+      check('다른 닉네임 입장: 내 방 맞나요? 질문', !!(await C2.$('.owner-ask')));
+      await C2.waitForTimeout(800);
+      if (await C2.$('.owner-ask')) await C2.click('text=아니요, 다른 사람이에요');
+      await C2.waitForTimeout(500);
+      await C2.click('.menu-btn'); await C2.waitForTimeout(300);
+      check('내려놓은 뒤 내 방 만들기로 바뀜', !!(await C2.$('.menu >> text=내 방 만들기')));
+      await C2.keyboard.press('Escape');
+    }
+    // D(같은 방 주인)에서 꾸미기 패널을 열면 선물 상자가 켜져 있음
+    await D.reload(); await D.waitForTimeout(500);
+    if (await D.$('.gate input')) { await D.fill('.gate input', '1225'); await D.press('.gate input', 'Enter'); await D.waitForTimeout(400); }
+    if (await D.$('text=이 캐릭터로 입장')) { await D.click('text=이 캐릭터로 입장'); await D.waitForTimeout(800); }
+    if (await D.$('.owner-ask')) { await D.click('text=네, 제 방이에요'); await D.waitForTimeout(300); }
+    await D.waitForSelector('.bottom-bar >> text=🎨 꾸미기', { timeout: 10000 }).catch(() => null);
+    await D.click('.bottom-bar >> text=🎨 꾸미기'); await D.waitForTimeout(400);
+    check('꾸미기: 다른 기기에서도 저장된 소품', !!(await D.$('.decor-panel .chip.on:has-text("선물 상자")')));
+    await D.click('.decor-panel >> text=취소');
+    // 열쇠 창의 로그아웃 버튼 (D: 열쇠로 들어온 기기)
+    await D.click('.bottom-bar >> text=🔑 열쇠'); await D.waitForTimeout(1200);
+    check('열쇠 창: 이 기기에서 로그아웃 버튼', !!(await D.$('.leave-btn:not([disabled])')));
     await C.context().close(); await D.context().close();
     // 테스트로 만든 방 지우기 (Supabase 관리 API, 토큰은 환경 프록시가 넣어 줌)
     try {

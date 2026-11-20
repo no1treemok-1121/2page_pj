@@ -1,3 +1,5 @@
+import { DEFAULT_DECOR, Decor, foodById } from "./decor";
+import { Html } from "@react-three/drei";
 import { useEffect, useRef, useState } from "react";
 import { ThreeEvent, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
@@ -91,7 +93,95 @@ function Fireplace() {
   );
 }
 
-export default function RoomScene({ letterCount, onMailbox, avatar, alert }: { letterCount: number; onMailbox: () => void; avatar: Avatar; alert?: boolean }) {
+// 🎨 꾸미기 소품
+function Garland({ kind }: { kind: "warm" | "rainbow" }) {
+  const g = useRef<THREE.Group>(null);
+  const colors = kind === "warm" ? ["#ffd36b", "#ffe9a8"] : ["#ff5a5a", "#ffd84d", "#7dff9a", "#7fe0ff", "#ff9ff3"];
+  useFrame(({ clock }) => {
+    const on = Math.floor(clock.elapsedTime * 2) % 2;
+    g.current?.children.forEach((c, i) => { ((c as THREE.Mesh).material as THREE.MeshStandardMaterial).emissiveIntensity = kind === "warm" ? 1.4 + Math.sin(clock.elapsedTime * 2 + i) * 0.4 : (i % 2 === on ? 2 : 0.5); });
+  });
+  const pts: [number, number, number][] = [];
+  for (let i = 0; i <= 20; i++) { const x = -2.8 + i * 0.28; pts.push([x, 3.15 - Math.abs(Math.sin((i / 20) * Math.PI * 3)) * 0.25, -2.45]); }
+  for (let i = 1; i <= 14; i++) { const z = -2.45 + i * 0.36; pts.push([-2.85, 3.15 - Math.abs(Math.sin((i / 14) * Math.PI * 2)) * 0.25, z]); }
+  return (
+    <group ref={g}>
+      {pts.map((p, i) => (
+        <mesh key={i} position={p}><sphereGeometry args={[0.045, 8, 6]} /><meshStandardMaterial color={colors[i % colors.length]} emissive={colors[i % colors.length]} emissiveIntensity={1} /></mesh>
+      ))}
+    </group>
+  );
+}
+
+function Table({ food, candle }: { food: string[]; candle: boolean }) {
+  return (
+    <group position={[0.85, 0, -1.45]}>
+      <mesh position={[0, 0.62, 0]}><cylinderGeometry args={[0.6, 0.6, 0.06, 24]} /><meshStandardMaterial color="#7a4e2d" /></mesh>
+      <mesh position={[0, 0.66, 0]}><cylinderGeometry args={[0.55, 0.55, 0.01, 24]} /><meshStandardMaterial color="#f4ece0" /></mesh>
+      <mesh position={[0, 0.3, 0]}><cylinderGeometry args={[0.06, 0.08, 0.6, 8]} /><meshStandardMaterial color="#6b4423" /></mesh>
+      <mesh position={[0, 0.02, 0]}><cylinderGeometry args={[0.3, 0.3, 0.04, 16]} /><meshStandardMaterial color="#6b4423" /></mesh>
+      {candle && <>
+        <mesh position={[0, 0.78, 0]}><cylinderGeometry args={[0.05, 0.05, 0.22, 10]} /><meshStandardMaterial color="#fff6e0" /></mesh>
+        <mesh position={[0, 0.93, 0]}><coneGeometry args={[0.03, 0.09, 8]} /><meshStandardMaterial color="#ffb347" emissive="#ff9a2a" emissiveIntensity={2.5} /></mesh>
+        <pointLight position={[0, 1.1, 0]} color="#ffb347" intensity={1.5} distance={3} />
+      </>}
+      {food.map((id, i) => {
+        const f = foodById(id); if (!f) return null;
+        const a = (i / Math.max(food.length, 1)) * Math.PI * 2 + 0.4;
+        return (
+          <group key={i} position={[Math.cos(a) * 0.36, 0.67, Math.sin(a) * 0.36]}>
+            <mesh position={[0, 0.01, 0]}><cylinderGeometry args={[0.13, 0.11, 0.02, 14]} /><meshStandardMaterial color="#ffffff" /></mesh>
+            <Html pointerEvents="none" position={[0, 0.16, 0]} center distanceFactor={4.5} zIndexRange={[3, 0]}><div className="food-emoji">{f.emoji}</div></Html>
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
+function Gifts() {
+  return (
+    <group position={[-1.6, 0, -0.1]}>
+      {[[0, 0, "#d62f2f", 0.32], [0.38, 0.15, "#3d6fb6", 0.24], [-0.15, 0.35, "#f2c14e", 0.2]].map(([x, z, c, s], i) => (
+        <group key={i} position={[x as number, (s as number) / 2, z as number]} rotation={[0, i * 0.5, 0]}>
+          <mesh><boxGeometry args={[s as number, s as number, s as number]} /><meshStandardMaterial color={c as string} /></mesh>
+          <mesh><boxGeometry args={[(s as number) + 0.01, (s as number) + 0.01, 0.05]} /><meshStandardMaterial color="#ffffff" /></mesh>
+          <mesh><boxGeometry args={[0.05, (s as number) + 0.01, (s as number) + 0.01]} /><meshStandardMaterial color="#ffffff" /></mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function Stockings() {
+  return (
+    <group position={[-1.6, 1.05, -2.02]}>
+      {[[-0.35, "#d62f2f"], [0.05, "#2f7a4b"], [0.45, "#3d6fb6"]].map(([x, c]) => (
+        <group key={x as number} position={[x as number, 0, 0]}>
+          <mesh position={[0, -0.12, 0]}><boxGeometry args={[0.13, 0.26, 0.06]} /><meshStandardMaterial color={c as string} /></mesh>
+          <mesh position={[0.05, -0.27, 0]}><boxGeometry args={[0.2, 0.1, 0.06]} /><meshStandardMaterial color={c as string} /></mesh>
+          <mesh position={[0, 0.02, 0]}><boxGeometry args={[0.15, 0.06, 0.07]} /><meshStandardMaterial color="#ffffff" /></mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function SnowmanDoll() {
+  return (
+    <group position={[-0.5, 0, -2.05]} scale={0.8}>
+      <mesh position={[0, 0.22, 0]}><sphereGeometry args={[0.24, 16, 12]} /><meshStandardMaterial color="#ffffff" /></mesh>
+      <mesh position={[0, 0.56, 0]}><sphereGeometry args={[0.17, 16, 12]} /><meshStandardMaterial color="#ffffff" /></mesh>
+      <mesh position={[0, 0.58, 0.16]} rotation={[Math.PI / 2, 0, 0]}><coneGeometry args={[0.03, 0.12, 8]} /><meshStandardMaterial color="#ff8a3d" /></mesh>
+      {[-0.06, 0.06].map((x) => <mesh key={x} position={[x, 0.63, 0.15]}><sphereGeometry args={[0.02, 6, 6]} /><meshStandardMaterial color="#1b1b1b" /></mesh>)}
+      <mesh position={[0, 0.44, 0]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.15, 0.04, 8, 16]} /><meshStandardMaterial color="#d62f2f" /></mesh>
+      <mesh position={[0, 0.75, 0]}><cylinderGeometry args={[0.1, 0.12, 0.16, 12]} /><meshStandardMaterial color="#1b1b1b" /></mesh>
+    </group>
+  );
+}
+
+export default function RoomScene({ letterCount, onMailbox, avatar, alert, decor = DEFAULT_DECOR }: { letterCount: number; onMailbox: () => void; avatar: Avatar; alert?: boolean; decor?: Decor }) {
+  const side = new THREE.Color(decor.wall).multiplyScalar(0.93).getStyle();
   return (
     <>
       <ambientLight intensity={0.45} color="#ffe6c7" />
@@ -99,20 +189,20 @@ export default function RoomScene({ letterCount, onMailbox, avatar, alert }: { l
       {/* 바닥 */}
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[6, 6]} />
-        <meshStandardMaterial color="#9c6b4a" />
+        <meshStandardMaterial color={decor.floor} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0.3]}>
         <circleGeometry args={[1.4, 32]} />
-        <meshStandardMaterial color="#b8405e" />
+        <meshStandardMaterial color={decor.rug} />
       </mesh>
       {/* 벽 */}
       <mesh position={[0, 1.75, -2.6]}>
         <boxGeometry args={[6, 3.5, 0.2]} />
-        <meshStandardMaterial color="#efe0c9" />
+        <meshStandardMaterial color={decor.wall} />
       </mesh>
       <mesh position={[-3, 1.75, 0]}>
         <boxGeometry args={[0.2, 3.5, 6]} />
-        <meshStandardMaterial color="#e6d3b8" />
+        <meshStandardMaterial color={side} />
       </mesh>
       {/* 창문 (밖은 눈 내리는 밤) */}
       <group position={[1.2, 2, -2.48]}>
@@ -136,8 +226,14 @@ export default function RoomScene({ letterCount, onMailbox, avatar, alert }: { l
         </mesh>
       </group>
       <Fireplace />
+      {decor.lights !== "none" && <Garland kind={decor.lights} />}
+      {decor.table && <Table food={decor.food} candle={decor.candle} />}
+      {!decor.table && decor.candle && <Table food={[]} candle />}
+      {decor.gift && <Gifts />}
+      {decor.stocking && <Stockings />}
+      {decor.snowman && <SnowmanDoll />}
       {/* 작은 트리 */}
-      <group position={[-2.1, 0, -0.6]}>
+      {decor.tree && <group position={[-2.1, 0, -0.6]}>
         <mesh position={[0, 0.7, 0]}>
           <coneGeometry args={[0.5, 1.2, 12]} />
           <meshStandardMaterial color="#2f7a4b" />
@@ -146,7 +242,10 @@ export default function RoomScene({ letterCount, onMailbox, avatar, alert }: { l
           <octahedronGeometry args={[0.1]} />
           <meshStandardMaterial color="#ffd36b" emissive="#ffb300" emissiveIntensity={1.5} />
         </mesh>
-      </group>
+        {[[0.25, 0.5, "#ff5a5a"], [-0.2, 0.7, "#7fe0ff"], [0.1, 0.95, "#ffd84d"], [-0.28, 0.4, "#ffd84d"]].map(([x, y, c], i) => (
+          <mesh key={i} position={[x as number, y as number, 0.25 - (y as number) * 0.12]}><sphereGeometry args={[0.05, 8, 6]} /><meshStandardMaterial color={c as string} emissive={c as string} emissiveIntensity={0.6} /></mesh>
+        ))}
+      </group>}
       <Mailbox onClick={onMailbox} count={letterCount} alert={alert} />
       <Character3D avatar={avatar} position={[-0.2, 0, 0.5]} />
     </>

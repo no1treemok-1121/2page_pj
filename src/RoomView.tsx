@@ -2,6 +2,7 @@ import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import RoomScene from "./RoomScene";
+import { DEFAULT_DECOR, Decor, FLOORS, MAX_FOOD, PROPS, RUGS, WALLS, foodById, normDecor, setRoomDecor } from "./decor";
 import { Avatar, DEFAULT_AVATAR, parseAvatar } from "./avatar";
 import {
   LOGIN_RE, Letter, MyRoom, RoomInfo, copyText, deleteLetter, getLetters, getRoom, getRoomLogin, ownerLink, roomLink, sendLetter, setRoomLogin,
@@ -96,14 +97,16 @@ type Props = {
   onGoVillage: () => void;
   onGoMyRoom: () => void;
   notify: (msg: string) => void;
+  onLeaveRoom?: () => void;
   onNickname: (nickname: string) => void;
   myAvatar: Avatar | null;
 };
 
-export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, notify, onNickname, myAvatar }: Props) {
+export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, notify, onNickname, myAvatar, onLeaveRoom }: Props) {
   const isOwner = myRoom?.roomId === roomId;
   const [info, setInfo] = useState<RoomInfo | null | undefined>(undefined);
-  const [dialog, setDialog] = useState<"write" | "box" | "share" | "visitor" | "sent" | "key" | null>(null);
+  const [dialog, setDialog] = useState<"write" | "box" | "share" | "visitor" | "sent" | "key" | "decor" | null>(null);
+  const [preview, setPreview] = useState<Decor | null>(null); // 꾸미는 중 미리 보기
   // 열쇠(아이디·비밀번호)가 없는 주인에게 한 번 알려 주기
   useEffect(() => {
     if (myRoom?.roomId !== roomId) return;
@@ -151,7 +154,7 @@ export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, noti
     <>
       <Canvas camera={{ position: [3.2, 3, 4.6], fov: 50 }} dpr={[1, 2]}>
         <color attach="background" args={["#2a1e1a"]} />
-        <RoomScene letterCount={info?.letterCount ?? 0} onMailbox={onMailbox} alert={hasNew}
+        <RoomScene letterCount={info?.letterCount ?? 0} onMailbox={onMailbox} alert={hasNew} decor={preview ?? normDecor(info?.decor)}
           avatar={(isOwner && myAvatar) || parseAvatar(info?.avatar) || DEFAULT_AVATAR} />
         <OrbitControls enablePan={false} target={[0, 1, -0.5]} minDistance={3} maxDistance={8}
           minAzimuthAngle={-0.2} maxAzimuthAngle={1.3} maxPolarAngle={Math.PI / 2.2} />
@@ -171,6 +174,7 @@ export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, noti
             <button className="btn" onClick={openBox}>편지함 ({info?.letterCount ?? 0})</button>
             <button className="btn" onClick={() => setDialog("share")}>내 방 공유</button>
             <button className="btn" onClick={() => setDialog("key")}>🔑 열쇠</button>
+            <button className="btn" onClick={() => { setPreview(normDecor(info?.decor)); setDialog("decor"); }}>🎨 꾸미기</button>
           </>
         ) : (
           <>
@@ -220,7 +224,19 @@ export default function RoomView({ roomId, myRoom, onGoVillage, onGoMyRoom, noti
           }} />
       )}
       {dialog === "share" && myRoom && <ShareDialog room={myRoom} onCopy={copy} onClose={() => setDialog(null)} />}
-      {dialog === "key" && myRoom && <KeyDialog room={myRoom} onCopy={copy} onClose={() => setDialog(null)} />}
+      {dialog === "decor" && myRoom && preview && (
+        <DecorPanel decor={preview} onChange={setPreview}
+          onCancel={() => { setPreview(null); setDialog(null); }}
+          onSave={async () => {
+            try {
+              await setRoomDecor(myRoom, preview);
+              setInfo((i) => (i ? { ...i, decor: preview } : i));
+              notify("🎨 방 꾸미기를 저장했어요");
+              setPreview(null); setDialog(null);
+            } catch (e) { notify((e as Error).message); }
+          }} />
+      )}
+      {dialog === "key" && myRoom && <KeyDialog room={myRoom} onCopy={copy} onClose={() => setDialog(null)} onLeave={onLeaveRoom} />}
     </>
   );
 }
@@ -239,18 +255,67 @@ export function ShareDialog({ room, onCopy, onClose, first }: {
   );
 }
 
-export function KeyDialog({ room, onCopy, onClose }: { room: MyRoom; onCopy: (text: string, label: string) => void; onClose: () => void }) {
+// 🎨 방 꾸미기 패널: 아래쪽에 떠서 방이 바뀌는 걸 보면서 고름 (저장 전까지는 나에게만 보임)
+function DecorPanel({ decor, onChange, onSave, onCancel }: { decor: Decor; onChange: (d: Decor) => void; onSave: () => void; onCancel: () => void }) {
+  const set = (p: Partial<Decor>) => onChange({ ...decor, ...p });
+  const swatches = (list: string[], cur: string, key: "wall" | "floor" | "rug") => (
+    <div className="swatches">{list.map((c) => <button key={c} className={c === cur ? "sw on" : "sw"} style={{ background: c }} onClick={() => set({ [key]: c } as Partial<Decor>)} aria-label={c} />)}</div>
+  );
+  return (
+    <div className="decor-panel">
+      <h3>🎨 방 꾸미기 <small>바꾸면 바로 방에 보여요</small></h3>
+      <div className="decor-body">
+        <p className="pick-label">벽지</p>{swatches(WALLS, decor.wall, "wall")}
+        <p className="pick-label">바닥</p>{swatches(FLOORS, decor.floor, "floor")}
+        <p className="pick-label">러그</p>{swatches(RUGS, decor.rug, "rug")}
+        <p className="pick-label">소품 (눌러서 놓기·치우기)</p>
+        <div className="chips">
+          {PROPS.map((p) => <button key={p.key} className={decor[p.key] ? "chip on" : "chip"} onClick={() => set({ [p.key]: !decor[p.key] } as Partial<Decor>)}>{p.emoji} {p.name}</button>)}
+        </div>
+        <p className="pick-label">💡 꼬마전구</p>
+        <div className="chips">
+          {([["none", "끄기"], ["warm", "🟡 따뜻한 빛"], ["rainbow", "🌈 알록달록"]] as const).map(([k, n]) => (
+            <button key={k} className={decor.lights === k ? "chip on" : "chip"} onClick={() => set({ lights: k })}>{n}</button>
+          ))}
+        </div>
+        <p className="pick-label">🍽️ 테이블 위 음식 ({decor.food.length}/{MAX_FOOD})</p>
+        {decor.food.length ? (
+          <div className="chips">
+            {decor.food.map((id, i) => { const f = foodById(id); return f && (
+              <button key={i} className="chip on" onClick={() => set({ food: decor.food.filter((_, j) => j !== i) })}>{f.emoji} {f.name} ✕</button>
+            ); })}
+          </div>
+        ) : <p className="hint small">비어 있어요. 마을 노점에서 <b>🏠 내 방에 사 가기</b>를 고르면 테이블에 놓여요.</p>}
+      </div>
+      <div className="actions center">
+        <button className="btn ghost" onClick={() => onChange({ ...DEFAULT_DECOR })}>↺ 초기화</button>
+        <button className="btn ghost" onClick={onCancel}>취소</button>
+        <button className="btn" onClick={onSave}>저장</button>
+      </div>
+    </div>
+  );
+}
+
+export function KeyDialog({ room, onCopy, onClose, onLeave }: { room: MyRoom; onCopy: (text: string, label: string) => void; onClose: () => void; onLeave?: () => void }) {
+  const [hasKey, setHasKey] = useState<boolean | null>(null);
+  useEffect(() => { getRoomLogin(room).then((l) => setHasKey(!!l)).catch(() => setHasKey(false)); }, [room]);
   return (
     <Modal onClose={onClose}>
       <h2>🔑 내 방 열쇠</h2>
-      <KeySection room={room} onCopy={onCopy} />
+      <KeySection room={room} onCopy={onCopy} onSaved={() => setHasKey(true)} />
+      {onLeave && (
+        <>
+          <button className="btn ghost wide leave-btn" disabled={!hasKey} onClick={onLeave}>🚪 이 기기에서 로그아웃 (다른 사람이 쓸 때)</button>
+          {hasKey === false && <p className="hint small">열쇠를 먼저 만들어야 로그아웃할 수 있어요 (다시 찾을 때 필요해요).</p>}
+        </>
+      )}
       <button className="btn ghost wide" onClick={onClose}>닫기</button>
     </Modal>
   );
 }
 
 // 🔑 아이디·비밀번호: 다른 휴대폰·컴퓨터에서 ☰ 메뉴 → '내 방 찾기'로 다시 들어올 때 씀
-function KeySection({ room, onCopy }: { room: MyRoom; onCopy: (text: string, label: string) => void }) {
+function KeySection({ room, onCopy, onSaved }: { room: MyRoom; onCopy: (text: string, label: string) => void; onSaved?: () => void }) {
   const [login, setLogin] = useState<string | null | undefined>(undefined); // undefined = 불러오는 중
   const [editing, setEditing] = useState(false);
   const [id, setId] = useState("");
@@ -264,7 +329,7 @@ function KeySection({ room, onCopy }: { room: MyRoom; onCopy: (text: string, lab
     if (!LOGIN_RE.test(id.trim())) { setError("아이디는 한글·영어·숫자로 3~16자로 해 주세요. (띄어쓰기·기호 안 돼요)"); return; }
     if (pw.length < 4) { setError("비밀번호는 4자 이상으로 해 주세요."); return; }
     setBusy(true); setError("");
-    try { setLogin(await setRoomLogin(room, id, pw)); setEditing(false); setPw(""); }
+    try { setLogin(await setRoomLogin(room, id, pw)); setEditing(false); setPw(""); onSaved?.(); }
     catch (err) { setError((err as Error).message); }
     setBusy(false);
   };
