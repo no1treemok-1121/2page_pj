@@ -4,6 +4,8 @@ import { Stars } from "@react-three/drei";
 import * as THREE from "three";
 import { currentEvent } from "./events";
 import { BENCHES } from "./benches";
+import { HILL, SLED_PARK } from "./sled";
+import { Html } from "@react-three/drei";
 
 // 매번 같은 마을 배치가 나오도록 고정된 난수
 function seeded(seed: number) {
@@ -122,6 +124,63 @@ function SmallPine({ position, scale }: { position: [number, number, number]; sc
 }
 
 // 트리에 감긴 반짝이 전구
+// 썰매 (마을에 세워 둔 것 / 타고 내려올 때 공용)
+export function SledMesh() {
+  return (
+    <group>
+      <mesh position={[0, 0.16, 0]}>
+        <boxGeometry args={[0.55, 0.06, 1.0]} />
+        <meshStandardMaterial color="#c0392b" />
+      </mesh>
+      {[-0.24, 0.24].map((x) => (
+        <group key={x}>
+          <mesh position={[x, 0.05, 0]}>
+            <boxGeometry args={[0.04, 0.04, 1.05]} />
+            <meshStandardMaterial color="#d9b44a" metalness={0.6} roughness={0.3} />
+          </mesh>
+          <mesh position={[x, 0.13, 0.52]} rotation={[Math.PI / 2, 0, Math.PI / 2]}>
+            <torusGeometry args={[0.08, 0.02, 6, 12, Math.PI]} />
+            <meshStandardMaterial color="#d9b44a" metalness={0.6} roughness={0.3} />
+          </mesh>
+          {[-0.3, 0.3].map((z) => (
+            <mesh key={z} position={[x, 0.1, z]}>
+              <boxGeometry args={[0.04, 0.1, 0.04]} />
+              <meshStandardMaterial color="#5a3a2e" />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function SledHill({ onSled }: { onSled?: () => void }) {
+  const click = (e: { delta: number; stopPropagation: () => void }) => { if (onSled && e.delta < 6) { e.stopPropagation(); onSled(); } };
+  const hover = {
+    onPointerOver: (e: { stopPropagation: () => void }) => { e.stopPropagation(); document.body.style.cursor = "pointer"; },
+    onPointerOut: () => { document.body.style.cursor = "auto"; },
+  };
+  return (
+    <group>
+      <mesh position={[HILL.x, -0.2, HILL.z]} scale={[HILL.r, HILL.h + 0.2, HILL.r]} onClick={click} {...hover}>
+        <sphereGeometry args={[1, 28, 16, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color="#f2f6fc" roughness={1} />
+      </mesh>
+      <group position={[SLED_PARK.x, 0, SLED_PARK.z]} rotation={[0, -0.6, 0]} onClick={click} {...hover}>
+        <SledMesh />
+        {/* 누르기 쉽게 썰매 주변을 넓게 감싼 투명 영역 */}
+        <mesh position={[0, 0.5, 0]}>
+          <boxGeometry args={[1.6, 1.2, 1.8]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+        <Html pointerEvents="none" position={[0, 0.75, 0]} center distanceFactor={9} zIndexRange={[4, 0]}>
+          <div className="spot-tag">🛷 썰매 타기</div>
+        </Html>
+      </group>
+    </group>
+  );
+}
+
 // 눈 쌓인 나무 벤치 (누르면 앉기)
 function Bench({ x, z, ry, onClick }: { x: number; z: number; ry: number; onClick?: () => void }) {
   return (
@@ -203,7 +262,7 @@ export function TreeLights({ count = 46 }) {
   );
 }
 
-export default function Village({ onGround, onBench }: { onGround?: (x: number, z: number) => void; onBench?: (i: number) => void }) {
+export default function Village({ onGround, onBench, onSled }: { onGround?: (x: number, z: number) => void; onBench?: (i: number) => void; onSled?: () => void }) {
   const layout = useMemo(() => {
     const rand = seeded(7);
     // 트리를 둘러싼 집들 (카메라 정면 쪽은 비워 두어 트리가 잘 보이게)
@@ -270,6 +329,7 @@ export default function Village({ onGround, onBench }: { onGround?: (x: number, 
         <House key={i} {...h} />
       ))}
       {BENCHES.map((b, i) => <Bench key={i} {...b} onClick={onBench && (() => onBench(i))} />)}
+      <SledHill onSled={onSled} />
       {layout.lamps.map((p, i) => (
         <Lamp key={i} position={p} />
       ))}

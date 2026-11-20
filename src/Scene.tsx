@@ -67,7 +67,7 @@ function Ornament({ wish, onClick, mine }: { wish: Wish; onClick: (w: Wish) => v
             <meshBasicMaterial color="#ffe08a" transparent opacity={0.35} depthWrite={false} />
           </mesh>
           <pointLight color="#ffd36b" intensity={3} distance={2.2} />
-          <Html position={[0, 0.42, 0]} center distanceFactor={8} zIndexRange={[4, 0]}>
+          <Html pointerEvents="none" position={[0, 0.42, 0]} center distanceFactor={8} zIndexRange={[4, 0]}>
             <div className="my-wish-tag">✨ 내 소원</div>
           </Html>
         </>
@@ -177,37 +177,80 @@ function Tree({ onClick }: { onClick: () => void }) {
   );
 }
 
-function Snow({ count = 1500 }) {
+// 동그랗고 가장자리가 부드러운 눈송이 그림 (네모 점 대신)
+function useFlakeTexture() {
+  return useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const g = c.getContext("2d")!;
+    const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grd.addColorStop(0, "rgba(255,255,255,1)");
+    grd.addColorStop(0.45, "rgba(255,255,255,0.85)");
+    grd.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 64, 64);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }, []);
+}
+
+// 자연스러운 눈: 송이마다 떨어지는 속도·크기가 다르고, 좌우로 살랑살랑 흔들리며 바람에 살짝 날림
+function SnowLayer({ count, size, speed }: { count: number; size: number; speed: number }) {
   const ref = useRef<THREE.Points>(null);
-  const positions = useMemo(() => {
-    const arr = new Float32Array(count * 3);
+  const tex = useFlakeTexture();
+  const { positions, seeds } = useMemo(() => {
+    const positions = new Float32Array(count * 3);
+    const seeds = new Float32Array(count * 4); // 기준 x, 기준 z, 흔들림 위상, 속도 배율
     for (let i = 0; i < count; i++) {
-      arr[i * 3] = (Math.random() - 0.5) * 30;
-      arr[i * 3 + 1] = Math.random() * 15;
-      arr[i * 3 + 2] = (Math.random() - 0.5) * 30;
+      seeds[i * 4] = (Math.random() - 0.5) * 34;
+      seeds[i * 4 + 1] = (Math.random() - 0.5) * 34;
+      seeds[i * 4 + 2] = Math.random() * Math.PI * 2;
+      seeds[i * 4 + 3] = 0.6 + Math.random() * 0.8;
+      positions[i * 3] = seeds[i * 4];
+      positions[i * 3 + 1] = Math.random() * 16;
+      positions[i * 3 + 2] = seeds[i * 4 + 1];
     }
-    return arr;
+    return { positions, seeds };
   }, [count]);
 
-  useFrame((_, delta) => {
+  useFrame(({ clock }, delta) => {
     const pts = ref.current;
     if (!pts) return;
+    const t = clock.elapsedTime;
+    const wind = Math.sin(t * 0.15) * 0.35; // 천천히 바뀌는 약한 바람
     const pos = pts.geometry.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < count; i++) {
-      let y = pos.getY(i) - delta * 0.8;
-      if (y < 0) y = 15;
-      pos.setY(i, y);
+      const ph = seeds[i * 4 + 2], sp = seeds[i * 4 + 3];
+      let y = pos.getY(i) - delta * speed * sp;
+      if (y < 0) {
+        y = 16;
+        seeds[i * 4] = (Math.random() - 0.5) * 34;
+        seeds[i * 4 + 1] = (Math.random() - 0.5) * 34;
+      }
+      const sway = Math.sin(t * (0.8 + sp * 0.6) + ph) * 0.35;
+      const drift = (16 - y) * wind * 0.12;
+      pos.setXYZ(i, seeds[i * 4] + sway + drift, y, seeds[i * 4 + 1] + Math.cos(t * 0.7 + ph) * 0.25);
     }
     pos.needsUpdate = true;
   });
 
   return (
-    <points ref={ref}>
+    <points ref={ref} raycast={() => null}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
-      <pointsMaterial color="#ffffff" size={0.08} transparent opacity={0.9} />
+      <pointsMaterial map={tex} color="#ffffff" size={size} sizeAttenuation transparent opacity={0.95} depthWrite={false} alphaTest={0.01} />
     </points>
+  );
+}
+
+function Snow() {
+  return (
+    <>
+      <SnowLayer count={900} size={0.12} speed={0.7} />
+      <SnowLayer count={350} size={0.22} speed={1.0} />
+    </>
   );
 }
 
@@ -217,15 +260,16 @@ type SceneProps = {
   onWishClick: (w: Wish) => void;
   onGround?: (x: number, z: number) => void;
   onBench?: (i: number) => void;
+  onSled?: () => void;
   mineIds?: Set<string>;
 };
 
-export default function Scene({ wishes, onTreeClick, onWishClick, onGround, onBench, mineIds }: SceneProps) {
+export default function Scene({ wishes, onTreeClick, onWishClick, onGround, onBench, onSled, mineIds }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.35} color="#9fb4ff" />
       <directionalLight position={[5, 10, 5]} intensity={0.6} />
-      <Village onGround={onGround} onBench={onBench} />
+      <Village onGround={onGround} onBench={onBench} onSled={onSled} />
       <Tree onClick={onTreeClick} />
       <TreeLights />
       {wishes.map((w) => (

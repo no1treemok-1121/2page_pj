@@ -39,6 +39,7 @@
 - 친구 액션: 다른 캐릭터를 누르면 메뉴(💥 들이받기 / ❄️ 눈덩이 / 🤗 안아주기), broadcast `act`. 들이받기 맞은 사람은 자기 화면에서 빙글 돌며 2.4만큼 밀려나고 위치를 공유.
 - 벤치(`src/benches.ts`): 4개, 트리 가까이(휴대폰 세로 화면에서도 보이게), 모두 화면 쪽을 바라봄. 앉으면 presence/pos에 `sit` 전달.
 - 👊 장난치기 버튼: 광장 사람 목록 → 액션 메뉴. 이벤트는 각 30초.
+- 썰매(`src/sled.ts`): 언덕 (7.2,-3.6), 세워 둔 썰매 SLED_PARK (5.7,-0.5) — 벤치 앞에 두면 벤치가 대신 눌림(실제로 겪음). broadcast `sled`. 눈사람(`supabase/snowmen.sql`, `src/Snowmen.tsx`): 24시간, broadcast `snowman`으로 다른 사람이 즉시 다시 불러옴.
 - 관리 방법: 환경에 저장된 Supabase 개인 접근 토큰(api.supabase.com, 프록시가 자동 주입)으로 Management API 사용. SQL 실행은 `POST https://api.supabase.com/v1/projects/{ref}/database/query` 에 `{"query": "..."}`. 토큰 권한은 좁음(프로젝트 목록 조회 불가, ref 직접 지정), 2026-11-20 발급·7일 만료 — 만료되면 새 토큰 발급을 안내.
 
 ## 배포
