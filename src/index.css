@@ -345,3 +345,28 @@ html, body, #root {
 
 /* 팝업 창은 캐릭터 이름표·말풍선(3D 위에 뜨는 글자)보다 항상 위에 */
 .backdrop { z-index: 50; }
+
+/* 2분마다 열리는 마을 이벤트 안내 */
+.event-banner { position: fixed; z-index: 16; left: 50%; top: calc(150px + env(safe-area-inset-top)); transform: translateX(-50%); max-width: calc(100% - 32px); padding: 8px 16px; border-radius: 999px; background: linear-gradient(90deg, #ffd36b, #ff9ff3, #7fe0ff); color: #1b1b2b; font-size: 14px; font-weight: 700; white-space: nowrap; box-shadow: 0 6px 24px rgba(255, 211, 107, 0.5); pointer-events: none; animation: banner-in 0.5s cubic-bezier(.2,1.4,.4,1), banner-glow 1.2s ease-in-out infinite; }
+@keyframes banner-in { from { opacity: 0; transform: translate(-50%, -12px) scale(0.9); } }
+@keyframes banner-glow { 50% { box-shadow: 0 6px 32px rgba(255, 159, 243, 0.8); } }
+@media (max-width: 520px) { .event-banner { font-size: 12.5px; white-space: normal; text-align: center; top: calc(128px + env(safe-area-inset-top)); } }
+
+/* 광장 친구들의 오늘 카드 */
+.fortune-peers { margin-top: 14px; text-align: left; }
+.fortune-peers ul { list-style: none; margin: 0; padding: 0; max-height: 30vh; overflow-y: auto; }
+.fortune-peers li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 2px; border-bottom: 1px solid #ece4d4; font-size: 14px; }
+.fortune-peers small { display: block; margin-top: 2px; color: #6f6a60; font-size: 12.5px; line-height: 1.5; }
+.fortune-mini { flex-shrink: 0; width: 30px; height: 42px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+
+/* 채팅 말풍선 (캐릭터 머리 위) */
+.say-bubble { position: relative; max-width: 180px; padding: 6px 10px; border-radius: 14px; background: #fff; color: #2a2a35; font-size: 13px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 4px 14px rgba(0,0,0,0.3); pointer-events: none; animation: emote-pop 0.3s cubic-bezier(.2,1.6,.4,1); }
+.say-bubble::after { content: ""; position: absolute; left: 50%; bottom: -6px; margin-left: -6px; border: 6px solid transparent; border-bottom: 0; border-top-color: #fff; }
+
+/* 친구에게 액션 */
+.act-head { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.act-head h2 { margin: 0; }
+.act-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px; }
+.act-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 4px; border: none; border-radius: 14px; background: #f1ebde; color: #2a2a35; font: inherit; font-size: 13.5px; cursor: pointer; }
+.act-btn span { font-size: 28px; }
+.act-btn:active { transform: scale(0.95); }

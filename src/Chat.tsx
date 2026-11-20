@@ -79,7 +79,8 @@ function merge(a: ChatMessage[], b: ChatMessage[]) {
 const time = (iso: string) =>
   new Date(iso).toLocaleTimeString("ko-KR", { hour: "numeric", minute: "2-digit" });
 
-export default function ChatPanel({ chat, defaultNick, avatar, onClose }: {
+export default function ChatPanel({ chat, defaultNick, avatar, onClose, onSent }: {
+  onSent?: (text: string) => void;
   chat: ReturnType<typeof useVillageChat>;
   avatar: string | null;
   defaultNick: string;
@@ -115,6 +116,7 @@ export default function ChatPanel({ chat, defaultNick, avatar, onClose }: {
     setErr(null);
     try {
       await chat.send(nick, body, avatar); setText("");
+      onSent?.(body);
       const ta = document.querySelector<HTMLTextAreaElement>(".chat-input"); if (ta) ta.style.height = "auto";
     }
     catch (e2) { setErr((e2 as Error).message); }
