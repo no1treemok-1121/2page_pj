@@ -256,14 +256,14 @@ const check = (name, ok, detail = '') => { results.push([ok ? 'PASS' : 'FAIL', n
     await A.waitForSelector('.cat-menu', { timeout: 25000 }).catch(() => null);
     const catOk = !!(await A.$('.cat-menu'));
     check('고양이 찾아가기 → 돌보기 메뉴(간식·쓰다듬기·놀아주기)', catOk && (await A.$$('.cat-menu .act-btn')).length === 3);
-    if (catOk) { await A.click('.cat-menu .act-btn >> nth=0'); check('고양이 간식 주기: 상대 화면 말풍선', await seen(B, '간식 먹자', 6000)); }
+    if (catOk) { await A.click('.cat-menu .act-btn >> nth=0'); const okA = await seen(A, '간식 먹자', 3000); const toastA = await A.textContent('.toast').catch(() => ''); check('고양이 간식 주기: 상대 화면 말풍선', await seen(B, '간식 먹자', 6000), 'A:' + okA + ' toast:' + toastA + ' B:' + (await bubbles(B)).join(',')); }
   }
   // 🎈 풍선 가게: 걸어가서 하트 풍선 사기 → 상대 화면 말풍선
   await A.click('.menu-btn'); await A.click('.menu >> text=풍선 가게');
   await A.waitForSelector('.snack-grid', { timeout: 20000 }).catch(() => null);
   check('풍선 가게 메뉴 4가지', (await A.$$('.snack-grid .act-btn')).length === 4);
   if (await A.$('.snack-grid')) await A.click('.snack-grid >> text=하트 풍선');
-  check('풍선: 상대 화면 말풍선', await seen(B, '풍선'));
+  { const okA = await seen(A, '풍선', 2000); check('풍선: 상대 화면 말풍선', await seen(B, '풍선', 6000), 'A:' + okA + ' B:' + (await bubbles(B)).join(',')); }
   { const tg = await A.$$eval('.spot-tag', x => x.map(e => e.textContent)); check('썰매 언덕 2곳', tg.filter(t => t.includes('썰매 타기')).length === 2, tg.join(',')); }
   // ❄️ 이글루: 걸어가서 들어가기, 두 명이 서로 보임, 소원 방명록(트리 소원과 같은 창), 나가기
   {
